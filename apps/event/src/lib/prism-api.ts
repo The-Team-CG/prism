@@ -1,5 +1,6 @@
 import {
   createEventOpsClient,
+  createPmcmClient,
   resolvePrismApiOrigin,
   prismRequest,
   type PrismRequestInit,
@@ -38,6 +39,13 @@ export function storedEventAccessToken() {
 
 /** Role-scoped API client construction. Feature operations live in feature data adapters. */
 export const eventApi = createEventOpsClient({
+  getAuthToken: storedEventAccessToken,
+  onUnauthorized: expireEventSession,
+  onPrivacyNoticeRequired: showEventPrivacyNotice,
+});
+
+/** PMCM routes that have moved to shared route contracts (ADR-0011): only routes PMCM may call, with checked answers. */
+export const pmcmApi = createPmcmClient({
   getAuthToken: storedEventAccessToken,
   onUnauthorized: expireEventSession,
   onPrivacyNoticeRequired: showEventPrivacyNotice,

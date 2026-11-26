@@ -17,7 +17,6 @@ export {
   type CreateFloorPlanPreferenceInput,
   type CreateSupplierApplicationInput,
   type SupplierApplicationStatusQuery,
-  type EventOpsActorQuery,
   type EventOpsClient,
   type EventOpsClientOptions,
 } from "./event-ops-client";
@@ -42,3 +41,4 @@ export async function prismJson<T>(path: string, init?: PrismRequestInit): Promi
 }
 export { uploadStorageObject, uploadCommunicationAttachment, getEventCoverImage, getStorageObjectDownload, copyStorageObject, copyStorageObjectToThread, deleteStorageObject, searchClientStoredFiles, setStorageObjectExpiry, type StorageClientOptions, type StorageUploadIntent, type StorageObjectDownload } from './storage-client';
 export { prismFile, type PrismFile } from "./http";
+export { PrismContractError, bindRoutes, callRoute, createPmcmClient, type PrismPmcmClient, type PrismRouteCallInit } from "./route-client";

@@ -72,10 +72,6 @@ export const eventOpsClient = createEventOpsClient({
 /** Authenticated, role-scoped API client for feature data adapters. Feature operations stay in the feature data folders. */
 export const supplierApi = eventOpsClient;
 
-function actorFromSession(session: PrismAuthenticatedSession) {
-  return { actorRole: "supplier" as const, actorName: session.name, actorEmail: session.email };
-}
-
 export const prismApi = {
   /**
    * Revokes the stored session on the server. A 401 here must not run expireSupplierSession:
@@ -96,10 +92,10 @@ export const prismApi = {
     eventOpsClient.supplierWorkspace.readinessBoard(),
   submitQuote: (token: string, input: SubmitSupplierQuoteInput) => eventOpsClient.supplierWorkspace.submitQuoteByLink(token, input),
   reviseQuote: (token: string, input: SubmitSupplierQuoteInput) => eventOpsClient.supplierWorkspace.reviseQuoteByLink(token, input),
-  confirmAssignment: (session: PrismAuthenticatedSession, requestId: string) =>
-    eventOpsClient.supplierWorkspace.confirmAssignment(requestId, actorFromSession(session)),
-  confirmReadiness: (session: PrismAuthenticatedSession, requestId: string, notes: string) =>
-    eventOpsClient.supplierWorkspace.confirmReadiness(requestId, { notes }, actorFromSession(session)),
+  confirmAssignment: (_session: PrismAuthenticatedSession, requestId: string) =>
+    eventOpsClient.supplierWorkspace.confirmAssignment(requestId),
+  confirmReadiness: (_session: PrismAuthenticatedSession, requestId: string, notes: string) =>
+    eventOpsClient.supplierWorkspace.confirmReadiness(requestId, { notes }),
   createSupplierApplication: (input: CreateSupplierApplicationInput): Promise<PrismSupplierApplication> =>
     eventOpsClient.supplierApplications.create(input),
   getSupplierApplicationStatus: (
@@ -107,22 +103,22 @@ export const prismApi = {
     signal?: AbortSignal,
   ): Promise<PrismSupplierApplicationStatusResult> =>
     eventOpsClient.supplierApplications.getStatus(input, { signal }),
-  fileRequirements: (eventId: string, session: PrismAuthenticatedSession) =>
-    eventOpsClient.events.fileRequirements(eventId, actorFromSession(session)),
+  fileRequirements: (eventId: string, _session: PrismAuthenticatedSession) =>
+    eventOpsClient.events.fileRequirements(eventId),
   listSupplierCategories: (): Promise<{ id: string; name: string }[]> =>
     eventOpsClient.supplierApplications.listCategories(),
-  communicationInbox: (session: PrismAuthenticatedSession, query?: Partial<CommunicationInboxQuery>) =>
-    eventOpsClient.communication.listInbox(query, actorFromSession(session)),
-  communicationThread: (threadId: string, session: PrismAuthenticatedSession) =>
-    eventOpsClient.communication.getThread(threadId, actorFromSession(session)),
-  communicationUnreadCount: (session: PrismAuthenticatedSession) =>
-    eventOpsClient.communication.unreadCount({}, actorFromSession(session)),
-  createCommunicationThread: (eventId: string, subject: string, session: PrismAuthenticatedSession) =>
-    eventOpsClient.communication.createThread({ eventId, subject }, actorFromSession(session)),
-  sendCommunicationMessage: (threadId: string, body: string, idempotencyKey: string, session: PrismAuthenticatedSession, attachmentObjectIds: string[] = []) =>
-    eventOpsClient.communication.sendMessage(threadId, { body, attachmentObjectIds, idempotencyKey }, actorFromSession(session)),
-  communicationMessages: (threadId: string, cursor: string | undefined, limit: number | undefined, session: PrismAuthenticatedSession) =>
-    eventOpsClient.communication.listMessages(threadId, { cursor, limit }, actorFromSession(session)),
-  markCommunicationThreadRead: (threadId: string, session: PrismAuthenticatedSession) =>
-    eventOpsClient.communication.markThreadRead(threadId, actorFromSession(session)),
+  communicationInbox: (_session: PrismAuthenticatedSession, query?: Partial<CommunicationInboxQuery>) =>
+    eventOpsClient.communication.listInbox(query),
+  communicationThread: (threadId: string, _session: PrismAuthenticatedSession) =>
+    eventOpsClient.communication.getThread(threadId),
+  communicationUnreadCount: (_session: PrismAuthenticatedSession) =>
+    eventOpsClient.communication.unreadCount({}),
+  createCommunicationThread: (eventId: string, subject: string, _session: PrismAuthenticatedSession) =>
+    eventOpsClient.communication.createThread({ eventId, subject }),
+  sendCommunicationMessage: (threadId: string, body: string, idempotencyKey: string, _session: PrismAuthenticatedSession, attachmentObjectIds: string[] = []) =>
+    eventOpsClient.communication.sendMessage(threadId, { body, attachmentObjectIds, idempotencyKey }),
+  communicationMessages: (threadId: string, cursor: string | undefined, limit: number | undefined, _session: PrismAuthenticatedSession) =>
+    eventOpsClient.communication.listMessages(threadId, { cursor, limit }),
+  markCommunicationThreadRead: (threadId: string, _session: PrismAuthenticatedSession) =>
+    eventOpsClient.communication.markThreadRead(threadId),
 };

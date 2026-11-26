@@ -20,35 +20,34 @@ import type {
   PrismInquiry,
   PrismPortalInvitationResend,
 } from "@prism/types";
-import type { EventOpsActorQuery } from "./primitives";
 
 export interface EventOpsInquiryContract {
   inquiries: {
-    list(actor?: EventOpsActorQuery): Promise<PrismInquiry[]>;
+    list(): Promise<PrismInquiry[]>;
     create(input: CreatePrismInquiryInput): Promise<PrismInquiry>;
     resendPortalInvitation(inquiryId: string): Promise<PrismPortalInvitationResend>;
-    updateStatus(inquiryId: string, input: UpdateInquiryStatusInput, actor?: EventOpsActorQuery): Promise<PrismInquiry>;
-    merge(primaryInquiryId: string, input: { sourceInquiryId: string; reason: string }, actor?: EventOpsActorQuery): Promise<PrismInquiryMergeRecord>;
-    logOnBehalf(input: LogInquiryOnBehalfInput, actor?: EventOpsActorQuery): Promise<PrismInquiry>;
-    sendConformeReminder(inquiryId: string, actor?: EventOpsActorQuery): Promise<PrismInquiry>;
-    uploadConforme(inquiryId: string, input: UploadConformeInput, actor?: EventOpsActorQuery): Promise<PrismDocument>;
-    setIntakePath(inquiryId: string, input: SetInquiryIntakePathInput, actor?: EventOpsActorQuery): Promise<PrismInquiry>;
-    setLanguage(inquiryId: string, input: SetClientLanguageInput, actor?: EventOpsActorQuery): Promise<PrismInquiry>;
-    companyNameChanges(inquiryId: string, actor?: EventOpsActorQuery): Promise<PrismCompanyNameChange[]>;
-    updateCompanyName(inquiryId: string, input: UpdateInquiryCompanyNameInput, actor?: EventOpsActorQuery): Promise<PrismCompanyNameChange>;
-    contextNotes(inquiryId: string, actor?: EventOpsActorQuery): Promise<PrismInquiryContextNote[]>;
-    addContextNote(inquiryId: string, input: CreateInquiryContextNoteInput, actor?: EventOpsActorQuery): Promise<PrismInquiryContextNote>;
+    updateStatus(inquiryId: string, input: UpdateInquiryStatusInput): Promise<PrismInquiry>;
+    merge(primaryInquiryId: string, input: { sourceInquiryId: string; reason: string }): Promise<PrismInquiryMergeRecord>;
+    logOnBehalf(input: LogInquiryOnBehalfInput): Promise<PrismInquiry>;
+    sendConformeReminder(inquiryId: string): Promise<PrismInquiry>;
+    uploadConforme(inquiryId: string, input: UploadConformeInput): Promise<PrismDocument>;
+    setIntakePath(inquiryId: string, input: SetInquiryIntakePathInput): Promise<PrismInquiry>;
+    setLanguage(inquiryId: string, input: SetClientLanguageInput): Promise<PrismInquiry>;
+    companyNameChanges(inquiryId: string): Promise<PrismCompanyNameChange[]>;
+    updateCompanyName(inquiryId: string, input: UpdateInquiryCompanyNameInput): Promise<PrismCompanyNameChange>;
+    contextNotes(inquiryId: string): Promise<PrismInquiryContextNote[]>;
+    addContextNote(inquiryId: string, input: CreateInquiryContextNoteInput): Promise<PrismInquiryContextNote>;
     /** Context notes carried from the inquiry into its pre-conforme event record. */
-    preConformeContext(eventId: string, actor?: EventOpsActorQuery): Promise<PrismInquiryContextNote[]>;
+    preConformeContext(eventId: string): Promise<PrismInquiryContextNote[]>;
     /** The locked pre-conforme record of an inquiry, or `eventId: null` when none exists yet. */
-    existingPreConformeWorkspace(inquiryId: string, actor?: EventOpsActorQuery): Promise<{ eventId: string | null }>;
-    createPreConformeWorkspace(inquiryId: string, actor?: EventOpsActorQuery): Promise<{ eventId: string }>;
-    latestConformeExecution(inquiryId: string, actor?: EventOpsActorQuery): Promise<PrismConformeExecution>;
-    createConformeExecution(inquiryId: string, input: CreateConformeExecutionInput, actor?: EventOpsActorQuery): Promise<PrismConformeExecution>;
-    signConformeExecution(inquiryId: string, executionId: string, input: SignConformeExecutionInput, actor?: EventOpsActorQuery): Promise<PrismConformeExecution>;
+    existingPreConformeWorkspace(inquiryId: string): Promise<{ eventId: string | null }>;
+    createPreConformeWorkspace(inquiryId: string): Promise<{ eventId: string }>;
+    latestConformeExecution(inquiryId: string): Promise<PrismConformeExecution>;
+    createConformeExecution(inquiryId: string, input: CreateConformeExecutionInput): Promise<PrismConformeExecution>;
+    signConformeExecution(inquiryId: string, executionId: string, input: SignConformeExecutionInput): Promise<PrismConformeExecution>;
     /** The AI triage review as the API returns it; the caller parses it into its own model. */
-    triageReview(inquiryId: string, actor?: EventOpsActorQuery): Promise<unknown>;
-    runTriage(inquiryId: string, actor?: EventOpsActorQuery): Promise<unknown>;
+    triageReview(inquiryId: string): Promise<unknown>;
+    runTriage(inquiryId: string): Promise<unknown>;
   };
 
   conformeDrafts: {

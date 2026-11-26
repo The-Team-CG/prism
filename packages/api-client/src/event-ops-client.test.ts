@@ -747,19 +747,17 @@ describe("prismRequest", () => {
     );
   });
 
-  it("keeps a route's own query intact when actor context is added", async () => {
+  it("keeps the event and the filters in one thread-list query", async () => {
     vi.stubGlobal("window", undefined);
     const fetchMock = vi.fn(async () => new Response(JSON.stringify([]), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
     const client = createEventOpsClient({ baseUrl: "https://api.example.test/api" });
 
-    await client.communication.listThreads("evt_1", { status: "closed", q: "load-in" }, { actorRole: "supplier", actorName: "Ops" });
+    await client.communication.listThreads("evt_1", { status: "closed", q: "load-in" });
 
-    // A second `?` turned the event ID into `evt_1?actorRole=supplier`, which the API reported as "Event not found".
     const url = new URL(String((fetchMock.mock.calls[0] as unknown as [string])[0]));
     expect(url.searchParams.get("eventId")).toBe("evt_1");
-    expect(url.searchParams.get("actorRole")).toBe("supplier");
-    // Paging and search travel with the event, and the page request does not leak into the actor context.
+    // Paging and search travel with the event.
     expect(url.searchParams.get("status")).toBe("closed");
     expect(url.searchParams.get("q")).toBe("load-in");
   });
@@ -1417,15 +1415,15 @@ describe("createEventOpsClient", () => {
     }));
   });
 
-  it("sends actor query params for event lists", async () => {
+  it("pages the event list with a cursor", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify([]), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
     const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
-    await client.events.list({ actorName: "Ms. Mys", actorRole: "pmcm" }, 'cursor-2');
+    await client.events.list('cursor-2');
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:4000/api/events?actorName=Ms.+Mys&actorRole=pmcm&cursor=cursor-2', {
+      'http://localhost:4000/api/events?cursor=cursor-2', {
       headers: { "Content-Type": "application/json" },
     });
   });
@@ -1472,11 +1470,11 @@ describe("createEventOpsClient", () => {
 
     const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
     await client.liveOps.runSheet("evt_1");
-    await client.liveOps.runSheet("evt_1", "day 2", { role: "coordinator" });
+    await client.liveOps.runSheet("evt_1", "day 2");
 
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
       "http://localhost:4000/api/events/evt_1/run-sheet",
-      "http://localhost:4000/api/events/evt_1/run-sheet?role=coordinator&dayId=day%202",
+      "http://localhost:4000/api/events/evt_1/run-sheet?dayId=day%202",
     ]);
   });
 
@@ -1608,7 +1606,7 @@ describe("createEventOpsClient", () => {
       baseUrl: 'http://localhost:4000/api',
       getAuthToken: () => 'client-session-token',
     });
-    await client.clientWorkspace.detail({}, 'cursor-2');
+    await client.clientWorkspace.detail('cursor-2');
 
     expect(fetchMock).toHaveBeenCalledWith('http://localhost:4000/api/client/workspace?cursor=cursor-2', {
       headers: {
@@ -1708,10 +1706,10 @@ describe("createEventOpsClient", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
-    await client.billing.list({ actorName: "Ms. Mys", actorRole: "pmcm-admin" });
+    await client.billing.list();
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://localhost:4000/api/billing?actorName=Ms.+Mys&actorRole=pmcm-admin",
+      "http://localhost:4000/api/billing",
       {
         headers: { "Content-Type": "application/json" },
       },
@@ -1871,10 +1869,10 @@ describe("createEventOpsClient", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
-    await client.pmcm.eventWorkspace("evt_1", { actorName: "Ms. Mys", actorRole: "pmcm-admin" });
+    await client.pmcm.eventWorkspace("evt_1");
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://localhost:4000/api/pmcm/events/evt_1/workspace?actorName=Ms.+Mys&actorRole=pmcm-admin",
+      "http://localhost:4000/api/pmcm/events/evt_1/workspace",
       {
         headers: { "Content-Type": "application/json" },
       },

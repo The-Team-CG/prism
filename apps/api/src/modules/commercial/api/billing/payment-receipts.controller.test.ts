@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole } from '@prism/kernel/event-core';
+import { paymentReceiptRoutes } from '@prism/types';
 import { PaymentReceiptsController } from './payment-receipts.controller';
 
 const verified = (role: string, id: string | undefined = 'user_finance') =>
@@ -52,8 +53,14 @@ const calls: Array<[string, (controller: Controller, actor: never) => Promise<un
 ];
 
 describe('PaymentReceiptsController', () => {
-  it('serves the receipt routes under their own base, apart from any one event', () => {
-    expect(Reflect.getMetadata('path', PaymentReceiptsController)).toBe('payment-receipts');
+  it('mounts every handler at its shared route contract, apart from any one event', () => {
+    // The controller has no prefix: each contract path is the whole path, and every contract has exactly one handler.
+    expect(Reflect.getMetadata('path', PaymentReceiptsController)).toBe('/');
+    const mounted = Object.getOwnPropertyNames(PaymentReceiptsController.prototype).filter((name) => name !== 'constructor')
+      .map((name) => Reflect.getMetadata('path', (PaymentReceiptsController.prototype as unknown as Record<string, object>)[name]))
+      .filter((path): path is string => typeof path === 'string');
+    expect(new Set(mounted)).toEqual(new Set(Object.values(paymentReceiptRoutes).map((route) => route.path)));
+    expect(mounted.every((path) => path.startsWith('payment-receipts'))).toBe(true);
   });
 
   it.each(calls)('%s is for PMCM finance only: clients, suppliers, coordinators, guests and unknown roles reach nothing', async (_name, call, method) => {

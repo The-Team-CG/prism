@@ -4,8 +4,8 @@ import {
   aiGatewayStreamEventSchema,
   commsDraftResultSchema,
 } from "@prism/types";
-import { toQueryString, type PrismRequestInit } from "../http";
-import type { EventOpsActorQuery, EventOpsClientOptions } from "./contracts";
+import { type PrismRequestInit } from "../http";
+import type { EventOpsClientOptions } from "./contracts";
 
 export function parseCommsDraftStreamEvent(
   value: unknown,
@@ -33,14 +33,4 @@ export function withBase(
     onUnauthorized: init.onUnauthorized ?? options.onUnauthorized,
     onPrivacyNoticeRequired: init.onPrivacyNoticeRequired ?? options.onPrivacyNoticeRequired,
   };
-}
-
-export function actorPath(
-  path: string,
-  actor: EventOpsActorQuery = {},
-): string {
-  const query = toQueryString(actor);
-  if (!query) return path;
-  // Paths can already carry their own query (for example `?eventId=`); a second `?` would corrupt that value.
-  return `${path}${path.includes("?") ? "&" : "?"}${query}`;
 }

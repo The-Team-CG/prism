@@ -25,37 +25,36 @@ import type {
   ReviewPrivacyRequestInput,
   UpdatePrivacyRetentionPolicyInput,
 } from "@prism/types";
-import type { EventOpsActorQuery } from "./primitives";
 
 /** PMCM trust operations: the audit trail, privacy requests and legal holds, and data retention. */
 export interface EventOpsTrustContract {
   audit: {
     requestNotificationAcknowledgment(deliveryId: string, input: import('@prism/types').RequestNotificationAcknowledgmentInput): Promise<{ id: string; acknowledgmentDueAt: string }>;
     refreshNotificationOutcome(notificationId: string, deliveryId: string): Promise<{ id: string; providerOutcome: string }>;
-    notificationDeliveries(notificationId: string, actor?: EventOpsActorQuery): Promise<import("@prism/types").PrismNotificationRecipientDelivery[]>;
-    retryNotification(notificationId: string, input: import("@prism/types").RetryNotificationInput, actor?: EventOpsActorQuery): Promise<{ id: string; status: "queued" }>;
-    integrity(actor?: EventOpsActorQuery): Promise<PrismAuditIntegrity>;
+    notificationDeliveries(notificationId: string): Promise<import("@prism/types").PrismNotificationRecipientDelivery[]>;
+    retryNotification(notificationId: string, input: import("@prism/types").RetryNotificationInput): Promise<{ id: string; status: "queued" }>;
+    integrity(): Promise<PrismAuditIntegrity>;
     /** Filters set to "all" or left empty are not sent. */
-    logs(filters: AuditLogFilters, actor?: EventOpsActorQuery): Promise<PrismAuditLog[]>;
-    exportLogs(filters: AuditLogFilters, actor?: EventOpsActorQuery): Promise<PrismAuditExport>;
-    alerts(actor?: EventOpsActorQuery): Promise<PrismSecurityAlert[]>;
-    loginHistory(userId: string, actor?: EventOpsActorQuery): Promise<PrismLoginHistory[]>;
+    logs(filters: AuditLogFilters): Promise<PrismAuditLog[]>;
+    exportLogs(filters: AuditLogFilters): Promise<PrismAuditExport>;
+    alerts(): Promise<PrismSecurityAlert[]>;
+    loginHistory(userId: string): Promise<PrismLoginHistory[]>;
     /** `eventId` of "all" or none covers every event. */
-    privacyInventory(eventId?: string, actor?: EventOpsActorQuery): Promise<PrismPrivacyInventory>;
+    privacyInventory(eventId?: string): Promise<PrismPrivacyInventory>;
   };
   privacyAdmin: {
-    requests(query?: Partial<ListPrivacyRequestsQueryInput>, actor?: EventOpsActorQuery): Promise<PrismPrivacyRequestPage>;
-    createRequest(input: CreatePrivacyRequestInput, actor?: EventOpsActorQuery): Promise<PrismPrivacyRequest>;
-    assignRequest(requestId: string, input: AssignPrivacyRequestInput, actor?: EventOpsActorQuery): Promise<PrismPrivacyRequest>;
-    reviewRequest(requestId: string, input: ReviewPrivacyRequestInput, actor?: EventOpsActorQuery): Promise<PrismPrivacyRequest>;
-    executeRequest(requestId: string, notes: string, correction?: PrivacyCorrectionPatch, actor?: EventOpsActorQuery): Promise<PrismPrivacyExecutionResult>;
-    legalHolds(eventId?: string, actor?: EventOpsActorQuery): Promise<PrismPrivacyLegalHold[]>;
-    createLegalHold(input: CreatePrivacyLegalHoldInput, actor?: EventOpsActorQuery): Promise<PrismPrivacyLegalHold>;
-    releaseLegalHold(holdId: string, input: ReleasePrivacyLegalHoldInput, actor?: EventOpsActorQuery): Promise<PrismPrivacyLegalHold>;
-    retentionPolicies(actor?: EventOpsActorQuery): Promise<PrismRetentionPolicy[]>;
-    updateRetentionPolicy(category: string, input: UpdatePrivacyRetentionPolicyInput, actor?: EventOpsActorQuery): Promise<PrismRetentionPolicy>;
-    retentionReviewItems(query: ListPrivacyRetentionReviewItemsQuery, actor?: EventOpsActorQuery): Promise<PrismRetentionReviewItem[]>;
-    executeRetentionReviewItem(itemId: string, input: ExecutePrivacyRetentionReviewItemInput, actor?: EventOpsActorQuery): Promise<PrismRetentionExecutionResult>;
-    dismissRetentionReviewItem(itemId: string, input: DismissPrivacyRetentionReviewItemInput, actor?: EventOpsActorQuery): Promise<PrismRetentionReviewItem>;
+    requests(query?: Partial<ListPrivacyRequestsQueryInput>): Promise<PrismPrivacyRequestPage>;
+    createRequest(input: CreatePrivacyRequestInput): Promise<PrismPrivacyRequest>;
+    assignRequest(requestId: string, input: AssignPrivacyRequestInput): Promise<PrismPrivacyRequest>;
+    reviewRequest(requestId: string, input: ReviewPrivacyRequestInput): Promise<PrismPrivacyRequest>;
+    executeRequest(requestId: string, notes: string, correction?: PrivacyCorrectionPatch): Promise<PrismPrivacyExecutionResult>;
+    legalHolds(eventId?: string): Promise<PrismPrivacyLegalHold[]>;
+    createLegalHold(input: CreatePrivacyLegalHoldInput): Promise<PrismPrivacyLegalHold>;
+    releaseLegalHold(holdId: string, input: ReleasePrivacyLegalHoldInput): Promise<PrismPrivacyLegalHold>;
+    retentionPolicies(): Promise<PrismRetentionPolicy[]>;
+    updateRetentionPolicy(category: string, input: UpdatePrivacyRetentionPolicyInput): Promise<PrismRetentionPolicy>;
+    retentionReviewItems(query: ListPrivacyRetentionReviewItemsQuery): Promise<PrismRetentionReviewItem[]>;
+    executeRetentionReviewItem(itemId: string, input: ExecutePrivacyRetentionReviewItemInput): Promise<PrismRetentionExecutionResult>;
+    dismissRetentionReviewItem(itemId: string, input: DismissPrivacyRetentionReviewItemInput): Promise<PrismRetentionReviewItem>;
   };
 }

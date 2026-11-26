@@ -2,6 +2,18 @@ import type { PrismAddendumConformeTraceReference } from "../conforme-signing.js
 import type { PrismFileRequirementsMatrix } from "./lifecycle.js";
 import type { PaymentMethod } from "../schemas/payment-details.js";
 import type { BillingDiscrepancySeverity } from "../schemas/session-commercial-inputs.js";
+import type { PaymentReceiptStatus } from "../schemas/payment-receipt-inputs.js";
+import type {
+  PrismPaymentAllocationTarget,
+  PrismPaymentReceipt,
+  PrismPaymentReceiptAllocation,
+  PrismPaymentReceiptEvidence,
+  PrismPaymentRefund,
+} from "../schemas/payment-receipt-reads.js";
+
+// Receipt reads are defined by their response schemas (ADR-0011); these names stay importable from here.
+export type { PrismPaymentAllocationTarget, PrismPaymentReceipt, PrismPaymentReceiptAllocation, PrismPaymentReceiptEvidence, PrismPaymentRefund };
+export type PrismPaymentReceiptStatus = PaymentReceiptStatus;
 
 export interface PrismBillingLineItem {
   label: string;
@@ -229,76 +241,6 @@ export interface PrismPaymentRecord {
   reversesRecordId?: string | null;
 }
 
-export type PrismPaymentReceiptStatus = "recorded" | "verified" | "rejected" | "reversed";
-
-/** One slice of a receipt applied to a milestone. A reversed slice stays listed, with the reversal that undid it. */
-export interface PrismPaymentReceiptAllocation {
-  id: string;
-  eventId: string;
-  milestoneId: string;
-  milestoneLabel: string | null;
-  amount: number;
-  reversed: boolean;
-  reversalId: string | null;
-  reversalReason: string | null;
-  recordedAt: string;
-}
-
-export interface PrismPaymentRefund {
-  id: string;
-  amount: number;
-  refundedDate: string;
-  method: string;
-  referenceNumber: string;
-  reason: string;
-  recordedBy: string;
-  recordedAt: string;
-}
-
-export interface PrismPaymentReceiptEvidence {
-  objectId: string;
-  fileName: string;
-  contentType: string;
-  byteSize: number;
-}
-
-/** Money that arrived outside P.R.I.S.M. `unapplied` is what is left after allocations and refunds. */
-export interface PrismPaymentReceipt {
-  id: string;
-  amount: number;
-  receivedDate: string;
-  method: string;
-  referenceNumber: string;
-  payerName: string;
-  eventId: string | null;
-  notes: string;
-  status: PrismPaymentReceiptStatus;
-  /** Who recorded it: PMCM finance, or the client telling PMCM they paid. */
-  source: "pmcm" | "client";
-  /** The payment the client said this money was for. PMCM still decides where it goes. */
-  intendedMilestoneId: string | null;
-  intendedMilestoneLabel: string | null;
-  /** A receipt carried over from a payment recorded before receipts existed: no evidence, never checked. */
-  legacy: boolean;
-  evidenceObjectId: string | null;
-  /** The stored proof of payment (a bank statement line, a screenshot), when one was attached and is still held. */
-  evidence: PrismPaymentReceiptEvidence | null;
-  verifiedAt: string | null;
-  verifiedBy: string | null;
-  verificationNotes: string | null;
-  rejectionReason: string | null;
-  reversalReason: string | null;
-  /** Another live receipt with the same amount, method, date and payer: worth a look, not a block. */
-  possibleDuplicateOfId: string | null;
-  applied: number;
-  refunded: number;
-  unapplied: number;
-  allocations: PrismPaymentReceiptAllocation[];
-  refunds: PrismPaymentRefund[];
-  recordedBy: string;
-  recordedAt: string;
-}
-
 /**
  * One supplier category: what the proposal estimated for it (the price shown to the client), what the selected supplier
  * quotes commit PMCM to, and what has been paid to suppliers so far. Whole pesos.
@@ -457,18 +399,6 @@ export interface PrismStatementOfAccount {
   submissions: PrismPaymentSubmission[];
   /** Oldest first. */
   lines: PrismStatementOfAccountLine[];
-}
-
-/** A milestone a receipt can be applied to: still owed, not superseded. */
-export interface PrismPaymentAllocationTarget {
-  milestoneId: string;
-  eventId: string;
-  eventName: string;
-  label: string;
-  amount: number;
-  remainingBalance: number;
-  dueDate: string;
-  status: string;
 }
 
 export interface PrismPaymentMilestone {

@@ -30,16 +30,15 @@ import type {
   UpdateRegistrationPlatformSetupInput,
   UpdateSupplierEventStatusInput,
 } from "@prism/types";
-import type { EventOpsActorQuery } from "./primitives";
 
 export interface EventOpsWorkspacesContract {
   clientWorkspace: {
-    detail(actor?: EventOpsActorQuery, cursor?: string): Promise<PrismClientWorkspace>;
-    actionCenter(actor?: EventOpsActorQuery): Promise<PrismClientActionCenter>;
+    detail(cursor?: string): Promise<PrismClientWorkspace>;
+    actionCenter(): Promise<PrismClientActionCenter>;
   };
 
   billing: {
-    list(actor?: EventOpsActorQuery): Promise<PrismBillingWorkspace>;
+    list(): Promise<PrismBillingWorkspace>;
   };
 
   pmcm: {
@@ -64,33 +63,27 @@ export interface EventOpsWorkspacesContract {
     decisionLog(eventId: string, query?: PrismDecisionLogQueryInput): Promise<PrismDecisionLog>;
     eventWorkspace(
       eventId: string,
-      actor?: EventOpsActorQuery,
     ): Promise<PrismPmcmEventWorkspace>;
     /** PMCM-only; identity comes from the session bearer token. */
     supplierReadiness(eventId: string): Promise<PrismPmcmSupplierReadinessBoard>;
     registrationPlatform(
       eventId: string,
-      actor?: EventOpsActorQuery,
     ): Promise<PrismRegistrationPlatform | null>;
     upsertRegistrationPlatform(
       eventId: string,
       input: CreateRegistrationPlatformInput,
-      actor?: EventOpsActorQuery,
     ): Promise<PrismRegistrationPlatform>;
     updateRegistrationPlatform(
       eventId: string,
       input: UpdateRegistrationPlatformInput,
-      actor?: EventOpsActorQuery,
     ): Promise<PrismRegistrationPlatform>;
     updateRegistrationPlatformSetup(
       eventId: string,
       input: UpdateRegistrationPlatformSetupInput,
-      actor?: EventOpsActorQuery,
     ): Promise<PrismRegistrationPlatform>;
     importHeadcount(
       eventId: string,
       input: ImportHeadcountInput,
-      actor?: EventOpsActorQuery,
     ): Promise<PrismRegistrationPlatform>;
   };
 
@@ -101,17 +94,14 @@ export interface EventOpsWorkspacesContract {
     readinessBoard(): Promise<PrismSupplierReadinessBoard>;
     confirmAssignment(
       requestId: string,
-      actor?: EventOpsActorQuery,
     ): Promise<PrismSupplierQuoteRequest>;
     confirmReadiness(
       requestId: string,
       input: ConfirmSupplierReadinessInput,
-      actor?: EventOpsActorQuery,
     ): Promise<PrismSupplierQuoteRequest>;
     updateEventStatus(
       requestId: string,
       input: UpdateSupplierEventStatusInput,
-      actor?: EventOpsActorQuery,
     ): Promise<PrismSupplierQuoteRequest>;
     /** The emailed quote link carries its own token: no sign-in is needed and no session token is sent. */
     submitQuoteByLink(token: string, input: SubmitSupplierQuoteInput): Promise<PrismSupplierQuote>;

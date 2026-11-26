@@ -1,6 +1,4 @@
-import type { PrismEventOpsActorContext } from "@prism/types";
 
-export type EventOpsActorQuery = PrismEventOpsActorContext;
 
 /** For reads a screen may cancel when the user moves on or asks again. */
 export interface EventOpsReadInit {

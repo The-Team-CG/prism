@@ -17,10 +17,8 @@ export {
   optionalTrimmedStringSchema,
   privacyConsentSchema,
   privacyNoticeVersionSchema,
-  prismEventOpsActorSchema,
   uploadMetadataSchema,
   type PrivacyConsentInput,
-  type PrismEventOpsActorInput,
   type UploadMetadataInput,
 } from "./common.js";
 
@@ -583,6 +581,7 @@ export * from "./mail-provider-responses.js";
 
 export * from "./pmcm-overview-inputs.js";
 export * from "./payment-receipt-inputs.js";
+export * from "./payment-receipt-reads.js";
 export * from "./planning-inputs.js";
 export * from "./date-change-inputs.js";
 export { spotifyPlaylistUrlSchema, spotifyPlaylistLinks } from "./portal-music.js";

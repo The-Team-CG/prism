@@ -49,80 +49,79 @@ import type {
   StartEventWrapUpInput,
   UpdateEventWrapUpInput,
 } from "@prism/types";
-import type { EventOpsActorQuery } from "./primitives";
 
 /** Event closure, compliance checks and official floorplan drafts: the PMCM lifecycle commands. */
 export interface EventOpsLifecycleContract {
   lifecycle: {
-    scheduleOcularVisit(eventId: string, input: ScheduleOcularVisitInput, actor?: EventOpsActorQuery): Promise<PrismPmcmOcularVisit>;
-    completeOcularVisit(eventId: string, actor?: EventOpsActorQuery): Promise<PrismPmcmOcularVisit>;
-    waiveOcularVisit(eventId: string, input: WaiveOcularVisitInput, actor?: EventOpsActorQuery): Promise<PrismPmcmOcularVisit>;
-    setModules(eventId: string, input: SetEventModulesInput, actor?: EventOpsActorQuery): Promise<{ eventId: string; disabledModules: SetEventModulesInput["disabledModules"] }>;
-    setPrivacy(eventId: string, input: SetEventPrivacyInput, actor?: EventOpsActorQuery): Promise<{ eventId: string; privacy: SetEventPrivacyInput["privacy"] }>;
+    scheduleOcularVisit(eventId: string, input: ScheduleOcularVisitInput): Promise<PrismPmcmOcularVisit>;
+    completeOcularVisit(eventId: string): Promise<PrismPmcmOcularVisit>;
+    waiveOcularVisit(eventId: string, input: WaiveOcularVisitInput): Promise<PrismPmcmOcularVisit>;
+    setModules(eventId: string, input: SetEventModulesInput): Promise<{ eventId: string; disabledModules: SetEventModulesInput["disabledModules"] }>;
+    setPrivacy(eventId: string, input: SetEventPrivacyInput): Promise<{ eventId: string; privacy: SetEventPrivacyInput["privacy"] }>;
     /** PMCM picks an image from the event's files as its cover, or null for the generated cover. */
     setCover(eventId: string, input: SetEventCoverInput): Promise<{ eventId: string; coverObjectId: string | null }>;
-    setClientEventDayView(eventId: string, input: SetClientEventDayViewInput, actor?: EventOpsActorQuery): Promise<PrismEvent>;
-    archive(eventId: string, overrideReason?: string, actor?: EventOpsActorQuery): Promise<PrismEvent>;
-    recordActualEnd(eventId: string, input: RecordActualEventEndInput, actor?: EventOpsActorQuery): Promise<PrismEvent>;
+    setClientEventDayView(eventId: string, input: SetClientEventDayViewInput): Promise<PrismEvent>;
+    archive(eventId: string, overrideReason?: string): Promise<PrismEvent>;
+    recordActualEnd(eventId: string, input: RecordActualEventEndInput): Promise<PrismEvent>;
     /** Starts the event day; the API takes an empty body. */
-    startEventDay(eventId: string, actor?: EventOpsActorQuery): Promise<StartEventDayResult>;
-    defenseReadiness(eventId: string, actor?: EventOpsActorQuery): Promise<PrismDefenseReadiness>;
-    eventDayStatusFeed(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEventDayStatusFeed>;
-    cancellationSummary(eventId: string, actor?: EventOpsActorQuery): Promise<PrismCancellationSummary>;
-    venueConfirmations(eventId: string, actor?: EventOpsActorQuery): Promise<PrismVenueConfirmationTask[]>;
-    resolveVenueConfirmation(eventId: string, taskId: string, input: ResolveVenueConfirmationInput, actor?: EventOpsActorQuery): Promise<PrismVenueConfirmationTask>;
+    startEventDay(eventId: string): Promise<StartEventDayResult>;
+    defenseReadiness(eventId: string): Promise<PrismDefenseReadiness>;
+    eventDayStatusFeed(eventId: string): Promise<PrismEventDayStatusFeed>;
+    cancellationSummary(eventId: string): Promise<PrismCancellationSummary>;
+    venueConfirmations(eventId: string): Promise<PrismVenueConfirmationTask[]>;
+    resolveVenueConfirmation(eventId: string, taskId: string, input: ResolveVenueConfirmationInput): Promise<PrismVenueConfirmationTask>;
   };
   risks: {
-    list(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEventRisk[]>;
-    loadStandard(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEventRisk[]>;
-    create(eventId: string, input: CreateEventRiskInput, actor?: EventOpsActorQuery): Promise<PrismEventRisk>;
-    update(eventId: string, riskId: string, input: UpdateEventRiskInput, actor?: EventOpsActorQuery): Promise<PrismEventRisk>;
+    list(eventId: string): Promise<PrismEventRisk[]>;
+    loadStandard(eventId: string): Promise<PrismEventRisk[]>;
+    create(eventId: string, input: CreateEventRiskInput): Promise<PrismEventRisk>;
+    update(eventId: string, riskId: string, input: UpdateEventRiskInput): Promise<PrismEventRisk>;
   };
   closure: {
-    closeGates(eventId: string, actor?: EventOpsActorQuery): Promise<PrismCloseGates>;
-    insights(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEventInsight[]>;
-    generateInsights(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEventInsight>;
-    wrapUp(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEventWrapUp | null>;
-    startWrapUp(eventId: string, input: StartEventWrapUpInput, actor?: EventOpsActorQuery): Promise<PrismEventWrapUp>;
-    updateWrapUp(eventId: string, input: UpdateEventWrapUpInput, actor?: EventOpsActorQuery): Promise<PrismEventWrapUp>;
-    logisticsBookings(eventId: string, actor?: EventOpsActorQuery): Promise<PrismLogisticsBooking[]>;
-    createLogisticsBooking(eventId: string, input: CreateLogisticsBookingInput, actor?: EventOpsActorQuery): Promise<PrismLogisticsBooking>;
+    closeGates(eventId: string): Promise<PrismCloseGates>;
+    insights(eventId: string): Promise<PrismEventInsight[]>;
+    generateInsights(eventId: string): Promise<PrismEventInsight>;
+    wrapUp(eventId: string): Promise<PrismEventWrapUp | null>;
+    startWrapUp(eventId: string, input: StartEventWrapUpInput): Promise<PrismEventWrapUp>;
+    updateWrapUp(eventId: string, input: UpdateEventWrapUpInput): Promise<PrismEventWrapUp>;
+    logisticsBookings(eventId: string): Promise<PrismLogisticsBooking[]>;
+    createLogisticsBooking(eventId: string, input: CreateLogisticsBookingInput): Promise<PrismLogisticsBooking>;
     /** Compares archived events side by side; the ids travel as one comma-separated query value. */
-    compareArchived(eventIds: string[], actor?: EventOpsActorQuery): Promise<PrismArchiveComparisonRow[]>;
-    completePostEventDocument(eventId: string, documentId: string, actor?: EventOpsActorQuery): Promise<PrismPostEventDocument>;
-    logisticsCompletion(eventId: string, actor?: EventOpsActorQuery): Promise<PrismLogisticsCompletion | null>;
-    recordLogisticsCompletion(eventId: string, input: RecordLogisticsCompletionInput, actor?: EventOpsActorQuery): Promise<PrismLogisticsCompletion>;
-    clientCloseoutModeration(eventId: string, actor?: EventOpsActorQuery): Promise<(PrismClientCloseoutResponse & { actorEmail?: string | null }) | null>;
-    moderateClientCloseout(eventId: string, input: ClientTestimonialModerationInput, actor?: EventOpsActorQuery): Promise<PrismClientCloseoutResponse>;
+    compareArchived(eventIds: string[]): Promise<PrismArchiveComparisonRow[]>;
+    completePostEventDocument(eventId: string, documentId: string): Promise<PrismPostEventDocument>;
+    logisticsCompletion(eventId: string): Promise<PrismLogisticsCompletion | null>;
+    recordLogisticsCompletion(eventId: string, input: RecordLogisticsCompletionInput): Promise<PrismLogisticsCompletion>;
+    clientCloseoutModeration(eventId: string): Promise<(PrismClientCloseoutResponse & { actorEmail?: string | null }) | null>;
+    moderateClientCloseout(eventId: string, input: ClientTestimonialModerationInput): Promise<PrismClientCloseoutResponse>;
   };
   compliance: {
     /** PMCM's own rules and the built-in checks (the built-ins carry createdAt 1970-01-01). */
-    listRules(actor?: EventOpsActorQuery): Promise<PrismComplianceRule[]>;
-    createRule(input: CreateComplianceRuleInput, actor?: EventOpsActorQuery): Promise<PrismComplianceRule>;
-    updateRule(ruleId: string, input: UpdateComplianceRuleInput, actor?: EventOpsActorQuery): Promise<PrismComplianceRule>;
-    resolve(eventId: string, checkId: string, input: ResolveComplianceInput, actor?: EventOpsActorQuery): Promise<PrismComplianceCheck>;
-    run(eventId: string, input: RunComplianceInput, actor?: EventOpsActorQuery): Promise<PrismComplianceCheck[]>;
-    runs(eventId: string, actor?: EventOpsActorQuery): Promise<PrismComplianceRun[]>;
-    risks(eventId: string, actor?: EventOpsActorQuery): Promise<PrismComplianceRisk[]>;
-    createRisk(eventId: string, input: CreateComplianceRiskInput, actor?: EventOpsActorQuery): Promise<PrismComplianceRisk>;
-    updateRisk(eventId: string, riskId: string, input: UpdateComplianceRiskInput, actor?: EventOpsActorQuery): Promise<PrismComplianceRisk>;
-    accreditationRequirements(eventId: string, actor?: EventOpsActorQuery): Promise<PrismAccreditationRequirement[]>;
-    createAccreditationRequirement(eventId: string, input: CreateAccreditationRequirementInput, actor?: EventOpsActorQuery): Promise<PrismAccreditationRequirement>;
-    updateAccreditationRequirement(eventId: string, requirementId: string, input: UpdateAccreditationRequirementInput, actor?: EventOpsActorQuery): Promise<PrismAccreditationRequirement>;
+    listRules(): Promise<PrismComplianceRule[]>;
+    createRule(input: CreateComplianceRuleInput): Promise<PrismComplianceRule>;
+    updateRule(ruleId: string, input: UpdateComplianceRuleInput): Promise<PrismComplianceRule>;
+    resolve(eventId: string, checkId: string, input: ResolveComplianceInput): Promise<PrismComplianceCheck>;
+    run(eventId: string, input: RunComplianceInput): Promise<PrismComplianceCheck[]>;
+    runs(eventId: string): Promise<PrismComplianceRun[]>;
+    risks(eventId: string): Promise<PrismComplianceRisk[]>;
+    createRisk(eventId: string, input: CreateComplianceRiskInput): Promise<PrismComplianceRisk>;
+    updateRisk(eventId: string, riskId: string, input: UpdateComplianceRiskInput): Promise<PrismComplianceRisk>;
+    accreditationRequirements(eventId: string): Promise<PrismAccreditationRequirement[]>;
+    createAccreditationRequirement(eventId: string, input: CreateAccreditationRequirementInput): Promise<PrismAccreditationRequirement>;
+    updateAccreditationRequirement(eventId: string, requirementId: string, input: UpdateAccreditationRequirementInput): Promise<PrismAccreditationRequirement>;
   };
   floorplans: {
-    createDraft(eventId: string, input: CreateFloorPlanDraftInput, actor?: EventOpsActorQuery): Promise<PrismFloorPlanDraft>;
-    submitDraft(eventId: string, draftId: string, actor?: EventOpsActorQuery): Promise<PrismFloorPlanDraft>;
-    approveDraft(eventId: string, draftId: string, actor?: EventOpsActorQuery): Promise<PrismFloorPlanDraft>;
-    reopenPreference(eventId: string, draftId: string, actor?: EventOpsActorQuery): Promise<PrismFloorPlanDraft>;
-    history(eventId: string, draftId: string, actor?: EventOpsActorQuery): Promise<PrismFloorPlanSnapshotVersion[]>;
-    clientAccess(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEventClientAccess>;
-    searchClientCandidates(eventId: string, query: string, actor?: EventOpsActorQuery): Promise<PrismApprovedClientAccount[]>;
-    grantClientAccess(eventId: string, userId: string, actor?: EventOpsActorQuery): Promise<PrismEventClientAccess>;
-    revokeClientAccess(eventId: string, userId: string, actor?: EventOpsActorQuery): Promise<PrismEventClientAccess>;
+    createDraft(eventId: string, input: CreateFloorPlanDraftInput): Promise<PrismFloorPlanDraft>;
+    submitDraft(eventId: string, draftId: string): Promise<PrismFloorPlanDraft>;
+    approveDraft(eventId: string, draftId: string): Promise<PrismFloorPlanDraft>;
+    reopenPreference(eventId: string, draftId: string): Promise<PrismFloorPlanDraft>;
+    history(eventId: string, draftId: string): Promise<PrismFloorPlanSnapshotVersion[]>;
+    clientAccess(eventId: string): Promise<PrismEventClientAccess>;
+    searchClientCandidates(eventId: string, query: string): Promise<PrismApprovedClientAccount[]>;
+    grantClientAccess(eventId: string, userId: string): Promise<PrismEventClientAccess>;
+    revokeClientAccess(eventId: string, userId: string): Promise<PrismEventClientAccess>;
     /** A saved plan as the API returns it; the editor maps it to its own project shape. */
-    plan<TPlan = unknown>(planId: string, actor?: EventOpsActorQuery): Promise<TPlan>;
+    plan<TPlan = unknown>(planId: string): Promise<TPlan>;
     /** Saves the editor's plan; the API answers with the stored plan. */
-    savePlan<TPlan = unknown>(planId: string, body: unknown, actor?: EventOpsActorQuery): Promise<TPlan>;
+    savePlan<TPlan = unknown>(planId: string, body: unknown): Promise<TPlan>;
   };
 }
