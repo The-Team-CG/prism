@@ -31,7 +31,6 @@ import { DOCUMENT_VAULT } from './contracts/document-vault.port';
 import { FileRequirementsMatrixService } from './application/files/file-requirements-matrix.service';
 import { FileRequirementCommandsService } from './application/files/file-requirement-commands.service';
 import { FileRequirementReminderScheduler } from './application/files/file-requirement-reminder.scheduler';
-import { EventDocumentJourneyController } from './api/files/event-document-journey.controller';
 import { EventDecisionController } from './api/decisions/event-decision.controller';
 import { EventDecisionService } from './application/decisions/event-decision.service';
 import { ChangeManagementController } from './api/change/change-management.controller';
@@ -122,7 +121,6 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
     OpsEventComplianceController,
     OpsEventFileRequirementsController,
     FileRequirementTemplatesController,
-    EventDocumentJourneyController,
     EventDecisionController,
     ChangeManagementController,
     ScopeChangeRequestController,

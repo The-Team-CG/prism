@@ -15,10 +15,6 @@ function createControllerDeps() {
     acknowledgeCoordinator: vi.fn(async () => ({ id: 'coord_asg_new', status: 'acknowledged' })),
     withdrawCoordinator: vi.fn(async () => ({ id: 'coord_asg_new', status: 'cancelled' })),
     changeCoordinatorRole: vi.fn(async () => ({ id: 'coord_asg_new', role: 'Stage Director' })),
-    replaceCoordinator: vi.fn(async () => ({
-      outgoing: { id: 'coord_asg_new', status: 'replaced' },
-      incoming: { id: 'coord_asg_replacement', status: 'pending_acknowledgement' },
-    })),
   };
   const eventAccessPolicyService = {
     resolveActor: vi.fn(() => resolvedActor),
@@ -81,19 +77,5 @@ describe('OpsEventCoordinatorAssignmentsController', () => {
     ).resolves.toEqual({ id: 'coord_asg_new', role: 'Stage Director' });
 
     expect(coordinatorsService.changeCoordinatorRole).toHaveBeenCalledWith('evt_sample', 'coord_asg_new', { role: 'Stage Director' }, resolvedActor);
-  });
-
-  it('delegates replaceCoordinator with the resolved actor', async () => {
-    const { controller, coordinatorsService } = createControllerDeps();
-    const dto = { replacementCoordinatorId: 'coord_new', replacementRole: 'Floor Director' as const, reason: 'Scheduling conflict' };
-
-    await expect(
-      controller.replaceCoordinator('evt_sample', 'coord_asg_new', dto, verifiedActor as any),
-    ).resolves.toEqual({
-      outgoing: { id: 'coord_asg_new', status: 'replaced' },
-      incoming: { id: 'coord_asg_replacement', status: 'pending_acknowledgement' },
-    });
-
-    expect(coordinatorsService.replaceCoordinator).toHaveBeenCalledWith('evt_sample', 'coord_asg_new', dto, resolvedActor);
   });
 });

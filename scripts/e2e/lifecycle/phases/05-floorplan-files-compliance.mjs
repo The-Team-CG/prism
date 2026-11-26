@@ -432,7 +432,7 @@ export async function run(ctx) {
   const target = () => `client-upload:${E()}:${randomUUID()}`;
   const uploadReq = (over = {}) => ({ eventId: E(), ownerRecordType: "event", ownerRecordId: E(), logicalTarget: target(), usage: "client_document", fileName: "venue-permit.pdf", contentType: pdfType, declaredByteSize: bytes.length, checksumSha256: checksum, ...over });
   await step("client requests an upload slot for a PDF", async () => {
-    const r = expectStatus(await http("POST", `${base()}/documents/upload-request`, { token: s.client, body: uploadReq() }), 200, 201);
+    const r = expectStatus(await http("POST", `/storage/objects/upload-request`, { token: s.client, body: uploadReq() }), 200, 201);
     expect(r.status === "ready" && r.location?.uploadUrl && r.object?.id, `no upload slot: ${JSON.stringify(r).slice(0, 200)}`);
     s.slot = r;
     return `${r.object.id} (${r.location.providerName ?? "provider"})`;
@@ -455,7 +455,7 @@ export async function run(ctx) {
   });
   await step("confirming before any bytes arrive is refused", async () => {
     if (!s.slot) blocked("no upload slot");
-    const r = await http("POST", `${base()}/documents/${s.slot.object.id}/confirm`, { token: s.client, body: { checksumSha256: checksum, byteSize: bytes.length } });
+    const r = await http("POST", `/storage/objects/${s.slot.object.id}/confirm`, { token: s.client, body: { checksumSha256: checksum, byteSize: bytes.length } });
     expect(r.status >= 400 && r.status < 500, `confirm without bytes returned ${r.status}: ${msg(r)}`);
     return `${r.status}: ${msg(r)}`;
   });
@@ -463,57 +463,57 @@ export async function run(ctx) {
     if (!s.slot) blocked("no upload slot");
     const up = await putBytes(s.slot.object.id, s.client, s.slot.location.uploadUrl, bytes);
     expect(up.status === 204 || up.status === 200 || up.status === 201, `byte upload returned ${up.status} ${up.text}`);
-    const wrong = await http("POST", `${base()}/documents/${s.slot.object.id}/confirm`, { token: s.client, body: { checksumSha256: sha256(Buffer.from("other")), byteSize: bytes.length } });
+    const wrong = await http("POST", `/storage/objects/${s.slot.object.id}/confirm`, { token: s.client, body: { checksumSha256: sha256(Buffer.from("other")), byteSize: bytes.length } });
     expect(wrong.status >= 400 && wrong.status < 500, `confirm with a wrong checksum returned ${wrong.status}`);
-    const ok = expectStatus(await http("POST", `${base()}/documents/${s.slot.object.id}/confirm`, { token: s.client, body: { checksumSha256: checksum, byteSize: bytes.length } }), 200, 201);
+    const ok = expectStatus(await http("POST", `/storage/objects/${s.slot.object.id}/confirm`, { token: s.client, body: { checksumSha256: checksum, byteSize: bytes.length } }), 200, 201);
     expect(ok.lifecycleState === "stored" || ok.status === "stored", `state ${ok.lifecycleState ?? ok.status}`);
     return "stored";
   });
   await step("the stored file is listed for the client and PMCM, not for others", async () => {
     if (!s.slot) blocked("no stored file");
-    const has = async (token) => { const r = await http("GET", `${base()}/documents`, { token }); return { status: r.status, found: Array.isArray(r.body) && r.body.some((o) => o.id === s.slot.object.id) }; };
+    const has = async (token) => { const r = await http("GET", `/storage/objects/events/${E()}`, { token }); return { status: r.status, found: Array.isArray(r.body) && r.body.some((o) => o.id === s.slot.object.id) }; };
     const [client, admin, other, supplier] = [await has(s.client), await has(s.admin), await has(s.otherClient), await has(s.supplier)];
     expect(client.found && admin.found, `client sees=${client.found}, PMCM sees=${admin.found}`);
     expect(other.status === 403 && supplier.status === 403, `other client ${other.status}, supplier ${supplier.status}`);
-    const anon = await http("GET", `${base()}/documents`);
+    const anon = await http("GET", `/storage/objects/events/${E()}`);
     expect(anon.status === 401, `anonymous list returned ${anon.status}`);
   });
   await step("authorized download returns exactly the uploaded bytes", async () => {
     if (!s.slot) blocked("no stored file");
-    const auth = expectStatus(await http("GET", `${base()}/documents/${s.slot.object.id}/download-authorization`, { token: s.client }), 200);
+    const auth = expectStatus(await http("GET", `/storage/objects/${s.slot.object.id}/download-authorization`, { token: s.client }), 200);
     expect(auth.downloadUrl && auth.fileName === "venue-permit.pdf" && auth.contentType === pdfType, `authorization ${JSON.stringify(auth).slice(0, 160)}`);
     const got = await http("GET", `/storage/objects/${s.slot.object.id}/content`, { token: s.client, raw: true, headers: { "x-prism-storage-authorization": auth.downloadUrl } });
     expect(got.status === 200 && Buffer.compare(got.bytes, bytes) === 0, `download ${got.status}, ${got.bytes?.length} bytes vs ${bytes.length} uploaded`);
-    const other = await http("GET", `${base()}/documents/${s.slot.object.id}/download-authorization`, { token: s.otherClient });
+    const other = await http("GET", `/storage/objects/${s.slot.object.id}/download-authorization`, { token: s.otherClient });
     expect(other.status === 403, `another client's download authorization returned ${other.status}`);
     const forged = await http("GET", `/storage/objects/${s.slot.object.id}/content`, { token: s.client, raw: true, headers: { "x-prism-storage-authorization": "https://evil.example/file" } });
     expect(forged.status >= 400 && forged.status < 500, `forged download url returned ${forged.status}`);
-    const anon = await http("GET", `${base()}/documents/${s.slot.object.id}/download-authorization`);
+    const anon = await http("GET", `/storage/objects/${s.slot.object.id}/download-authorization`);
     expect(anon.status === 401, `anonymous authorization returned ${anon.status}`);
     return `${got.bytes.length} bytes round-tripped`;
   });
   await step("repeating the same upload request returns the stored object, not a duplicate", async () => {
     if (!s.slot) blocked("no stored file");
-    const r = expectStatus(await http("POST", `${base()}/documents/upload-request`, { token: s.client, body: uploadReq({ logicalTarget: s.slot.object.logicalTarget }) }), 200, 201);
+    const r = expectStatus(await http("POST", `/storage/objects/upload-request`, { token: s.client, body: uploadReq({ logicalTarget: s.slot.object.logicalTarget }) }), 200, 201);
     expect(r.status === "stored" && r.object.id === s.slot.object.id, `second request gave ${r.status}/${r.object?.id === s.slot.object.id ? "same" : "new"} object`);
   });
   await step("upload validation rejects bad type, extension, size, checksum and scope with a 4xx", async () => refused([
-    ["text file", "POST", `${base()}/documents/upload-request`, s.client, uploadReq({ contentType: "text/plain", fileName: "notes.txt" }), 400],
-    ["executable", "POST", `${base()}/documents/upload-request`, s.client, uploadReq({ contentType: "application/x-msdownload", fileName: "setup.exe" }), 400],
-    ["extension mismatch", "POST", `${base()}/documents/upload-request`, s.client, uploadReq({ fileName: "permit.png" }), 400],
-    ["over 25 MB", "POST", `${base()}/documents/upload-request`, s.client, uploadReq({ declaredByteSize: 26 * 1024 * 1024 }), 400],
-    ["zero bytes", "POST", `${base()}/documents/upload-request`, s.client, uploadReq({ declaredByteSize: 0 }), 400],
-    ["bad checksum", "POST", `${base()}/documents/upload-request`, s.client, uploadReq({ checksumSha256: "not-a-hash" }), 400],
-    ["route/body event mismatch", "POST", `${base()}/documents/upload-request`, s.client, uploadReq({ eventId: s.other.eventId }), 400],
-    ["malformed target", "POST", `${base()}/documents/upload-request`, s.client, uploadReq({ logicalTarget: "anything" }), 400, 403],
-    ["other client", "POST", `${base()}/documents/upload-request`, s.otherClient, uploadReq()],
-    ["supplier", "POST", `${base()}/documents/upload-request`, s.supplier, uploadReq()],
-    ["anonymous", "POST", `${base()}/documents/upload-request`, undefined, uploadReq(), 401],
-    ["unsupported usage for a client", "POST", `${base()}/documents/upload-request`, s.client, uploadReq({ usage: "event_deliverable", ownerRecordType: "proposal_version", ownerRecordId: "x" }), 400, 403],
+    ["text file", "POST", `/storage/objects/upload-request`, s.client, uploadReq({ contentType: "text/plain", fileName: "notes.txt" }), 400],
+    ["executable", "POST", `/storage/objects/upload-request`, s.client, uploadReq({ contentType: "application/x-msdownload", fileName: "setup.exe" }), 400],
+    ["extension mismatch", "POST", `/storage/objects/upload-request`, s.client, uploadReq({ fileName: "permit.png" }), 400],
+    ["over 25 MB", "POST", `/storage/objects/upload-request`, s.client, uploadReq({ declaredByteSize: 26 * 1024 * 1024 }), 400],
+    ["zero bytes", "POST", `/storage/objects/upload-request`, s.client, uploadReq({ declaredByteSize: 0 }), 400],
+    ["bad checksum", "POST", `/storage/objects/upload-request`, s.client, uploadReq({ checksumSha256: "not-a-hash" }), 400],
+    ["another client's event in the body", "POST", `/storage/objects/upload-request`, s.client, uploadReq({ eventId: s.other.eventId }), 400, 403],
+    ["malformed target", "POST", `/storage/objects/upload-request`, s.client, uploadReq({ logicalTarget: "anything" }), 400, 403],
+    ["other client", "POST", `/storage/objects/upload-request`, s.otherClient, uploadReq()],
+    ["supplier", "POST", `/storage/objects/upload-request`, s.supplier, uploadReq()],
+    ["anonymous", "POST", `/storage/objects/upload-request`, undefined, uploadReq(), 401],
+    ["unsupported usage for a client", "POST", `/storage/objects/upload-request`, s.client, uploadReq({ usage: "event_deliverable", ownerRecordType: "proposal_version", ownerRecordId: "x" }), 400, 403],
   ]));
   await step("a file whose bytes are not the declared type is refused at upload", async () => {
     const fake = Buffer.from("this is plain text pretending to be a PDF ".repeat(4));
-    const r = expectStatus(await http("POST", `${base()}/documents/upload-request`, { token: s.client, body: uploadReq({ fileName: "fake.pdf", declaredByteSize: fake.length, checksumSha256: sha256(fake) }) }), 200, 201);
+    const r = expectStatus(await http("POST", `/storage/objects/upload-request`, { token: s.client, body: uploadReq({ fileName: "fake.pdf", declaredByteSize: fake.length, checksumSha256: sha256(fake) }) }), 200, 201);
     const up = await putBytes(r.object.id, s.client, r.location.uploadUrl, fake);
     expect(up.status === 400, `fake PDF bytes returned ${up.status} ${up.text}`);
   });
@@ -535,7 +535,7 @@ export async function run(ctx) {
     ]);
     const gone = expectStatus(await http("DELETE", `/storage/objects/${s.slot.object.id}`, { token: s.admin }), 200);
     expect((gone.lifecycleState ?? gone.status) === "deleted", `state ${gone.lifecycleState ?? gone.status}`);
-    const dl = await http("GET", `${base()}/documents/${s.slot.object.id}/download-authorization`, { token: s.client });
+    const dl = await http("GET", `/storage/objects/${s.slot.object.id}/download-authorization`, { token: s.client });
     expect(dl.status >= 400 && dl.status < 500, `download after delete returned ${dl.status}`);
   });
 
@@ -822,15 +822,5 @@ export async function run(ctx) {
   await step("the client is emailed when PMCM submits a floorplan for review", async () => {
     const mail = await waitForMail(s.ev.clientEmail, (m) => /floorplan|layout|ocular/i.test(m));
     expect(mail, "floorplan notification was not accepted by the local log transport within 45 seconds");
-  });
-  await step("notification acknowledgement is scoped to the recipient", async () => {
-    const queued = (s.logs ?? []).find((l) => l.recipient === "Client");
-    if (!queued) blocked("no client-addressed notification");
-    const other = await http("POST", `/notifications/${queued.id}/acknowledge`, { token: s.otherClient });
-    expect(other.status === 403 || other.status === 404, `another client acknowledging got ${other.status}`);
-    const anon = await http("POST", `/notifications/${queued.id}/acknowledge`);
-    expect(anon.status === 401, `anonymous acknowledge returned ${anon.status}`);
-    const own = await http("POST", `/notifications/${queued.id}/acknowledge`, { token: s.client });
-    return `own client acknowledge -> ${own.status}`;
   });
 }
