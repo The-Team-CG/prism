@@ -1,6 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import {expect} from '@playwright/test';
-import {api,origins} from './helpers.mjs';
+import {api,origins,paceInquirySubmission} from './helpers.mjs';
 
 async function choose(page, label) {
   await page.getByText(label, { exact: true }).click();
@@ -75,6 +75,7 @@ export async function submitPublicInquiry(page,label='Browser inquiry',date='12/
   await checkInquiryConsent(page);
   await page.getByRole('checkbox').check();
   await expect(page.locator('form').getByRole('alert')).toBeHidden();
+  await paceInquirySubmission();
   await page.getByRole('button', { name: 'Send inquiry', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Inquiry sent' })).toBeVisible();
   const persisted = await api('GET', `/inquiries?query=${encodeURIComponent(title)}`);

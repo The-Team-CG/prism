@@ -15,6 +15,20 @@ async function waitForRetryAfter(response) {
   const seconds = Number(response.headers.get('retry-after'));
   await new Promise(resolve => setTimeout(resolve, (seconds > 0 ? Math.min(seconds, 60) : 5) * 1000));
 }
+// Every inquiry submission, fixture or form, counts against that limit. Spacing them below it up front keeps a form
+// submission from being the one that gets throttled, which the browser cannot retry the way api() does.
+const SUBMISSION_WINDOW_MS = 60_000;
+const SUBMISSIONS_PER_WINDOW = 8;
+const submissionTimes = [];
+export async function paceInquirySubmission() {
+  const now = Date.now();
+  while (submissionTimes.length && now - submissionTimes[0] >= SUBMISSION_WINDOW_MS) submissionTimes.shift();
+  if (submissionTimes.length >= SUBMISSIONS_PER_WINDOW) {
+    await new Promise(resolve => setTimeout(resolve, SUBMISSION_WINDOW_MS - (now - submissionTimes[0])));
+    return paceInquirySubmission();
+  }
+  submissionTimes.push(Date.now());
+}
 export async function api(method, path, body, token = adminToken) {
   let response;
   for (let attempt = 0; attempt <= THROTTLE_RETRIES; attempt += 1) {
@@ -56,6 +70,7 @@ export async function createInquiry(label = 'Browser acceptance', { daysAhead = 
   const id = randomUUID();
   const email = `browser-${id}@example.test`;
   const eventDate = new Date(Date.now() + daysAhead * 86_400_000).toISOString().slice(0, 10);
+  await paceInquirySubmission();
   const inquiry = await api('POST', '/inquiries', { clientName: 'Browser Test Client', companyName: 'Synthetic Browser Tests', email, eventName: `${label} ${id}`, eventType: 'Conference', eventDate, clientType: 'Corporate', source: 'P.R.I.S.M Website', message: 'Phone: 0917 123 4567\nExpected guests: 120', privacyConsentAccepted: true, privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION }, null);
   return { ...inquiry, email, eventDate };
 }
