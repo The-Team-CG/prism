@@ -136,19 +136,17 @@ describe("LiveOpsScheduleDesk", () => {
     await waitFor(() => expect(repository.createDay).toHaveBeenCalledWith("evt_1", { dayDate: "2026-10-03", label: "Strike" }));
 
     fireEvent.change(screen.getByLabelText("Segment title"), { target: { value: "Vendor load-out" } });
-    // The field label wraps the picker, so open it from the picker's own button.
-    const pickerButton = (text: string) => screen.getByText(text, { selector: "span" }).closest("label")!.querySelector("button")!;
-    pickDateTime(pickerButton("Starts"), 2, "8:00 PM");
-    pickDateTime(pickerButton("Ends"), 2, "9:00 PM");
+    pickDateTime(screen.getByRole("button", { name: /^Starts/ }), 2, "8:00 PM");
+    pickDateTime(screen.getByRole("button", { name: /^Ends/ }), 2, "9:00 PM");
     fireEvent.change(screen.getByLabelText("Owner role"), { target: { value: "General Coordinator" } });
     fireEvent.click(screen.getByRole("button", { name: /^Add$/ }));
     await waitFor(() => expect(repository.createSegment).toHaveBeenCalledWith("evt_1", "day_1", expect.objectContaining({
       title: "Vendor load-out",
+      plannedStartAt: "2026-10-02T12:00:00.000Z",
+      plannedEndAt: "2026-10-02T13:00:00.000Z",
       ownerRole: "General Coordinator",
       sequence: 1,
     })));
-    const [, , input] = repository.createSegment.mock.calls[0] as unknown as [string, string, { plannedStartAt: string; plannedEndAt: string }];
-    expect(new Date(input.plannedEndAt).getTime()).toBeGreaterThan(new Date(input.plannedStartAt).getTime());
   }, PICKER_TEST_TIMEOUT_MS);
 
   it("lets PMCM flag an end-of-day report for incomplete tasks and shows the flag to the submitting coordinator", async () => {

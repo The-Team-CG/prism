@@ -6,7 +6,7 @@ The runner creates a new uniquely named `prism_browser_*` database, applies migr
 
 Desktop Chromium and mobile Chromium run each journey with separate browser sessions and no retries. Coverage: public inquiry and calendar, PMCM MFA/acceptance, client email activation/password reset/sign-in, supplier emailed quote submission, guest code/consent/check-in, signed-out dashboard guards, refusal of client credentials in PMCM/supplier workspaces, and one cross-role lifecycle journey (inquiry, conforme, proposal and billing statement, supplier quote and readiness, coordinator assignment, official plan approval, event day, closeout and archive). The [API lifecycle suite](../lifecycle/README.md) remains the broader workflow and permission layer. Route checks cover every registered page as described below.
 
-Cross-portal journeys each start from an event that `journey-fixtures.mjs` prepares through the API, then drive only the handoff between portals through rendered controls:
+Operational journeys use synthetic prerequisites prepared through the API and drive the workflow through rendered controls:
 
 | Spec | Handoff |
 | --- | --- |
@@ -24,8 +24,12 @@ Cross-portal journeys each start from an event that `journey-fixtures.mjs` prepa
 | `privacy-requests.spec.mjs` | Client asks for a copy of its data; PMCM approves; the client sees it in progress. |
 | `pmcm-records.spec.mjs` | PMCM issues an addendum that the client signs and PMCM countersigns; moves a compliance risk to mitigated with a reason; logs a quote given by phone and selects it; edits, turns off and turns back on a workspace rule. |
 | `client-planning.spec.mjs` | The client prefers one of PMCM's shortlisted venues; adds and confirms its own supplier and reads a risk PMCM raises; finds a sent statement in its notification inbox and marks all read. |
+| `planning-operations.spec.mjs` | PMCM creates, previews and applies a planning template, completes a task, and confirms reapplying cannot duplicate it. PMCM previews and records a postponement, the client and booked supplier see the new date, and plan sync moves the eligible task while preserving completed work, bookings and payment milestones. |
+| `run-sheet.spec.mjs` | PMCM authors a schedule day and segment. The PMCM printable run sheet and the assigned coordinator's run sheet show the programme. |
+| `walk-in.spec.mjs` | PMCM opens walk-ins for a private event. A guest submits their arrival and an assigned registration coordinator registers and flags a second walk-in. PMCM verifies and checks both in, and the coordinator sees their arrivals. |
+| `operational-records.spec.mjs` | PMCM requests and accepts an accreditation document with its own deadline, and records, rescores and mitigates a pre-event risk. |
 
-Setup that the API prepares instead of the UI: the supplier ingress/egress schedule and the poll configuration (both need PMCM editors outside the handoff), and addenda, which PMCM cannot yet issue from any screen. Floorplan editing gestures and guest QR scanning have no journey.
+The supplier delivery and live-poll journeys prepare the supplier ingress/egress schedule and poll configuration through the API. The walk-in journey activates the seeded registration coordinator through a captured synthetic invitation. Floorplan editing gestures and guest QR scanning have no journey.
 
 The normal manual-test database is never reset. Owned test processes and the temporary inbox/database are removed after the run. Private logs, env files, synthetic MFA secrets and failure traces stay in the ignored `.local-dev/browser/<run-id>/` directory. Inspect a failed HTML report with `npx playwright show-report <report-directory>`. Traces may contain synthetic credentials and email tokens; CI uploads only failure reports/results for seven days, never environment, actor or API log files. A cancelled runner/job still needs its normal process/container teardown; do not kill unrelated Node processes.
 
