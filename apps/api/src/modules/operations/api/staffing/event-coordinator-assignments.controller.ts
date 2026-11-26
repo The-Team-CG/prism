@@ -6,14 +6,12 @@ import {
   changeCoordinatorAssignmentRoleSchema,
   coordinatorAssignmentAcknowledgementSchema,
   createCoordinatorAssignmentSchema,
-  replaceCoordinatorAssignmentSchema,
   withdrawCoordinatorAssignmentSchema,
   type ChangeCoordinatorAssignmentRoleInput,
   type CoordinatorAssignmentAcknowledgementInput,
   type CreateCoordinatorAssignmentInput,
   type WithdrawCoordinatorAssignmentInput,
   type PrismVerifiedEventActor,
-  type ReplaceCoordinatorAssignmentInput,
 } from '@prism/types';
 import { CoordinatorAssignmentCommandService } from '../../application/staffing/coordinator-assignment-command.service';
 
@@ -73,17 +71,5 @@ export class OpsEventCoordinatorAssignmentsController {
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return this.assignmentCommands.changeCoordinatorRole(eventId, assignmentId, dto, actor);
-  }
-
-  @Patch(':eventId/coordinators/:assignmentId/replace')
-  @UseGuards(EventSessionGuard)
-  replaceCoordinator(
-    @Param('eventId') eventId: string,
-    @Param('assignmentId') assignmentId: string,
-    @Body(zodBody(replaceCoordinatorAssignmentSchema)) dto: ReplaceCoordinatorAssignmentInput,
-    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
-  ) {
-    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
-    return this.assignmentCommands.replaceCoordinator(eventId, assignmentId, dto, actor);
   }
 }

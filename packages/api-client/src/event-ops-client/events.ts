@@ -122,32 +122,9 @@ export function createEventsClient(
           withBase(options),
         );
       },
-      documents: (eventId, actor = {}) =>
-        prismRequest<PrismStoredObject[]>(
-          actorPath(`/events/${eventId}/documents`, actor),
-          withBase(options),
-        ),
       storageObjects: (eventId, actor = {}) =>
         prismRequest<PrismStoredObject[]>(
           actorPath(`/storage/objects/events/${encodeURIComponent(eventId)}`, actor),
-          withBase(options),
-        ),
-      requestDocumentUpload: (input, actor = {}) =>
-        prismRequest(
-          actorPath(`/events/${input.eventId}/documents/upload-request`, actor),
-          withBase(options, { method: "POST", body: input }),
-        ),
-      confirmDocumentUpload: (eventId, objectId, input, actor = {}) =>
-        prismRequest<PrismStoredObject>(
-          actorPath(`/events/${eventId}/documents/${objectId}/confirm`, actor),
-          withBase(options, { method: "POST", body: input }),
-        ),
-      documentDownloadAuthorization: (objectId, actor = {}) =>
-        prismRequest(
-          actorPath(
-            `/storage/objects/${objectId}/download-authorization`,
-            actor,
-          ),
           withBase(options),
         ),
       addenda: (eventId, actor = {}) =>

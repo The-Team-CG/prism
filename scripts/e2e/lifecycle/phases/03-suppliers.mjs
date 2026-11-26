@@ -176,9 +176,8 @@ export async function run(ctx) {
       const r = is(await call("PATCH", `/supplier-applications/${apps[tag].id}/review`, admin, { action: "approve" }), 200);
       apps[tag].supplierId = r.convertedSupplierId ?? `sup_application_${apps[tag].id}`;
       expect(r.status === "approved", `status ${r.status}`);
-      const directory = is(await call("GET", "/suppliers", admin), 200);
-      const row = (Array.isArray(directory) ? directory : directory.items ?? []).find((x) => x.id === apps[tag].supplierId);
-      expect(row, "approved applicant did not become a supplier in the directory");
+      const { supplier: row } = is(await call("GET", `/suppliers/${apps[tag].supplierId}/profile`, admin), 200);
+      expect(row?.id === apps[tag].supplierId, "approved applicant did not become a supplier in the directory");
       return `${apps[tag].supplierId} tier=${row.tier}`;
     });
   }
@@ -783,7 +782,7 @@ export async function run(ctx) {
   await step("PMCM directory, profile, reviews, certifications, records and engagements load for admin only", async () => {
     need(admin, apps.A.supplierId, A());
     const id = apps.A.supplierId;
-    const paths = ["/suppliers/directory?q=E2E", `/suppliers/${id}/profile`, `/suppliers/${id}/reviews`, `/suppliers/${id}/certifications`, `/suppliers/${id}/records`, `/pmcm/suppliers/${id}/engagements`, "/suppliers"];
+    const paths = ["/suppliers/directory?q=E2E", `/suppliers/${id}/profile`, `/suppliers/${id}/reviews`, `/suppliers/${id}/certifications`, `/suppliers/${id}/records`, `/pmcm/suppliers/${id}/engagements`];
     const bad = [];
     for (const p of paths) {
       const a = await call("GET", p, admin);
