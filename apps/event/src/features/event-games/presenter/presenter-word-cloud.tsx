@@ -1,6 +1,6 @@
 "use client";
 
-import cloud from "d3-cloud";
+import CloudLayout from "d3-cloud";
 import { useEffect, useMemo, useState } from "react";
 import { PresenterSection, wordCloudTerms } from "./presenter-blocks";
 
@@ -17,6 +17,7 @@ interface CloudWord {
 const COLOURS = ["#ffffff", "#f2b134", "#7fc8e8", "#ff8fb8", "#8fe0c8"];
 const WIDTH = 1000;
 const HEIGHT = 480;
+const SLICE_MS = 12;
 
 export function PresenterWordCloud({ responses, title = "Word cloud" }: { responses: readonly string[]; title?: string }) {
   // Polling supplies a fresh array each time. Keep the layout stable when its contents have not changed.
@@ -37,23 +38,34 @@ export function PresenterWordCloud({ responses, title = "Word cloud" }: { respon
     }));
     // A fixed sequence keeps the cloud from jumping on identical refreshes.
     let seed = 42;
-    const layout = cloud<CloudWord>()
+    const layout = new CloudLayout()
       .size([WIDTH, HEIGHT])
-      .words(words)
-      // Arial has no 600 weight, so browsers draw it bold: measuring at the drawn weight keeps words from colliding.
-      .font("Arial")
-      .fontWeight("bold")
-      .fontSize((word) => word.size)
-      .rotate((word) => word.rotate)
-      .padding(14)
+      .overflow(false)
       .random(() => {
         seed = (seed * 16807) % 2147483647;
         return seed / 2147483647;
-      })
-      .timeInterval(12)
-      .on("end", (result) => setPlaced(result));
-    layout.start();
-    return () => { layout.stop(); };
+      });
+    // Largest first, so the big words claim the middle. Placement is synchronous, so it works in short slices and
+    // yields between them to keep the presenter screen responsive; a changed response list cancels the pass.
+    const queue = [...words].sort((a, b) => b.size - a.size);
+    const result: CloudWord[] = [];
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const step = () => {
+      const sliceEnd = Date.now() + SLICE_MS;
+      while (queue.length && Date.now() < sliceEnd) {
+        const word = queue.shift() as CloudWord;
+        // Arial has no 600 weight, so browsers draw it bold: measuring at the drawn weight keeps words from colliding.
+        const sprite = layout.getSprite(word.text, { datum: word, font: "Arial", weight: "bold", size: word.size, rotate: word.rotate, padding: 14 });
+        const placedWord = sprite ? layout.place(sprite) : null;
+        if (placedWord) result.push({ ...placedWord.datum, x: placedWord.x, y: placedWord.y });
+      }
+      if (cancelled) return;
+      if (queue.length) timer = setTimeout(step, 0);
+      else setPlaced(result);
+    };
+    step();
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
   }, [terms]);
 
   const current = new Map(terms.map(({ text, count }) => [text, count]));

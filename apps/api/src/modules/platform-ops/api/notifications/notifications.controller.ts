@@ -21,11 +21,4 @@ export class OpsNotificationsController {
   async retry(@Param('notificationId') notificationId: string, @Body(zodBody(retryNotificationSchema)) input: RetryNotificationInput, @VerifiedEventActor() actor: PrismVerifiedEventActor) {
     return this.notificationOutboxService.retryFailed(notificationId, input.reason, actor);
   }
-
-  @Post(':notificationId/acknowledge')
-  @UseGuards(EventSessionGuard)
-  @HttpCode(HttpStatus.OK)
-  async acknowledge(@Param('notificationId') notificationId: string, @VerifiedEventActor() actor: PrismVerifiedEventActor) {
-    return mapNotificationLog(await this.notificationOutboxService.acknowledge(notificationId, actor));
-  }
 }

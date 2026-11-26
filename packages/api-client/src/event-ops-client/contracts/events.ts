@@ -14,9 +14,7 @@ import type {
   PrismAddendumConformeExecution,
   SignAddendumConformeExecutionInput,
   PrismEventFreezeException,
-  RequestStorageUploadInput,
   UpsertFileRequirementTemplateInput,
-  ConfirmStorageUploadInput,
   PrismEventDecision,
   PrismClientChangeRequest,
   PrismScopeChangeRequest,
@@ -84,26 +82,8 @@ export interface EventOpsEventsContract {
       filters?: ArchiveSearchFilters,
       actor?: EventOpsActorQuery,
     ): Promise<PrismArchivedEventSearchHit[]>;
-    documents(
-      eventId: string,
-      actor?: EventOpsActorQuery,
-    ): Promise<PrismStoredObject[]>;
     /** Every stored object that belongs to an event, whatever record owns it. */
     storageObjects(eventId: string, actor?: EventOpsActorQuery): Promise<PrismStoredObject[]>;
-    requestDocumentUpload(
-      input: RequestStorageUploadInput,
-      actor?: EventOpsActorQuery,
-    ): Promise<unknown>;
-    confirmDocumentUpload(
-      eventId: string,
-      objectId: string,
-      input: ConfirmStorageUploadInput,
-      actor?: EventOpsActorQuery,
-    ): Promise<PrismStoredObject>;
-    documentDownloadAuthorization(
-      objectId: string,
-      actor?: EventOpsActorQuery,
-    ): Promise<unknown>;
     addenda(
       eventId: string,
       actor?: EventOpsActorQuery,

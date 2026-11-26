@@ -128,36 +128,4 @@ export class NotificationOutboxService implements OnApplicationBootstrap, OnAppl
     catch { this.logger.warn('Notification queue sweep failed; durable work remains available for retry'); }
     finally { this.running = false; }
   }
-
-  async acknowledge(notificationId: string, actor?: PrismVerifiedEventActor) {
-    const notification = await this.prisma.opsNotificationLog.findUnique({ where: { id: notificationId } });
-    if (!notification) throw new NotFoundException('Notification not found');
-    if (this.hasRecipientMismatch(notification, actor)) {
-      throw new ForbiddenException('Only the notification recipient can acknowledge this notification');
-    }
-    if (this.hasEventScopeMismatch(notification, actor)) {
-      throw new ForbiddenException('Notification is outside the actor event scope');
-    }
-    if (notification.status === 'acknowledged') return notification;
-    if (notification.status !== 'sent') throw new ConflictException('Only a provider-accepted notification can be acknowledged');
-    const updated = await this.prisma.opsNotificationLog.updateMany({
-      where: { id: notificationId, status: 'sent' },
-      data: { status: 'acknowledged', acknowledgedAt: new Date() },
-    });
-    const saved = await this.prisma.opsNotificationLog.findUniqueOrThrow({ where: { id: notificationId } });
-    if (updated.count !== 1 && saved.status !== 'acknowledged') throw new ConflictException('Notification state changed; refresh before acknowledging');
-    return saved;
-  }
-
-  private isPrivileged(actor?: PrismVerifiedEventActor) {
-    return !actor || actor.role === 'pmcm-admin' || actor.role === 'system';
-  }
-
-  private hasRecipientMismatch(notification: OpsNotificationLog, actor?: PrismVerifiedEventActor) {
-    return Boolean(actor && notification.recipient.trim().toLowerCase() !== actor.email.trim().toLowerCase());
-  }
-
-  private hasEventScopeMismatch(notification: OpsNotificationLog, actor?: PrismVerifiedEventActor) {
-    return Boolean(actor && !this.isPrivileged(actor) && notification.eventId && actor.eventId && notification.eventId !== actor.eventId);
-  }
 }

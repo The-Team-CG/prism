@@ -229,11 +229,11 @@ export async function run(ctx) {
   await step("replacement: PMCM assigns Bianca to event C, then replaces her with Marco", async () => {
     if (!C) blocked("no event C");
     const first = expectStatus(await call("POST", `/events/${C}/coordinators`, s.admin, { coordinatorId: "coord_bianca", role: "Stage Director" }), 200, 201);
-    status(await call("PATCH", `/events/${C}/coordinators/${first.id}/replace`, s.admin, { replacementCoordinatorId: "coord_marco", role: "Floor Director" }), 400);
-    const r = expectStatus(await call("PATCH", `/events/${C}/coordinators/${first.id}/replace`, s.admin, { replacementCoordinatorId: "coord_marco", role: "Floor Director", reason: "e2e: Bianca unavailable" }), 200, 201);
+    status(await call("POST", `/events/${C}/coordinators/${first.id}/replace`, s.admin, { replacementCoordinatorId: "coord_marco", role: "Floor Director" }), 400);
+    const r = expectStatus(await call("POST", `/events/${C}/coordinators/${first.id}/replace`, s.admin, { replacementCoordinatorId: "coord_marco", role: "Floor Director", reason: "e2e: Bianca unavailable" }), 200, 201);
     s.replace = { first, result: r };
-    const outgoing = r.replacedAssignment ?? r.outgoing ?? r.replaced;
-    const incoming = r.replacementAssignment ?? r.incoming ?? r.replacement;
+    const outgoing = r.replacedAssignment;
+    const incoming = r.replacementAssignment;
     expect(outgoing && incoming, `unexpected replace result keys: ${Object.keys(r)}`);
     expect(/replaced/i.test(outgoing.status), `outgoing status=${outgoing.status}`);
     s.replacement = incoming;
@@ -241,15 +241,10 @@ export async function run(ctx) {
   });
   await step("replacement: only PMCM may replace, and a replaced assignment cannot be replaced again", async () => {
     if (!s.replace) blocked("no replacement");
-    status(await call("PATCH", `/events/${C}/coordinators/${s.replacement.id}/replace`, s.marco, { replacementCoordinatorId: "coord_bianca", role: "Stage Director", reason: "x" }), 403);
-    const again = await call("PATCH", `/events/${C}/coordinators/${s.replace.first.id}/replace`, s.admin, { replacementCoordinatorId: "coord_marco", role: "Floor Director", reason: "e2e: repeat" });
+    status(await call("POST", `/events/${C}/coordinators/${s.replacement.id}/replace`, s.marco, { replacementCoordinatorId: "coord_bianca", role: "Stage Director", reason: "x" }), 403);
+    const again = await call("POST", `/events/${C}/coordinators/${s.replace.first.id}/replace`, s.admin, { replacementCoordinatorId: "coord_marco", role: "Floor Director", reason: "e2e: repeat" });
     expect(again.status >= 400 && again.status < 500, `second replace of a replaced assignment returned ${again.status}: ${msg(again)}`);
     return `repeat -> ${again.status}`;
-  });
-  await step("event-day replace endpoint (POST) exists and refuses a coordinator caller", async () => {
-    if (!s.replacement) blocked("no replacement");
-    const r = await call("POST", `/events/${C}/coordinators/${s.replacement.id}/replace`, s.marco, { replacementCoordinatorId: "coord_bianca", role: "Stage Director", reason: "x" });
-    expect(r.status === 403, `${r.status}: ${msg(r)}`);
   });
 
   // ---------------------------------------------------------------- operator designation and attendance
