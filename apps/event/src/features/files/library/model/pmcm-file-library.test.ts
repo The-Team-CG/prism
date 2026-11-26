@@ -51,6 +51,8 @@ describe("PMCM file library", () => {
       ["obj_runsheet", "PMCM", "Floor plan", "Shared with client"],
     ]);
     expect(files[1]?.reviewReason).toBe("Unsigned");
+    // Only a file PMCM shared itself can be deleted; client and supplier files go through review instead.
+    expect(files.filter((file) => file.deletable).map((file) => file.id)).toEqual(["obj_runsheet"]);
     expect(files[0]?.review).toMatchObject({ key: "venue_permit", documentId: "doc_2" });
     // Uploads that never finished are kept out of the library, and deleted ones are gone.
     expect(unfinished.map((upload) => upload.id)).toEqual(["obj_failed"]);

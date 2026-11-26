@@ -34,6 +34,11 @@ export type PmcmLibraryFile = {
   review?: PmcmReviewEntry;
   /** The last day the document is valid, when it has one. */
   expiresAt: string | null;
+  /**
+   * PMCM can delete a file it shared itself. Client and supplier files are not deleted here: a wrong one is rejected
+   * and sent again, and supplier evidence cannot be deleted at all.
+   */
+  deletable: boolean;
 };
 
 type RequirementFile = { item: PrismFileRequirementItem; version: PrismSupplierRequirementVersion; sender: string };
@@ -108,6 +113,7 @@ export function buildPmcmFileLibrary(objects: PrismStoredObject[], items: PrismF
       label: sent?.item.label ?? (object.usage === "event_deliverable" ? EVENT_FILE_CATEGORIES[eventFileCategoryOf(object.logicalTarget)] : null),
       addedAt: object.storedAt ?? object.createdAt,
       expiresAt: object.expiresAt ?? null,
+      deletable: source === "pmcm" && object.usage === "event_deliverable" && !sent,
       ...fileStatus(object, sent),
       ...(sent?.version.reviewReason ? { reviewReason: sent.version.reviewReason } : {}),
       ...(queue.has(object.id) ? { review: queue.get(object.id) } : {}),

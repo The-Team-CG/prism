@@ -40,5 +40,5 @@ import { prismRequest, type PrismRequestInit } from "./http";
 export async function prismJson<T>(path: string, init?: PrismRequestInit): Promise<T> {
   return prismRequest<T>(path, init);
 }
-export { uploadStorageObject, uploadCommunicationAttachment, getEventCoverImage, getStorageObjectDownload, copyStorageObject, copyStorageObjectToThread, searchClientStoredFiles, setStorageObjectExpiry, type StorageClientOptions, type StorageUploadIntent, type StorageObjectDownload } from './storage-client';
+export { uploadStorageObject, uploadCommunicationAttachment, getEventCoverImage, getStorageObjectDownload, copyStorageObject, copyStorageObjectToThread, deleteStorageObject, searchClientStoredFiles, setStorageObjectExpiry, type StorageClientOptions, type StorageUploadIntent, type StorageObjectDownload } from './storage-client';
 export { prismFile, type PrismFile } from "./http";
