@@ -50,14 +50,4 @@ describe('PlansController auth boundary', () => {
     );
   });
 
-  it('uses the verified actor for plan exports', async () => {
-    const { controller, plansService, resolvedActor } = createController();
-    const res = { setHeader: vi.fn(), json: vi.fn() };
-
-    await controller.exportPlan('plan_1', verifiedPmcmActor as any, res as any);
-
-    expect(plansService.getPlan).toHaveBeenCalledWith('plan_1', resolvedActor);
-    expect(res.setHeader).toHaveBeenCalledWith('Content-Disposition', 'attachment; filename=plan-plan_1.json');
-    expect(res.json).toHaveBeenCalledWith({ id: 'plan_1' });
-  });
 });

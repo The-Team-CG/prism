@@ -167,7 +167,7 @@ describe('PlansController authenticated HTTP authorization', () => {
     await app.close();
   });
 
-  it('uses verified account identity for same-name client reads, exports, and edits', async () => {
+  it('uses verified account identity for same-name client reads and edits', async () => {
     const ownerRead = await fetch(`${baseUrl}/plans/${preference.id}`, {
       headers: { authorization: `Bearer ${ownerToken}` },
     });
@@ -177,11 +177,6 @@ describe('PlansController authenticated HTTP authorization', () => {
       headers: { authorization: `Bearer ${otherAnaToken}` },
     });
     expect(outsiderRead.status).toBe(403);
-
-    const outsiderExport = await fetch(`${baseUrl}/plans/${preference.id}/export`, {
-      headers: { authorization: `Bearer ${otherAnaToken}` },
-    });
-    expect(outsiderExport.status).toBe(403);
 
     const outsiderEdit = await fetch(`${baseUrl}/plans/${preference.id}`, {
       method: 'PUT',

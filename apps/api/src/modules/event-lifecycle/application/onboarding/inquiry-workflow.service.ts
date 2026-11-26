@@ -1,12 +1,11 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '@prism/kernel/database';
-import { findFloorPlanDraftsByEvent, withFloorPlanDrafts } from '@prism/contexts/floorplan/event-drafts';
 import type { MergeInquiryInput, PrismEventOpsActorContext, PrismVerifiedEventActor } from '@prism/types';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import type { EventAccessPolicyService } from '@prism/kernel/access-control';
 import type { InquiriesService } from './inquiries.service';
 import type { OpsInquiry } from '@prisma/client';
-import type { InquiryListCues, mapDocument, mapInquiry, mapOnboardingEvent, mapPublicInquiryReceipt } from './inquiry.mappers';
+import type { InquiryListCues, mapDocument, mapInquiry, mapPublicInquiryReceipt } from './inquiry.mappers';
 
 type OpsUserRoleValue = (typeof OpsUserRole)[keyof typeof OpsUserRole];
 
@@ -40,7 +39,6 @@ export interface InquiryWorkflowContext {
   mapInquiry: (inquiry: Parameters<typeof mapInquiry>[0], cues?: InquiryListCues) => ReturnType<typeof mapInquiry>;
   mapPublicInquiry: (inquiry: OpsInquiry) => ReturnType<typeof mapPublicInquiryReceipt>;
   mapDocument: (document: Parameters<typeof mapDocument>[0]) => ReturnType<typeof mapDocument>;
-  mapEvent: (event: Parameters<typeof mapOnboardingEvent>[0]) => ReturnType<typeof mapOnboardingEvent>;
 }
 
 const inquiryTriageInclude = {
@@ -81,29 +79,6 @@ export class InquiryWorkflowService {
     const cues = parallelInquiryCues(inquiries);
 
     return inquiries.map((inquiry) => context.mapInquiry(inquiry, cues.get(inquiry.id)));
-  }
-
-  async listOnboarding(actorInput: PrismEventOpsActorContext = {}, context: InquiryWorkflowContext, verifiedActor?: PrismVerifiedEventActor) {
-    const actor = context.resolveActor(verifiedActor ? {} : actorInput, verifiedActor);
-    await context.requireActorRole(actor, context.allowedAdminRoles, 'onboarding');
-
-    const [inquiries, eventRows, documents] = await Promise.all([
-      this.prisma.opsInquiry.findMany({
-        take: 500,
-        include: { ...inquiryTriageInclude, statusHistory: { orderBy: { createdAt: 'asc' } } },
-        orderBy: { createdAt: 'desc' },
-      }),
-      this.prisma.opsEvent.findMany({ take: 500, orderBy: { eventDate: 'asc' } }),
-      this.prisma.opsDocument.findMany({ take: 500, orderBy: { uploadedAt: 'desc' } }),
-    ]);
-    const events = withFloorPlanDrafts(eventRows, await findFloorPlanDraftsByEvent(this.prisma, eventRows.map(({ id }) => id)));
-    const cues = parallelInquiryCues(inquiries);
-
-    return {
-      inquiries: inquiries.map((inquiry) => context.mapInquiry(inquiry, cues.get(inquiry.id))),
-      events: events.map(context.mapEvent),
-      documents: documents.map(context.mapDocument),
-    };
   }
 
   async createInquiry(input: CreateInquiryInput, context: InquiryWorkflowContext) {

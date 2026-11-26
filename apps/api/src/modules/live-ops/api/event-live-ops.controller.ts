@@ -274,12 +274,6 @@ export class EventLiveOpsController {
     return this.commandService.updateCoordinatorAttendance(eventId, assignmentId, dto, actor);
   }
 
-  @Get(':eventId/event-day/task-reassignments')
-  @UseGuards(EventSessionGuard)
-  listTaskReassignmentRequests(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
-    return this.commandService.listTaskReassignmentRequests(eventId, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
-  }
-
   @Post(':eventId/event-day/tasks/:taskId/reassignments')
   @UseGuards(EventSessionGuard)
   @HttpCode(HttpStatus.CREATED)

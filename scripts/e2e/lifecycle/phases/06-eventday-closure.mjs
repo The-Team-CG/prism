@@ -163,7 +163,7 @@ export async function run(ctx) {
     expectStatus(await http("POST", `/events/${E()}/eod-reports/${report.id}/replies`, { token: admin, body: { body: "Noted, thanks." } }), 201);
   });
   await step("coordinators record a same-role handoff before the outgoing assignment is replaced", async () => {
-    const roster = expectStatus(await http("GET", "/coordinators", { token: admin }), 200);
+    const roster = expectStatus(await http("GET", "/pmcm/reference", { token: admin }), 200).coordinators;
     const incoming = roster.find((c) => c.id !== "coord_marco" && (c.roleTags ?? []).includes("General Coordinator"));
     expect(incoming, "fixture directory has no second general coordinator");
     const assignment = expectStatus(await http("POST", `/events/${E()}/coordinators`, { token: admin, body: { coordinatorId: incoming.id, role: "General Coordinator" } }), 201);

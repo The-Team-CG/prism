@@ -10,6 +10,7 @@ import { AiGovernanceService } from '../../application/ai-governance/ai-governan
 export class OpsAiGovernanceController {
   constructor(private readonly aiGovernanceService: AiGovernanceService) {}
 
+  /** API-only by design: trust operators test a governance rule here without acting on it. No portal screen calls it. */
   @Post('governance/dry-run')
   @UseGuards(EventSessionGuard)
   @HttpCode(HttpStatus.CREATED)

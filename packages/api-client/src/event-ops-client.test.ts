@@ -1111,7 +1111,6 @@ describe("prismRequest", () => {
 
     await client.eventGames.listForEvent("event-1");
     await client.eventGames.createDraft("event-1", definition);
-    await client.eventGames.getForEvent("event-1", "game-1");
     await client.eventGames.updateDraft("event-1", "game-1", { title: "Final Trivia" });
     await client.eventGames.removeUnstartedGame("event-1", "game-1");
     await client.eventGames.publishDraft("event-1", "game-1");
@@ -1130,32 +1129,31 @@ describe("prismRequest", () => {
       method: "POST",
       body: JSON.stringify(definition),
     });
-    expect(fetchMock).toHaveBeenNthCalledWith(3, "https://api.example.test/api/events/event-1/games/game-1", commandOptions);
-    expect(fetchMock).toHaveBeenNthCalledWith(4, "https://api.example.test/api/events/event-1/games/game-1", {
+    expect(fetchMock).toHaveBeenNthCalledWith(3, "https://api.example.test/api/events/event-1/games/game-1", {
       ...commandOptions,
       method: "PATCH",
       body: JSON.stringify({ title: "Final Trivia" }),
     });
-    expect(fetchMock).toHaveBeenNthCalledWith(5, "https://api.example.test/api/events/event-1/games/game-1", {
+    expect(fetchMock).toHaveBeenNthCalledWith(4, "https://api.example.test/api/events/event-1/games/game-1", {
       ...commandOptions,
       method: "DELETE",
     });
-    expect(fetchMock).toHaveBeenNthCalledWith(6, "https://api.example.test/api/events/event-1/games/game-1/publish", {
+    expect(fetchMock).toHaveBeenNthCalledWith(5, "https://api.example.test/api/events/event-1/games/game-1/publish", {
       ...commandOptions,
       method: "POST",
     });
-    expect(fetchMock).toHaveBeenNthCalledWith(7, "https://api.example.test/api/events/event-1/games/game-1/sessions", {
+    expect(fetchMock).toHaveBeenNthCalledWith(6, "https://api.example.test/api/events/event-1/games/game-1/sessions", {
       ...commandOptions,
       method: "POST",
       body: JSON.stringify({ gameId: "game-1" }),
     });
-    expect(fetchMock).toHaveBeenNthCalledWith(8, "https://api.example.test/api/events/event-1/game-sessions/session-1/host-state", commandOptions);
-    expect(fetchMock).toHaveBeenNthCalledWith(9, "https://api.example.test/api/events/event-1/game-lobby", {
+    expect(fetchMock).toHaveBeenNthCalledWith(7, "https://api.example.test/api/events/event-1/game-sessions/session-1/host-state", commandOptions);
+    expect(fetchMock).toHaveBeenNthCalledWith(8, "https://api.example.test/api/events/event-1/game-lobby", {
       ...commandOptions,
       method: "POST",
     });
-    expect(fetchMock).toHaveBeenNthCalledWith(10, "https://api.example.test/api/game-lobbies/opaque-lobby-token", commandOptions);
-    expect(fetchMock).toHaveBeenNthCalledWith(11, "https://api.example.test/api/game-lobbies/opaque-lobby-token/games/game-1/sessions", {
+    expect(fetchMock).toHaveBeenNthCalledWith(9, "https://api.example.test/api/game-lobbies/opaque-lobby-token", commandOptions);
+    expect(fetchMock).toHaveBeenNthCalledWith(10, "https://api.example.test/api/game-lobbies/opaque-lobby-token/games/game-1/sessions", {
       ...commandOptions,
       method: "POST",
       body: JSON.stringify({

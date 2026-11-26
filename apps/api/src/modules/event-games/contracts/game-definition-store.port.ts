@@ -58,10 +58,6 @@ export interface RemovedGameRecord {
 
 export interface GameDefinitionStorePort {
   listForEvent(eventId: string, transaction: PrismTransactionContext): Promise<GameDefinitionRecord[]>;
-  findForEvent(
-    scope: { eventId: string; gameId: string },
-    transaction: PrismTransactionContext,
-  ): Promise<GameDefinitionRecord | null>;
   createDraft(input: CreateGameDraftRecord, transaction: PrismTransactionContext): Promise<GameDefinitionRecord>;
   findDraftForUpdate(
     scope: { eventId: string; gameId: string },

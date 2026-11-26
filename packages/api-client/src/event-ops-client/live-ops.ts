@@ -184,11 +184,6 @@ export function createLiveOpsClient(
           actorPath(`/events/${eventId}/urgent-issues/${issueId}/escalate`, actor),
           withBase(options, { method: "POST", body: input }),
         ),
-      listTaskReassignmentRequests: (eventId, actor = {}) =>
-        prismRequest<PrismEventTaskReassignmentRequest[]>(
-          actorPath(`/events/${eventId}/event-day/task-reassignments`, actor),
-          withBase(options),
-        ),
       requestTaskReassignment: (eventId, taskId, input, actor = {}) =>
         prismRequest<PrismEventTaskReassignmentRequest>(
           actorPath(

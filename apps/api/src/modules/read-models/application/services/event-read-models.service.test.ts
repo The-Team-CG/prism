@@ -18,7 +18,6 @@ function createStaffingReader() {
     listAssignmentsForEvent: vi.fn(async () => []),
     countAssignmentsForEvent: vi.fn(async () => 0),
     countPendingAssignmentsForEvent: vi.fn(async () => 0),
-    listCoordinators: vi.fn(async () => []),
   };
 }
 

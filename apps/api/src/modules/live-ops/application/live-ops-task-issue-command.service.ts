@@ -340,14 +340,6 @@ export class LiveOpsTaskIssueCommandService {
     });
   }
 
-  async listTaskReassignmentRequests(eventId: string) {
-    const requests = await this.requirePrisma().opsEventTaskReassignmentRequest.findMany({
-      where: { eventId },
-      orderBy: { requestedAt: 'desc' },
-    });
-    return requests.map((request) => this.mapTaskReassignment(request));
-  }
-
   async decideTaskReassignment(
     eventId: string,
     requestId: string,

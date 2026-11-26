@@ -43,17 +43,17 @@ export async function run(ctx) {
   // ---------------------------------------------------------------- roster and capacity
   await step("PMCM reads the coordinator directory (roster with roles)", async () => {
     if (!s.admin) blocked("no admin");
-    const r = list(expectStatus(await call("GET", "/coordinators", s.admin), 200));
+    const r = list(expectStatus(await call("GET", "/pmcm/reference", s.admin), 200).coordinators);
     s.coordinatorProfiles = r;
     s.marcoProfile = r.find((c) => c.id === "coord_marco" || /marco/i.test(c.name ?? ""));
     s.biancaProfile = r.find((c) => c.id === "coord_bianca" || /bianca/i.test(c.name ?? ""));
     expect(s.marcoProfile && s.biancaProfile, `seeded coordinators missing from directory (${r.length} rows)`);
     return `${r.length} coordinators; Marco roles=${JSON.stringify(s.marcoProfile.roleTags ?? s.marcoProfile.roles)}`;
   });
-  await step("coordinator directory is PMCM-only (coordinator and supplier 403, anonymous 401)", async () => {
-    status(await call("GET", "/coordinators", s.marco), 403);
-    status(await call("GET", "/coordinators", s.supplier), 403);
-    status(await call("GET", "/coordinators"), 401);
+  await step("coordinator roster is PMCM-only (coordinator and supplier 403, anonymous 401)", async () => {
+    status(await call("GET", "/pmcm/reference", s.marco), 403);
+    status(await call("GET", "/pmcm/reference", s.supplier), 403);
+    status(await call("GET", "/pmcm/reference"), 401);
   });
   await step("PMCM reads coordinator suggestions for a role", async () => {
     const r = await call("GET", `/events/${A}/staffing/coordinator-suggestions?role=${encodeURIComponent("Registration Staff")}`, s.admin);

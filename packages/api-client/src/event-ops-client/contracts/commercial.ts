@@ -136,7 +136,6 @@ export interface EventOpsCommercialContract {
     /** PMCM finance across every active event: what needs PMCM, each event's money, and supplier payouts. */
     financeDesk(init?: EventOpsReadInit): Promise<PrismFinanceDesk>;
     listPaymentReceipts(query: ListPaymentReceiptsQuery, init?: EventOpsReadInit): Promise<PrismPaymentReceipt[]>;
-    paymentReceipt(receiptId: string, init?: EventOpsReadInit): Promise<PrismPaymentReceipt>;
     /** Estimated and billed price, collections and how far to trust them, supplier cost and the margin. PMCM finance only. */
     eventFinancialSummary(eventId: string, init?: EventOpsReadInit): Promise<PrismEventFinancialSummary>;
     paymentAllocationTargets(query: ListPaymentAllocationTargetsQuery, init?: EventOpsReadInit): Promise<PrismPaymentAllocationTarget[]>;

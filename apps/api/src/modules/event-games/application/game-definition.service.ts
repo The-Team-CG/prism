@@ -123,15 +123,6 @@ export class GameDefinitionService {
     return this.transactions.run((transaction) => this.store.listForEvent(eventId, transaction), { actorId: actor.actorId });
   }
 
-  async getForEvent(eventId: string, gameId: string, actor: PrismVerifiedEventActor) {
-    await this.eventAccess.assertHostAccess(eventId, actor);
-    return this.transactions.run(async (transaction) => {
-      const game = await this.store.findForEvent({ eventId, gameId }, transaction);
-      if (!game || game.status === 'removed') throw new NotFoundException('Game not found');
-      return game;
-    }, { actorId: actor.actorId });
-  }
-
   async createDraft(eventId: string, actor: PrismVerifiedEventActor, input: PrismCreateEventGameInput) {
     await this.eventAccess.assertHostAccess(eventId, actor);
     return this.transactions.run(async (transaction) => {
