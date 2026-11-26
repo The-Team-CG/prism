@@ -1,6 +1,7 @@
 export {
   PortalQueryProvider,
   defineResource,
+  useFetchResource,
   useInvalidate,
   usePrefetch,
   useResource,

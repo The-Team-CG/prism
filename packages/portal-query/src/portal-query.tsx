@@ -80,6 +80,24 @@ export function usePrefetch() {
   );
 }
 
+/**
+ * Loads a resource through the cache for code that holds its own state (a view-model with drafts, say): the answer a
+ * prefetch already started or finished is reused instead of asking again. `{ fresh: true }` always asks the API, for
+ * a reload after a command; the cache keeps that answer too.
+ */
+export function useFetchResource() {
+  const client = useQueryClient();
+  return useCallback(
+    <Params, Data>(resource: Resource<Params, Data>, params: Params, options: { fresh?: boolean } = {}): Promise<Data> =>
+      client.fetchQuery({
+        queryKey: resourceKey(resource, params),
+        queryFn: ({ signal }) => resource.fetch(params, signal),
+        staleTime: options.fresh ? 0 : resource.staleMs,
+      }),
+    [client],
+  );
+}
+
 /** Marks a resource stale after a command; mounted readers refetch in parallel and the promise settles after. */
 export function useInvalidate() {
   const client = useQueryClient();

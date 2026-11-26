@@ -2,7 +2,7 @@
 import { StrictMode, type ReactNode } from "react";
 import { act, cleanup, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PortalQueryProvider, defineResource, useInvalidate, usePrefetch, useResource } from "./portal-query";
+import { PortalQueryProvider, defineResource, useFetchResource, useInvalidate, usePrefetch, useResource } from "./portal-query";
 
 afterEach(cleanup);
 
@@ -41,6 +41,18 @@ describe("portal query", () => {
     rerender({ id: "evt_2" });
     await waitFor(() => expect(result.current.state.status).toBe("ready"));
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets a loader that keeps its own state reuse a prefetched answer, and ask again when told to", async () => {
+    const { fetch, resource, wrapper } = setup();
+    const { result } = renderHook(() => ({ prefetch: usePrefetch(), load: useFetchResource() }), { wrapper });
+    act(() => result.current.prefetch(resource, "evt_3"));
+    // The loader joins the request the prefetch started instead of making a second one.
+    await expect(result.current.load(resource, "evt_3")).resolves.toMatchObject({ eventId: "evt_3" });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    // After a command the loader asks the API again.
+    await expect(result.current.load(resource, "evt_3", { fresh: true })).resolves.toMatchObject({ loadedAt: 2 });
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 
   it("refetches mounted readers after invalidation", async () => {

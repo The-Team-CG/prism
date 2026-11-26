@@ -39,6 +39,10 @@ Use `npm run test:browser -- --project=desktop` for one viewport and `--grep <ti
 
 The harness prints elapsed time and pass/fail status for database creation, Mailpit, migrations, each fixture seed, API compilation/readiness, fixture preparation, each production portal build, portal readiness, Playwright, and cleanup. The private run directory contains `timings.json` with those phase durations and total elapsed time. Records also identify the revision, server mode, viewport, sample, runtime/runner configuration and complete-suite status. They exclude connection strings, credentials, process arguments, and exception details. Compare complete successful runs, including setup and builds, before attributing a change to faster test execution.
 
+## First-load report
+
+`BROWSER_FIRST_LOAD=1 npm run test:browser -- --project=desktop --grep "first load of key pages"` loads key pages of every portal three times each in fresh contexts and records when each API read starts and ends. It prints, per page, the reads, when the first starts and the last ends, the serial steps (a read that starts only after every earlier one has finished), the idle time between steps, and any path read twice, and writes `first-load-<project>.json` to the private run directory. Local timings are too noisy to gate on; use it to compare a change against `staging` on the same machine. A page whose own reads wait for its shell shows an extra step with about 150 ms idle: start those reads from the route (`EVENT_PAGE_READS` in the event portal, the route prefetch in the client dashboard view-model).
+
 ## Compare complete server modes
 
 The manual Browser acceptance workflow accepts `server=production`, `development`

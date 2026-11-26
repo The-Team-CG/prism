@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatPortalDateTime } from "@prism/ui/format-date";
 import { createInquiryContextNoteSchema, INQUIRY_CONTEXT_NOTE_KINDS, INQUIRY_CONTEXT_NOTE_LABELS, parseContract, type PrismInquiryContextNote } from "@prism/types";
+import { useResource } from "@prism/portal-query";
 import { contextNotesRepository } from "../data/context-notes-repository";
+import { eventPreConformeContext } from "../data/context-notes-resources";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { LoadingState } from "@prism/ui/components/loading-state";
 
@@ -77,12 +79,9 @@ export function ContextNotesLog({ inquiryId }: { inquiryId: string }) {
 
 /** FR-53: the inquiry's notes, read-only, inside the event workspace. */
 export function PreConformeContextPanel({ eventId }: { eventId: string }) {
-  const [notes, setNotes] = useState<PrismInquiryContextNote[] | null>(null);
-  useEffect(() => {
-    let current = true;
-    void contextNotesRepository.forEvent(eventId).catch((): PrismInquiryContextNote[] => []).then((next) => { if (current) setNotes(next); });
-    return () => { current = false; };
-  }, [eventId]);
+  // Read through the portal cache, so the briefing route can start it before this panel mounts. Unreadable notes show as none.
+  const context = useResource(eventPreConformeContext, eventId);
+  const notes = context.status === "ready" ? context.data : context.status === "error" ? [] : null;
   return (
     <section className="rounded-lg border border-border bg-card p-5 text-sm">
       <h2 className="text-lg font-semibold">Pre-conforme context</h2>

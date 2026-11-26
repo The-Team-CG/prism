@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { EVENT_PAGE_READS } from "../data/event-page-reads";
 import type { CoordinatorRole, FloorplanSceneDocument, PrismConformeExecution, PrismEvent, PrismEventPrivacy, PrismFloorPlanDraft, PrismFloorplanSeatingGuest, PrismFloorplanSupplier, PrismInquiry, PrismSupplier, SetEventModulesInput } from "@prism/types";
 import { derivePrismLifecycleStage } from "@prism/types";
 import { type FloorPlanTemplate } from "@prism/floorplan-canvas";
@@ -42,7 +43,7 @@ import { toast } from "@prism/ui/components/sonner";
 import { dashboardActionSuccessToast, runDashboardAction, runDashboardActionWithSuccess, type DashboardActionRefreshers } from "./dashboard-action-runner";
 import { countersignConformeExecution, downloadConformePdf, prepareConformeExecution, refreshConformeExecution } from "@/features/conforme/signing/use-cases/conforme-signing";
 import { assignedSupplierRequests } from "@/features/suppliers/readiness";
-import { useResource } from "@prism/portal-query";
+import { usePrefetch, useResource } from "@prism/portal-query";
 import { financeDesk } from "@/features/finance/desk";
 import { isScopeFrozen } from "@/features/change-management/register/model/change-register-rules";
 
@@ -85,6 +86,12 @@ export function useEventDashboardShellViewModel({
       view: initialView,
     };
   }, [initialClientId, initialEventId, initialSection, initialTab, initialView]);
+
+  // The page's own reads start now, from the event id in the URL, instead of after the shell's data arrives.
+  const prefetch = usePrefetch();
+  useEffect(() => {
+    if (routeState.eventId) EVENT_PAGE_READS[routeState.view ?? routeState.tab]?.(prefetch, routeState.eventId);
+  }, [prefetch, routeState]);
 
   const [screen, setScreen] = useState<Screen>({ name: "portal" });
   const editorOpens = useRef(0);
@@ -362,7 +369,7 @@ export function useEventDashboardShellViewModel({
   const activeSidebarItemId = activeSidebarItemFromRoute(routeState);
   const inEventWorkspace = Boolean(routeState.eventId) && !eventWorkspaceDisabled;
   // Messages inside an event counts that event's conversations only.
-  const unreadMessages = useEventUnreadMessages({ eventId: selectedEvent?.id });
+  const unreadMessages = useEventUnreadMessages({ eventId: selectedEventId ?? undefined });
   const unreadNotices = useEventUnreadNotices();
   // The Finance count is the desk's queue: what is late, to verify or apply, disputed, or owed to a supplier.
   const financeQueue = useResource(financeDesk, "signed-in");
