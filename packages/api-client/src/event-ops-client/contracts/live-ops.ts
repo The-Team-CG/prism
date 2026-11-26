@@ -153,9 +153,6 @@ export interface EventOpsLiveOpsContract {
       issueId: string,
       input: EscalateLiveOpsInput,
     ): Promise<PrismUrgentIssue>;
-    listTaskReassignmentRequests(
-      eventId: string,
-    ): Promise<PrismEventTaskReassignmentRequest[]>;
     requestTaskReassignment(
       eventId: string,
       taskId: string,

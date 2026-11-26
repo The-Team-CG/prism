@@ -56,14 +56,6 @@ export class OpsCoordinatorCapacityController {
     return this.coordinatorSuggestionsService.poolAvailabilityForEvent(eventId);
   }
 
-  @Get(':eventId/staffing/coverage')
-  @UseGuards(EventSessionGuard)
-  getCoverage(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
-    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
-    return this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'coordinator coverage', eventId)
-      .then(() => this.coordinatorsService.listCoverageForEvent(eventId));
-  }
-
   @Post(':eventId/staffing/coverage')
   @UseGuards(EventSessionGuard)
   upsertCoverage(

@@ -49,15 +49,6 @@ export class EventGamesController {
     return this.definitions.createDraft(eventId, actor, input);
   }
 
-  @Get(':eventId/games/:gameId')
-  getForEvent(
-    @Param('eventId') eventId: string,
-    @Param('gameId') gameId: string,
-    @VerifiedEventActor() actor: PrismVerifiedEventActor,
-  ) {
-    return this.definitions.getForEvent(eventId, gameId, actor);
-  }
-
   @Patch(':eventId/games/:gameId')
   updateDraft(
     @Param('eventId') eventId: string,

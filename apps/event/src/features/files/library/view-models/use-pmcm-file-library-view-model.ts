@@ -133,6 +133,14 @@ export function usePmcmFileLibraryViewModel(eventId: string, initialCoverObjectI
     }, { changesServer: false });
   }
 
+  function remove(file: { id: string; name: string }) {
+    return run(`delete:${file.id}`, async () => {
+      await pmcmDocumentRepository.remove(file.id);
+      setPreviewId((current) => (current === file.id ? null : current));
+      return `Deleted ${file.name}. The client no longer sees it.`;
+    });
+  }
+
   function download(objectId: string) {
     return run(`download:${objectId}`, async () => {
       saveFile(await pmcmDocumentRepository.download(objectId));
@@ -152,7 +160,7 @@ export function usePmcmFileLibraryViewModel(eventId: string, initialCoverObjectI
     query, setQuery,
     preview, openPreview: setPreviewId, closePreview: () => setPreviewId(null),
     selected, toggleSelected, toggleAll, approveSelected,
-    review, upload, download, setExpiry, makeCover, removeCover, coverObjectId,
+    review, upload, download, remove, setExpiry, makeCover, removeCover, coverObjectId,
     busy, notice, error,
     category, setCategory, inputRef,
   };

@@ -66,15 +66,6 @@ export class CoordinatorsService {
     @Inject(OPERATIONS_EVENT_REFERENCE_READER) private readonly eventReferences: OperationsEventReferenceReader,
   ) {}
 
-  async listCoordinators() {
-    const coordinators = await this.prisma.opsCoordinator.findMany({
-      where: { active: true },
-      orderBy: [{ name: 'asc' }, { id: 'asc' }],
-      take: MAX_STAFFING_COORDINATORS,
-    });
-    return coordinators.map((coordinator: OpsCoordinator) => this.mapCoordinator(coordinator));
-  }
-
 
   async listAssignmentsForCoordinator(
     coordinatorId?: string | null,

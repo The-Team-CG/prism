@@ -4,7 +4,7 @@ import { api, fitsViewport, freshEvent, inbox, mailLink, origins, persona } from
 import { approvedOfficialPlan, approvedProposal, closeAll, signedIn, tokenFor } from './journey-fixtures.mjs';
 
 async function prepareRegistration(event) {
-  const directory = await api('GET', '/coordinators');
+  const { coordinators: directory } = await api('GET', '/pmcm/reference');
   const registrar = directory.find(coordinator => coordinator.id === 'coord_bianca');
   const password = process.env.PRISM_SEED_PASSWORD_COORDINATOR;
   const invitation = await api('POST', '/auth/invitations', { email: registrar.email, name: registrar.name, role: 'coordinator', organization: 'PMCM' });

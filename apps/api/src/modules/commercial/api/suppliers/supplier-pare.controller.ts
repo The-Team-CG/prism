@@ -14,6 +14,7 @@ export class OpsSupplierPareController {
     private readonly pareReplacementDispatch: PareReplacementDispatchService,
   ) {}
 
+  /** API-only by design: PMCM withdraws a supplier by hand to start a PARE replacement. No portal screen calls it. */
   @Post('pare/trigger/:requestId')
   @UseGuards(EventSessionGuard)
   @HttpCode(HttpStatus.CREATED)

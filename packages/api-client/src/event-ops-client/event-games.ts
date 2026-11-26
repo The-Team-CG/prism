@@ -48,11 +48,6 @@ export function createEventGamesClient(
           `/events/${encodeURIComponent(eventId)}/games`,
           withBase(options, { method: "POST", body: input }),
         ),
-      getForEvent: (eventId, gameId) =>
-        prismRequest<PrismEventGameDefinition>(
-          `/events/${encodeURIComponent(eventId)}/games/${encodeURIComponent(gameId)}`,
-          withBase(options),
-        ),
       updateDraft: (eventId, gameId, input: PrismUpdateEventGameInput) =>
         prismRequest<PrismEventGameDefinition>(
           `/events/${encodeURIComponent(eventId)}/games/${encodeURIComponent(gameId)}`,

@@ -1,5 +1,5 @@
 import { eventFileLogicalTarget, type EventFileCategory, type PrismStoredObject } from '@prism/types';
-import { getStorageObjectDownload, setStorageObjectExpiry, uploadStorageObject } from '@prism/api-client';
+import { deleteStorageObject, getStorageObjectDownload, setStorageObjectExpiry, uploadStorageObject } from '@prism/api-client';
 import { eventApi, storedEventAccessToken } from '@/lib/prism-api';
 
 export const pmcmDocumentRepository = {
@@ -24,6 +24,10 @@ export const pmcmDocumentRepository = {
   /** Makes an image from this event's files the event's cover on every portal's event cards, or null for the drawn cover. */
   setCover(eventId: string, objectId: string | null) {
     return eventApi.lifecycle.setCover(eventId, { objectId });
+  },
+
+  remove(objectId: string): Promise<PrismStoredObject> {
+    return deleteStorageObject(objectId, { authToken: storedEventAccessToken() });
   },
 
   download(objectId: string) {

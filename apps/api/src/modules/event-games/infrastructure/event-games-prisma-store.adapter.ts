@@ -233,29 +233,6 @@ export class EventGamesPrismaStoreAdapter implements GameDefinitionStorePort, Ga
     return rows.map(definitionRecord);
   }
 
-  async findForEvent(
-    scope: { eventId: string; gameId: string },
-    transaction: PrismTransactionContext,
-  ): Promise<GameDefinitionRecord | null> {
-    // QUERY_AUDIT_RAW_SQL: Same latest-version LATERAL and started-session EXISTS as listForEvent, for one definition.
-    const rows = await transaction.prisma.$queryRaw<DefinitionRow[]>`
-      SELECT d."id", d."event_id", d."slug", d."title", d."game_kind", d."entry_mode", d."status",
-        v."version", v."id" AS "config_version_id", v."config", d."available_from", d."available_until",
-        EXISTS (SELECT 1 FROM "event_games"."game_sessions" s WHERE s."event_id" = d."event_id"
-          AND s."game_definition_id" = d."id" AND s."started_at" IS NOT NULL) AS "has_started_session"
-      FROM "event_games"."game_definitions" d
-      JOIN LATERAL (
-        SELECT cv."id", cv."version", cv."config"
-        FROM "event_games"."game_config_versions" cv
-        WHERE cv."event_id" = d."event_id" AND cv."game_definition_id" = d."id"
-        ORDER BY cv."version" DESC LIMIT 1
-      ) v ON TRUE
-      WHERE d."event_id" = ${scope.eventId} AND d."id" = ${scope.gameId}
-      LIMIT 1
-    `;
-    return rows[0] ? definitionRecord(rows[0]) : null;
-  }
-
   async createDraft(input: CreateGameDraftRecord, transaction: PrismTransactionContext): Promise<GameDefinitionRecord> {
     // QUERY_AUDIT_RAW_SQL: Plain insert of the draft game definition with updated_at NOW(); no lock or conditional write, so Prisma create could serve it.
     await transaction.prisma.$executeRaw`

@@ -21,7 +21,7 @@ const entry: PmcmReviewEntry = {
 const file: PmcmLibraryFile = {
   id: "obj_permit", name: "permit.pdf", kind: "pdf", contentType: "application/pdf", size: 2048, source: "client",
   from: "Client", label: "Venue permit", addedAt: "2026-11-03T00:00:00.000Z", status: "Waiting for review", tone: "attention", review: entry,
-  expiresAt: "2026-01-31T00:00:00.000Z",
+  expiresAt: "2026-01-31T00:00:00.000Z", deletable: false,
 };
 
 function viewModel(overrides: Record<string, unknown> = {}) {
@@ -30,7 +30,7 @@ function viewModel(overrides: Record<string, unknown> = {}) {
     queue: [entry], filter: "all", setFilter: vi.fn(), query: "", setQuery: vi.fn(),
     preview: null, openPreview: vi.fn(), closePreview: vi.fn(),
     selected: new Set<string>(), toggleSelected: vi.fn(), toggleAll: vi.fn(), approveSelected: vi.fn(),
-    review: vi.fn(), upload: vi.fn(), download: vi.fn(), setExpiry: vi.fn(), makeCover: vi.fn(), removeCover: vi.fn(), coverObjectId: null,
+    review: vi.fn(), upload: vi.fn(), download: vi.fn(), remove: vi.fn(), setExpiry: vi.fn(), makeCover: vi.fn(), removeCover: vi.fn(), coverObjectId: null,
     busy: null, notice: null, error: null, category: "other", setCategory: vi.fn(), inputRef: { current: null },
     ...overrides,
   };
@@ -99,5 +99,30 @@ describe("PMCM file library", () => {
     useViewModel.mockReturnValue(viewModel({ preview: file }));
     view.rerender(<PmcmFileLibraryView eventId="evt_1" />);
     expect(screen.queryByRole("button", { name: /event cover/ })).toBeNull();
+  });
+
+  it("deletes a file PMCM shared only after a second confirming click, and never offers it for the cover or a sent file", () => {
+    const runSheet: PmcmLibraryFile = { ...file, id: "obj_runsheet", name: "run-sheet.pdf", source: "pmcm", from: "PMCM", review: undefined, status: "Shared with client", label: "Run sheet", expiresAt: null, deletable: true };
+    const vm = viewModel({ files: [runSheet], queue: [], preview: runSheet });
+    useViewModel.mockReturnValue(vm);
+    const view = render(<PmcmFileLibraryView eventId="evt_1" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    expect(vm.remove).not.toHaveBeenCalled();
+    const confirm = screen.getByRole("group", { name: "Delete run-sheet.pdf" });
+    expect(confirm.textContent).toContain("can't be undone");
+    fireEvent.click(screen.getByRole("button", { name: "Keep it" }));
+    expect(screen.queryByRole("group", { name: "Delete run-sheet.pdf" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete file" }));
+    expect(vm.remove).toHaveBeenCalledWith(runSheet);
+
+    // The current cover is taken off first, and a client's file is rejected rather than deleted.
+    useViewModel.mockReturnValue(viewModel({ files: [runSheet], queue: [], preview: runSheet, coverObjectId: "obj_runsheet" }));
+    view.rerender(<PmcmFileLibraryView eventId="evt_1" />);
+    expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
+    useViewModel.mockReturnValue(viewModel({ preview: file }));
+    view.rerender(<PmcmFileLibraryView eventId="evt_1" />);
+    expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
   });
 });

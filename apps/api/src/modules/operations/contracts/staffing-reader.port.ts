@@ -9,7 +9,6 @@ export type StaffingActorLookup = {
 export type CoordinatorAssignmentListOptions = { includeHistorical?: boolean };
 
 export interface StaffingReader {
-  listCoordinators(): Promise<unknown[]>;
   listAssignmentsForCoordinator(
     coordinatorId?: string | null,
     options?: CoordinatorAssignmentListOptions,

@@ -1,6 +1,7 @@
 "use client";
 
 import { Download, ImageIcon, ImageOff } from "lucide-react";
+import { PmcmDeleteFileButton } from "./pmcm-delete-file-button";
 import { Button } from "@prism/ui/components/button";
 import { FILE_TONE, FileDetail, FilePreviewFrame, FilePreviewSheet, FileReviewNote, FileValidUntil, formatFileSize } from "@prism/ui/file-library";
 import { formatPortalDateTime } from "@prism/ui/format-date";
@@ -49,6 +50,7 @@ function PreviewActions({ file, vm }: { file: PmcmLibraryFile; vm: PmcmFileLibra
         Download
       </Button>
       {file.kind === "image" ? <CoverButton file={file} vm={vm} /> : null}
+      {file.deletable && vm.coverObjectId !== file.id ? <PmcmDeleteFileButton fileName={file.name} disabled={busy} onDelete={() => void vm.remove(file)} /> : null}
     </>
   );
 }
