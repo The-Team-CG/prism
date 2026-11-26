@@ -102,6 +102,12 @@ export async function freshEvent(label, options) {
  * Types into a field and confirms the value stuck. Text typed before React hydrates a controlled input is reset to the
  * initial state on hydration, so the fill is retried until the page keeps it.
  */
+/** Client and supplier invitations open on "Confirm and continue"; scripted activations set a password instead. */
+export async function usePasswordActivation(page) {
+  const toggle = page.getByRole('button', { name: 'set a password instead', exact: true });
+  if (await toggle.isVisible({ timeout: 5_000 }).catch(() => false)) await toggle.click();
+}
+
 /** Client and supplier sign-in open on the emailed-code method; scripted sign-ins switch to the password form. */
 export async function usePasswordSignIn(page) {
   const toggle = page.getByRole('button', { name: 'Sign in with password', exact: true });

@@ -13,6 +13,7 @@ import {
   requestPasswordResetSchema,
   savePrismSession,
   type ActivateAccountInput,
+  type PrismInvitationPreview,
   type ConsumePasswordResetInput,
   type LoginInput,
   type PrismApprovalRequestReceipt,
@@ -122,6 +123,19 @@ export const supplierAuthRepository = {
       () => supplierAuthClient.auth.consumePasswordReset(contract.token, contract.password),
       "Unable to consume password reset",
     );
+  },
+
+  /** Who an invitation link is for, or null when it has expired or was already used. */
+  previewInvitation(token: string): Promise<PrismInvitationPreview | null> {
+    return supplierAuthClient.auth.previewInvitation(token).catch((error: unknown) => {
+      if (error instanceof PrismApiError && error.status === 400) return null;
+      throw error;
+    });
+  },
+
+  /** Uses the invitation and signs the supplier in, without a password. */
+  confirmInvitation(token: string): Promise<PrismAuthResponse> {
+    return runSupplierAuthRequest(() => supplierAuthClient.auth.confirmInvitation(token), "Could not open your account");
   },
 
   async activateAccount(input: ActivateAccountInput): Promise<void> {

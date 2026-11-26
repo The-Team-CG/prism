@@ -8,6 +8,7 @@ import {
   type ActivateAccountInput,
   type PrismAuthenticatedSession,
   type PrismAuthResponse,
+  type PrismInvitationPreview,
   type PrismSignInSession,
   type PrivacyConsentInput,
 } from "@prism/types";
@@ -69,6 +70,19 @@ export const clientAuthRepository = {
 
   consumePasswordReset(input: { token: string; password: string }) {
     return clientApi.auth.consumePasswordReset(input.token, input.password);
+  },
+
+  /** Who an invitation link is for, or null when it has expired or was already used. */
+  previewInvitation(token: string): Promise<PrismInvitationPreview | null> {
+    return clientApi.auth.previewInvitation(token).catch((error: unknown) => {
+      if (error instanceof PrismApiError && error.status === 400) return null;
+      throw error;
+    });
+  },
+
+  /** Uses the invitation and signs the client in, without a password. */
+  confirmInvitation(token: string): Promise<PrismAuthResponse> {
+    return clientApi.auth.confirmInvitation(token);
   },
 
   activateAccount(input: ActivateAccountInput): Promise<ClientAccountActivationOutcome> {

@@ -17,7 +17,7 @@ export type SignInResult =
   /** `restart` sends the person back to email and password. */
   | { kind: "error"; error: string; restart?: boolean };
 
-function finishSignIn(session: PrismSignInSession, nextPath: string | null | undefined): SignInResult {
+export function finishSignIn(session: PrismSignInSession, nextPath: string | null | undefined): SignInResult {
   if (!isClientRole(session.role)) {
     void clientAuthRepository.endRejectedSession(session.accessToken);
     return { kind: "error", error: portalMessage(session.role), restart: true };

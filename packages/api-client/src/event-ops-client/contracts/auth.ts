@@ -26,6 +26,7 @@ import type {
   RequestApprovalInput,
   VerifyTwoFactorInput,
   VerifyEmailSignInCodeInput,
+  PrismInvitationPreview,
 } from "@prism/types";
 
 export interface EventOpsAuthContract {
@@ -72,6 +73,10 @@ export interface EventOpsAuthContract {
     ): Promise<{ message: string }>;
     /** Emails a client or supplier a six-digit sign-in code; answers the same whether or not the email exists. */
     requestEmailSignInCode(email: string): Promise<{ message: string }>;
+    /** Who an invitation link is for; does not use the link up. */
+    previewInvitation(token: string): Promise<PrismInvitationPreview>;
+    /** A client or supplier confirms their invitation and is signed in, without a password. */
+    confirmInvitation(token: string): Promise<PrismAuthResponse>;
     /** A session, or the authenticator step for an account that turned two-step sign-in on. */
     verifyEmailSignInCode(input: VerifyEmailSignInCodeInput): Promise<PrismAuthResponse>;
     consumePasswordReset(

@@ -1,7 +1,7 @@
 import {submitPublicInquiry} from './inquiry-actions.mjs';
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
-import { origins, api, password, inbox, mailLink, createInquiry, acceptedClient, freshEvent, signInPmcm, privacyIfNeeded, fillStable, usePasswordSignIn } from './helpers.mjs';
+import { origins, api, password, inbox, mailLink, createInquiry, acceptedClient, freshEvent, signInPmcm, privacyIfNeeded, fillStable, usePasswordSignIn, usePasswordActivation } from './helpers.mjs';
 
 test('public inquiry uses the calendar and persists the submitted brief',async ({page}) => {
   await submitPublicInquiry(page);
@@ -23,6 +23,7 @@ test('PMCM completes MFA and accepts an inquiry through the portal', async ({ pa
 test('client activates and resets a password using locally captured email links', async ({ page }) => {
   const client = await acceptedClient();
   await page.goto(client.activation);
+  await usePasswordActivation(page);
   await page.getByLabel('New password', { exact: true }).fill(password);
   await page.getByLabel('Confirm new password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Set password', exact: true }).click();

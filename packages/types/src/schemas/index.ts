@@ -356,6 +356,8 @@ export {
   confirmEmailChangeSchema,
   changeOwnPasswordSchema,
   activateAccountSchema,
+  invitationTokenSchema,
+  type InvitationTokenInput,
   createAccountInvitationSchema,
   acknowledgePrivacyNoticeSchema,
   type AcknowledgePrivacyNoticeInput,

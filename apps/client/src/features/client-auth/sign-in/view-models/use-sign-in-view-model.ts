@@ -36,6 +36,14 @@ export function useSignInViewModel() {
   const [resendIn, setResendIn] = useState(0);
 
   useEffect(() => {
+    const sentTo = new URLSearchParams(window.location.search).get("code-sent");
+    if (!sentTo) return;
+    setDraft((current) => ({ ...current, email: sentTo }));
+    setCodeSentTo(sentTo);
+    setResendIn(EMAIL_CODE_RESEND_SECONDS);
+  }, []);
+
+  useEffect(() => {
     if (resendIn <= 0) return;
     const timer = setTimeout(() => setResendIn((seconds) => seconds - 1), 1000);
     return () => clearTimeout(timer);

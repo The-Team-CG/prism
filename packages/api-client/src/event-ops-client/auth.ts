@@ -88,6 +88,16 @@ export function createAuthClient(
           "/auth/email-code/request",
           withBase(authOptions, { method: "POST", body: { email } }),
         ),
+      previewInvitation: (token) =>
+        prismRequest(
+          "/auth/activate/preview",
+          withBase(authOptions, { method: "POST", body: { token } }),
+        ),
+      confirmInvitation: (token) =>
+        prismRequest(
+          "/auth/activate/confirm",
+          withBase(authOptions, { method: "POST", body: { token } }),
+        ),
       verifyEmailSignInCode: (input) =>
         prismRequest(
           "/auth/email-code/verify",

@@ -76,6 +76,10 @@ export const activateAccountSchema = z.object({
 });
 export type ActivateAccountInput = z.infer<typeof activateAccountSchema>;
 
+/** A client or supplier opening their invitation link: the link itself proves the email, so no password is needed. */
+export const invitationTokenSchema = z.object({ token: z.string().trim().min(32) });
+export type InvitationTokenInput = z.infer<typeof invitationTokenSchema>;
+
 /** Staff accounts PMCM admins can invite. Clients and suppliers get their accounts from the conforme and supplier approval. */
 export const createAccountInvitationSchema = z.object({
   email: z.string().trim().email(),

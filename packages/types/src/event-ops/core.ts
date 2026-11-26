@@ -208,6 +208,16 @@ export interface PrismAccountActivationReceipt {
   message: string;
 }
 
+/** Who an open invitation link is for, so the first-visit page can greet them before they confirm. */
+export interface PrismInvitationPreview {
+  name: string;
+  email: string;
+  organization: string;
+  role: string;
+  /** Clients and suppliers confirm and continue; PMCM staff set a password. */
+  passwordRequired: boolean;
+}
+
 /** Result of provisioning an account login. `invited` means the activation email was accepted by the mail provider. */
 export type PrismAccountInvitationOutcome =
   | { outcome: "invited"; sentAt: string; expiresAt: string }

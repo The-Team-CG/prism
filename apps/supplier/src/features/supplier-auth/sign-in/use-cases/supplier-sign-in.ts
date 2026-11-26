@@ -25,7 +25,7 @@ export type SupplierSignInResult =
   /** The password was right and the account has two-step sign-in on: the code comes next. */
   | { twoStepToken: string };
 
-function finishSignIn(session: PrismSignInSession, nextPath: string | null | undefined) {
+export function finishSignIn(session: PrismSignInSession, nextPath: string | null | undefined) {
   if (!isSupplierRole(session.role)) {
     void supplierAuthRepository.endRejectedSession(session.accessToken);
     throw new Error(mapWrongPortalMessage(session.role));

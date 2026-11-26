@@ -15,7 +15,7 @@ import { OwnSessionsService } from '../../application/auth/own-sessions.service'
 import { OwnTwoFactorService } from '../../application/auth/own-two-factor.service';
 import { EmailChangeService } from '../../application/auth/email-change.service';
 import { EmailSignInService } from '../../application/auth/email-sign-in.service';
-import { requestEmailSignInCodeSchema, verifyEmailSignInCodeSchema, type RequestEmailSignInCodeInput, type VerifyEmailSignInCodeInput } from '@prism/types';
+import { invitationTokenSchema, requestEmailSignInCodeSchema, verifyEmailSignInCodeSchema, type InvitationTokenInput, type RequestEmailSignInCodeInput, type VerifyEmailSignInCodeInput } from '@prism/types';
 
 @Controller('auth')
 export class OpsAuthController {
@@ -91,6 +91,23 @@ export class OpsAuthController {
   @HttpCode(HttpStatus.OK)
   activateAccount(@Body(zodBody(activateAccountSchema)) dto: ActivateAccountInput) {
     return this.accountActivationService.activate(dto.token, dto.password);
+  }
+
+  /** Who an invitation link is for, so the first-visit page can greet them; does not use the link up. */
+  @Post('activate/preview')
+  @PublicRateLimit('authentication')
+  @HttpCode(HttpStatus.OK)
+  previewInvitation(@Body(zodBody(invitationTokenSchema)) dto: InvitationTokenInput) {
+    return this.accountActivationService.preview(dto.token);
+  }
+
+  /** A client or supplier confirms their invitation and is signed straight in, without setting a password. */
+  @Post('activate/confirm')
+  @PublicRateLimit('authentication')
+  @HttpCode(HttpStatus.OK)
+  async confirmInvitation(@Body(zodBody(invitationTokenSchema)) dto: InvitationTokenInput, @Headers('user-agent') userAgent?: string) {
+    const { userId } = await this.accountActivationService.confirm(dto.token);
+    return this.authOperationsService.signInWithVerifiedEmail(userId, userAgent);
   }
 
   @Post('invitations')
