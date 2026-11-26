@@ -82,33 +82,38 @@ describe("guest event-game views", () => {
     expect(markup).toContain("does not verify who you are or which device you use");
   });
 
-  it("shows the public prompt, the guest's own status, and only permitted aggregate results", () => {
-    viewModels.play.mockReturnValue({
-      state: {
-        sessionId: "session-a1",
-        game: { title: "Live Trivia", kind: "live-trivia" },
-        status: "live",
-        startedAt: "2026-10-17T10:00:00.000Z",
-        currentRound: { key: 'round-1', number: 1, total: 3 },
-        currentPrompt: "Choose the correct answer",
-        participant: { hasSubmitted: true, score: 20 },
-        aggregateResults: [{ label: "Option A", count: 3 }],
-      },
-      participantAlias: "Guest 1234",
-      status: "ready",
-      error: null,
-      refresh: vi.fn(),
-      exitGames: vi.fn(),
-    });
+  it("keeps the answer and the room's tally hidden while a guest is locked in, then shows how they did", () => {
+    const base = {
+      sessionId: "session-a1",
+      game: { title: "Live Trivia", kind: "live-trivia" },
+      status: "live",
+      startedAt: "2026-10-17T10:00:00.000Z",
+      currentPrompt: "Choose the correct answer",
+    };
+    const vm = { participantAlias: "Guest 1234", status: "ready", error: null, actionBusy: false, mediaUrl: null, mediaError: null, refresh: vi.fn(), exitGames: vi.fn(), submitAction: vi.fn() };
+    viewModels.play.mockReturnValue({ ...vm, state: {
+      ...base,
+      currentRound: { key: "round-1", number: 1, total: 3, resultsOpen: false },
+      participant: { hasSubmitted: true, score: 0, gameData: { kind: "live-trivia", options: ["Option A", "Option B"] } },
+      aggregateResults: [],
+    } });
+    const locked = renderToStaticMarkup(createElement(EventGamePlayView, { sessionId: "session-a1" }));
+    expect(locked).toContain("Choose the correct answer");
+    expect(locked).toContain("Answer locked in");
+    expect(locked).not.toContain("Correct answer");
+    expect(locked).not.toContain("100%");
 
-    const markup = renderToStaticMarkup(createElement(EventGamePlayView, { sessionId: "session-a1" }));
-
-    expect(markup).toContain("Choose the correct answer");
-    expect(markup).toContain("20");
-    expect(markup).toContain("Option A");
-    expect(markup).not.toContain("answer key");
-    expect(markup).not.toContain("moderation notes");
-    expect(markup).not.toContain("Upload a photo");
+    viewModels.play.mockReturnValue({ ...vm, state: {
+      ...base,
+      currentRound: { key: "round-1", number: 1, total: 3, resultsOpen: true, revealedAnswer: "Option A" },
+      participant: { hasSubmitted: true, score: 20, roundOutcome: { isCorrect: true, points: 20, answer: "Option A" }, gameData: { kind: "live-trivia", options: ["Option A", "Option B"] } },
+      aggregateResults: [{ label: "Option A", count: 3 }, { label: "Option B", count: 0 }],
+    } });
+    const revealed = renderToStaticMarkup(createElement(EventGamePlayView, { sessionId: "session-a1" }));
+    expect(revealed).toContain("Correct!");
+    expect(revealed).toContain('aria-label="Plus 20 points"');
+    expect(revealed).toContain("3 · 100%");
+    expect(revealed).not.toContain("moderation notes");
   });
 
   it("gives a guest whose game session cannot open a way to join with a PIN or go back", () => {
@@ -173,11 +178,33 @@ describe("guest event-game views", () => {
       participantAlias: "Guest 1234", error: null, refresh: vi.fn(), exitGames: vi.fn(), submitAction: vi.fn(),
     });
 
-    const markup = renderToStaticMarkup(createElement(EventGamePlayView, { sessionId: "session-expired-round" }));
+    render(createElement(EventGamePlayView, { sessionId: "session-expired-round" }));
 
-    expect(markup).toContain('aria-label="Time remaining: 00:00"');
-    expect(markup).toContain("The timer has ended. Answers are closed until the game moves on.");
-    expect(markup).toContain('<fieldset disabled="" class="min-w-0 border-0 p-0">');
+    expect(screen.getByLabelText("Time remaining: 00:00")).toBeTruthy();
+    expect(screen.getByText("Answers are closed")).toBeTruthy();
+    expect(screen.getByText("Choice A")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Choice A/ })).toBeNull();
+  });
+
+  it("sends a trivia answer with one tap", async () => {
+    const submitAction = vi.fn().mockResolvedValue(null);
+    viewModels.play.mockReturnValue({
+      state: {
+        sessionId: "session-tap", game: { title: "Live Trivia", kind: "live-trivia" }, status: "live",
+        startedAt: "2026-10-17T10:00:00.000Z", currentRound: { key: "round-1", number: 1, total: 2, resultsOpen: false },
+        currentPrompt: "Which?", participant: { hasSubmitted: false, score: 0, gameData: { kind: "live-trivia", options: ["Choice A", "Choice B"] } },
+        aggregateResults: [],
+      },
+      status: "ready", actionBusy: false, mediaUrl: null, mediaError: null,
+      participantAlias: "Guest 1234", error: null, refresh: vi.fn(), exitGames: vi.fn(), submitAction,
+    });
+    render(createElement(EventGamePlayView, { sessionId: "session-tap" }));
+
+    fireEvent.click(screen.getByRole("button", { name: /Choice B/ }));
+
+    await waitFor(() => expect(submitAction).toHaveBeenCalledWith({
+      templateId: "live-trivia", roundKey: "round-1", actionKind: "answer", payload: { answer: "Choice B" },
+    }));
   });
 
   it("renders Bingo claims with the guest card and server call context", () => {
@@ -422,31 +449,33 @@ describe("guest event-game views", () => {
     });
     const markup = renderToStaticMarkup(createElement(EventGamePlayView, { sessionId: "session-wheel" }));
 
-    expect(markup).toContain("Host result: Bonus points");
-    expect(markup).not.toContain("Spin the wheel</button>");
+    expect(markup).toContain("The wheel landed on");
+    expect(markup).toContain("Bonus points");
+    expect(markup).not.toMatch(/<button[^>]*>[^<]*Spin/);
   });
 
-  it("shows safe live standings for competitive guests", () => {
-    viewModels.play.mockReturnValue({
-      state: {
-        sessionId: "session-trivia", game: { title: "Trivia", kind: "live-trivia" }, status: "live",
-        startedAt: "2026-10-17T10:00:00.000Z", currentRound: { key: "round-1", number: 1, total: 1 },
-        currentPrompt: "Question?", participant: { hasSubmitted: false, score: 0 }, aggregateResults: [],
-        leaderboard: [{ rank: 1, label: "Blue Team", score: 20, teamLabel: "Blue Team" }],
-      },
-      status: "ready", actionBusy: false, mediaUrl: null, comparisonMediaUrl: null, mediaError: null,
-      participantAlias: "Guest 1234", error: null, refresh: vi.fn(), exitGames: vi.fn(), submitAction: vi.fn(),
-    });
+  it("shows safe standings between rounds, not while a guest is answering", () => {
+    const state = {
+      sessionId: "session-trivia", game: { title: "Trivia", kind: "live-trivia" }, status: "live",
+      startedAt: "2026-10-17T10:00:00.000Z", currentRound: { key: "round-1", number: 1, total: 1 },
+      currentPrompt: "Question?", participant: { hasSubmitted: false, score: 0 }, aggregateResults: [],
+      leaderboard: [{ rank: 1, label: "Blue Team", score: 20, teamLabel: "Blue Team" }],
+    };
+    const vm = { status: "ready", actionBusy: false, mediaUrl: null, comparisonMediaUrl: null, mediaError: null,
+      participantAlias: "Guest 1234", error: null, refresh: vi.fn(), exitGames: vi.fn(), submitAction: vi.fn() };
+    viewModels.play.mockReturnValue({ ...vm, state });
+    expect(renderToStaticMarkup(createElement(EventGamePlayView, { sessionId: "session-trivia" }))).not.toContain("Blue Team");
 
+    viewModels.play.mockReturnValue({ ...vm, state: { ...state, status: "paused" } });
     const markup = renderToStaticMarkup(createElement(EventGamePlayView, { sessionId: "session-trivia" }));
 
-    expect(markup).toContain("Live standings");
+    expect(markup).toContain("Standings");
     expect(markup).toContain("Blue Team");
-    expect(markup).toContain("20 points");
     expect(markup).not.toContain("awardRecipient");
   });
 
-  it("renders an anonymous This or That vote and aggregate-only results", () => {
+  it("votes in This or That with one tap and shows only the room's combined totals", async () => {
+    const submitAction = vi.fn().mockResolvedValue(null);
     viewModels.play.mockReturnValue({
       state: {
         sessionId: "session-this-or-that",
@@ -459,17 +488,18 @@ describe("guest event-game views", () => {
         aggregateResults: [{ label: "Tea", count: 3 }, { label: "Coffee", count: 2 }],
       },
       status: "ready", actionBusy: false, mediaUrl: null, mediaError: null,
-      participantAlias: "Guest 1234", error: null, refresh: vi.fn(), exitGames: vi.fn(), submitAction: vi.fn(),
+      participantAlias: "Guest 1234", error: null, refresh: vi.fn(), exitGames: vi.fn(), submitAction,
     });
 
-    const markup = renderToStaticMarkup(createElement(EventGamePlayView, { sessionId: "session-this-or-that" }));
+    const view = render(createElement(EventGamePlayView, { sessionId: "session-this-or-that" }));
 
-    expect(markup).toContain("Submit vote");
-    expect(markup).toContain("Tea");
-    expect(markup).toContain("Coffee");
-    expect(markup).toContain("Only the room’s combined totals are shown.");
-    expect(markup).not.toContain("teamId");
-    expect(markup).not.toContain("correctAnswer");
+    expect(screen.getByText("This is a poll. Only the room’s combined totals are shown.")).toBeTruthy();
+    expect(view.container.innerHTML).not.toContain("60%");
+    expect(view.container.innerHTML).not.toContain("Score");
+    fireEvent.click(screen.getByRole("button", { name: /Tea/ }));
+    await waitFor(() => expect(submitAction).toHaveBeenCalledWith({
+      templateId: "this-or-that", roundKey: "round-1", actionKind: "vote", payload: { option: "Tea" },
+    }));
   });
 
   it("renders Family Feud with the server-assigned public team label and no answer board", () => {

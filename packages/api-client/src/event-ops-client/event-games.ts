@@ -83,6 +83,11 @@ export function createEventGamesClient(
           `/events/${encodeURIComponent(eventId)}/game-sessions/${encodeURIComponent(sessionId)}/host-state`,
           withBase(options),
         ),
+      getHostMediaAuthorization: (eventId, sessionId, objectId) =>
+        prismRequest<PrismEventGameMediaAuthorization>(
+          `/events/${encodeURIComponent(eventId)}/game-sessions/${encodeURIComponent(sessionId)}/media/${encodeURIComponent(objectId)}/download-authorization`,
+          withBase(options),
+        ),
       getEventAnalytics: (eventId) =>
         prismRequest<PrismEventGameAnalytics>(
           `/events/${encodeURIComponent(eventId)}/game-analytics`,

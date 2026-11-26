@@ -28,6 +28,7 @@
     "./notification-preferences": "./src/notification-preferences.tsx",
     "./notifications": "./src/notifications/index.ts",
     "./event-cards": "./src/event-cards/index.ts",
+    "./event-games": "./src/event-games/index.ts",
     "./public-blocks": "./src/public-blocks.tsx",
     "./format-date": "./src/format-date.ts",
     "./calendar-grid": "./src/calendar-grid.ts",

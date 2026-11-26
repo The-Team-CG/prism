@@ -14,10 +14,14 @@ const configuration = {
 };
 
 describe('Spin the Wheel rule', () => {
-  it('exposes one host-started round and rejects participant-triggered selections', () => {
+  it('exposes one host-started round with only the eligible segments, and rejects participant-triggered selections', () => {
     const rule = createSpinWheelRule(() => 0);
     expect(rule.getCurrentRound({ configuration, startedAt, now: startedAt })).toMatchObject({
-      key: 'spin-1', number: 1, total: 1, prompt: 'Spin the wheel when the host has started the game.',
+      key: 'spin-1', number: 1, total: 1,
+      participantData: {
+        kind: 'spin-wheel',
+        outcomes: [{ id: 'small', label: 'Small prize', points: 5 }, { id: 'large', label: 'Large prize', points: 20 }],
+      },
     });
     expect(rule.validateSubmission({
       configuration,

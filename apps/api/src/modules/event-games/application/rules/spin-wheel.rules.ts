@@ -7,13 +7,19 @@ export function createSpinWheelRule(selectRandomIndex: (maxExclusive: number) =>
     templateId: 'spin-wheel',
     validateConfiguration: (configuration) => configurationErrors(configuration, 'spin-wheel'),
     getCurrentRound: ({ configuration }) => {
-      if (!templateConfiguration(configuration, 'spin-wheel')) return null;
+      const parsed = templateConfiguration(configuration, 'spin-wheel');
+      if (!parsed) return null;
+      // Only eligible outcomes can land, so only they are drawn; weights stay with the host.
+      const outcomes = parsed.outcomes
+        .filter((outcome) => outcome.eligible)
+        .map(({ id, label, points }) => ({ id, label, points }));
       return {
         key: 'spin-1',
         number: 1,
         total: 1,
-        prompt: 'Spin the wheel when the host has started the game.',
+        prompt: 'Watch the wheel. The host spins it.',
         deadlineAt: null,
+        participantData: { kind: 'spin-wheel', outcomes },
       };
     },
     validateSubmission: () => ['Only the host can select a wheel outcome'],

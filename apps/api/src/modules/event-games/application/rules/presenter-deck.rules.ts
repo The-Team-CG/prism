@@ -1,15 +1,14 @@
 import type { GameRuleCurrentRound, GameRuleDefinition } from '../../contracts/game-rule.port';
 import type { PrismEventGameTemplateConfiguration, PrismSubmitEventGameActionInput } from '@prism/types';
 import { configurationErrors, templateConfiguration } from './template-configuration';
+import { roundWithResultsWindow } from './results-window';
 
 /** Presenter Deck: a timed deck of choice, rating-scale and word-cloud prompts the room answers. None is scored. */
 type PresenterDeckRound = Extract<PrismEventGameTemplateConfiguration, { kind: 'presenter-deck' }>['rounds'][number];
 
 const WHOLE_NUMBER = /^[1-9]\d*$/;
 
-/** Seconds each slide's results stay on screen, after its question closes and before the next slide starts. */
-export const RESULTS_DISPLAY_SECONDS = 10;
-const RESULTS_DISPLAY_MS = RESULTS_DISPLAY_SECONDS * 1000;
+export { RESULTS_DISPLAY_SECONDS } from './results-window';
 
 function participantData(round: PresenterDeckRound): GameRuleCurrentRound['participantData'] {
   switch (round.type) {
@@ -21,25 +20,9 @@ function participantData(round: PresenterDeckRound): GameRuleCurrentRound['parti
 
 function activeRound(configuration: Readonly<Record<string, unknown>>, startedAt: Date, now: Date): GameRuleCurrentRound | null {
   const parsed = templateConfiguration(configuration, 'presenter-deck');
-  if (!parsed) return null;
-  const elapsed = Math.max(0, now.getTime() - startedAt.getTime());
-  let elapsedBefore = 0;
-  for (const [index, round] of parsed.rounds.entries()) {
-    // Each slide is its question window followed by a fixed results window.
-    const questionMs = round.durationSeconds * 1000;
-    const slideMs = questionMs + RESULTS_DISPLAY_MS;
-    if (elapsed < elapsedBefore + slideMs) {
-      return {
-        key: round.key, number: index + 1, total: parsed.rounds.length, prompt: round.prompt,
-        deadlineAt: new Date(startedAt.getTime() + elapsedBefore + questionMs),
-        endsAt: new Date(startedAt.getTime() + elapsedBefore + slideMs),
-        resultsOpen: elapsed >= elapsedBefore + questionMs,
-        participantData: participantData(round),
-      };
-    }
-    elapsedBefore += slideMs;
-  }
-  return null;
+  const active = parsed ? roundWithResultsWindow(parsed.rounds, startedAt, now) : null;
+  if (!active) return null;
+  return { key: active.round.key, prompt: active.round.prompt, ...active.timing, participantData: participantData(active.round) };
 }
 
 function roundFor(configuration: Readonly<Record<string, unknown>>, currentRound: GameRuleCurrentRound, action: PrismSubmitEventGameActionInput) {

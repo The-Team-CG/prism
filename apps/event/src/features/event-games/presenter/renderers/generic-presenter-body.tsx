@@ -21,7 +21,7 @@ const GenericPresenterBody: PresenterRenderer = ({ state }) => {
     approvedResponses.length ? <PresenterNumberedResponses key="approved" responses={approvedResponses} /> : null,
     round?.revealedAnswer ? <PresenterRevealedAnswer key="answer" answer={round.revealedAnswer} /> : null,
     // Family Feud hosts get the board while live for adjudication; the room sees it only once paused.
-    state.status === "paused" && round?.answerBoard?.length ? <PresenterAnswerBoard key="board" board={round.answerBoard} /> : null,
+    state.status === "paused" && round?.answerBoard?.length ? <PresenterAnswerBoard key="board" board={round.answerBoard} revealed /> : null,
     state.sessionResult ? <PresenterSessionResult key="result" result={state.sessionResult} /> : null,
     state.leaderboard.length ? <PresenterLeaderboard key="leaderboard" entries={state.leaderboard} /> : null,
   ].filter(Boolean);

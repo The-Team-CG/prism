@@ -186,7 +186,7 @@ export interface PrismGameHostState {
   /** Server game-time snapshot used only to display round countdowns. */
   serverTime?: string;
   participantCount: number;
-  /** Host-only current round context; reveal data is present only while paused. */
+  /** Host-only current round context; reveal data is present only while paused or in a results window. */
   currentRound: {
     key: string;
     number: number;
@@ -194,11 +194,17 @@ export interface PrismGameHostState {
     prompt: string;
     deadlineAt?: string | null;
     /**
-     * Presenter Deck: true while the slide's question is closed and its results show for a
-     * fixed window before the next slide. Absent for games without a results window.
+     * Live Trivia and Presenter Deck: true while the round's question is closed and its answer or
+     * results show for a fixed window before the next round. Absent for games without a results window.
      */
     resultsOpen?: boolean;
     revealedAnswer?: string;
+    /** The choices guests see for this round, in the same order, so the room screen can mirror their phones. */
+    options?: readonly string[];
+    /** Bingo: every number called so far, oldest first. */
+    calledNumbers?: readonly number[];
+    /** Guess the Picture: the configured picture and how far it is revealed. */
+    picture?: { mediaObjectId: string; stage: number; totalStages: number };
     answerBoard?: readonly { answer: string; alternatives: readonly string[]; points: number }[];
     /** Live Split the Room text awaiting host approval or hiding; never sent to participants. */
     pendingSubmissions?: readonly { id: string; roundNumber: number; response: string }[];
@@ -210,9 +216,13 @@ export interface PrismGameHostState {
      * window is open), matching what participants see.
      */
     approvedResponses?: readonly string[];
+    /** How many guests have answered this round, so the room can see answers coming in. */
+    answeredCount?: number;
   } | null;
   /** One immutable host-selected result for Spin the Wheel. */
   sessionResult?: PrismGameSessionResult | null;
+  /** Spin the Wheel: the eligible outcomes, in wheel order, so the room screen can draw the wheel. */
+  wheelOutcomes?: readonly PrismGameWheelOutcome[];
   aggregateResults?: Array<{ label: string; count: number }>;
   leaderboard: PrismGameLeaderboardEntry[];
 }
@@ -257,8 +267,19 @@ export interface PrismGamePublicState {
   startedAt: string | null;
   /** Server game-time snapshot used only to display round countdowns. */
   serverTime?: string;
-  /** `resultsOpen` is set only for Presenter Deck: true while the slide shows its results and answers are closed. */
-  currentRound: { key: string; number: number; total: number; deadlineAt?: string | null; resultsOpen?: boolean } | null;
+  /**
+   * `resultsOpen` is set only for games with a results window (Live Trivia, Presenter Deck): true while the
+   * round shows its answer or results and answers are closed. `revealedAnswer` is the correct answer, sent only
+   * once answers are closed (a results window, or while the host pauses).
+   */
+  currentRound: {
+    key: string;
+    number: number;
+    total: number;
+    deadlineAt?: string | null;
+    resultsOpen?: boolean;
+    revealedAnswer?: string;
+  } | null;
   currentPrompt: string | null;
   participant: {
     /** Anonymous, stable label shared with this session's public leaderboard. */
@@ -267,6 +288,11 @@ export interface PrismGamePublicState {
     hasVoted?: boolean;
     score: number | null;
     result?: PrismGameParticipantResult;
+    /**
+     * This participant's own outcome for the current round. Sent for puzzles as soon as they answer, and for
+     * shared timed rounds only once answers are closed, so it never reveals the answer while others still play.
+     */
+    roundOutcome?: PrismGameRoundOutcome;
     gameData?: PrismGameParticipantData;
   };
   /** Only the server-selected Spin the Wheel outcome; shared with the session. */
@@ -280,7 +306,8 @@ export interface PrismGamePublicState {
 
 export type PrismGameParticipantData =
   | { kind: "live-trivia"; options: readonly string[] }
-  | { kind: "bingo"; card: readonly (number | "FREE")[]; calledNumbers: readonly number[] }
+  | { kind: "bingo"; card: readonly (number | "FREE")[]; calledNumbers: readonly number[]; winPattern?: "line" | "full-card" }
+  | { kind: "spin-wheel"; outcomes: readonly PrismGameWheelOutcome[] }
   | { kind: "guess-picture"; mediaObjectId: string; stage: number }
   | { kind: "word-scramble" }
   | { kind: "guess-picture-solo"; mediaObjectId: string; stage: number; totalStages: number }
@@ -301,6 +328,22 @@ export type PrismGameParticipantData =
   | { kind: "presenter-deck"; roundType: "choice"; options: readonly string[] }
   | { kind: "presenter-deck"; roundType: "scale"; scaleMax: number }
   | { kind: "presenter-deck"; roundType: "word-cloud"; maxResponseLength: number };
+
+/** One participant's checked answer for a round: whether it was right, the points it earned and what they sent. */
+export interface PrismGameRoundOutcome {
+  isCorrect: boolean;
+  points: number;
+  answer?: string;
+  /** Consecutive rounds answered correctly, ending with this one; sent only for multi-round games. */
+  streak?: number;
+}
+
+/** A Spin the Wheel segment as guests and the room see it; weights and eligibility stay with the host. */
+export interface PrismGameWheelOutcome {
+  id: string;
+  label: string;
+  points: number;
+}
 
 export type PrismGameParticipantResult =
   | { kind: "singleplayer-choice"; option: string };

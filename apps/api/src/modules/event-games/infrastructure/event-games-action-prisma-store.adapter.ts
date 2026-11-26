@@ -44,8 +44,12 @@ interface ParticipantScoreRow {
   has_submitted: boolean;
   has_voted: boolean;
   result: unknown;
+  outcome_score: unknown;
+  outcome_answer: string | null;
 }
 interface ParticipantTotalRow { score: number | null }
+interface RoundParticipantCountRow { answered: number }
+interface CheckedRoundRow { round_number: number; is_correct: boolean | null }
 interface VoteCountRow { label: string; count: number }
 interface RoundModerationQueueRow { id: string; round_number: number; response: string | null }
 interface FamilyFeudModerationQueueRow { id: string; round_number: number; answer: string | null }
@@ -109,6 +113,27 @@ function sessionStatus(value: string): GameParticipantActionContext['status'] {
 function participantChoiceResult(value: unknown): GameParticipantStateSummary['result'] {
   const parsed = eventGameParticipantResultSchema.safeParse(value);
   return parsed.success && parsed.data.kind === 'singleplayer-choice' ? parsed.data : undefined;
+}
+
+/**
+ * Correct answers in a row, ending with the newest checked round. Rounds are counted by number, so a skipped round
+ * breaks the streak as a wrong answer does. Rows arrive newest first.
+ */
+export function correctStreak(rows: readonly CheckedRoundRow[]): number {
+  let streak = 0;
+  let expected = rows[0]?.round_number;
+  for (const row of rows) {
+    if (row.round_number !== expected || row.is_correct !== true) break;
+    streak += 1;
+    expected = row.round_number - 1;
+  }
+  return streak;
+}
+
+function participantRoundOutcome(score: unknown, answer: string | null): GameParticipantStateSummary['roundOutcome'] {
+  const parsed = responseScoreSchema.safeParse(score);
+  if (!parsed.success) return undefined;
+  return { isCorrect: parsed.data.isCorrect, points: parsed.data.points, ...(answer ? { answer } : {}) };
 }
 
 @Injectable()
@@ -280,7 +305,7 @@ export class EventGamesActionPrismaStoreAdapter implements GameActionStorePort {
     input: { eventId: string; sessionId: string; participationGrantId: string; roundKey: string | null },
     transaction: PrismTransactionContext,
   ): Promise<GameParticipantStateSummary> {
-    // QUERY_AUDIT_RAW_SQL: One read combining a score SUM subquery with an EXISTS over submissions for the round; Prisma would need separate queries.
+    // QUERY_AUDIT_RAW_SQL: One read combining a score SUM subquery, EXISTS checks and the latest checked submission for the round; Prisma would need separate queries.
     const rows = await transaction.prisma.$queryRaw<ParticipantScoreRow[]>`
       SELECT
         (SELECT COALESCE(SUM(l."points"), 0)::integer
@@ -312,38 +337,86 @@ export class EventGamesActionPrismaStoreAdapter implements GameActionStorePort {
            AND s."participation_grant_id" = ${input.participationGrantId}
            AND s."round_key" = ${input.roundKey}
            AND s."score_result"->'result'->>'kind' = 'singleplayer-choice'
-         ORDER BY s."created_at" DESC, s."id" DESC LIMIT 1) AS "result"
+         ORDER BY s."created_at" DESC, s."id" DESC LIMIT 1) AS "result",
+        outcome."score_result" AS "outcome_score",
+        outcome."answer" AS "outcome_answer"
+      FROM (SELECT 1) AS "one"
+      LEFT JOIN LATERAL (
+        SELECT s."score_result", COALESCE(s."payload"->>'answer', s."payload"->>'option') AS "answer"
+        FROM "event_games"."submissions" s
+        WHERE s."event_id" = ${input.eventId} AND s."session_id" = ${input.sessionId}
+          AND s."participation_grant_id" = ${input.participationGrantId}
+          AND s."round_key" = ${input.roundKey} AND s."action_kind" <> 'vote'
+          AND s."score_result" IS NOT NULL
+        ORDER BY s."created_at" DESC, s."id" DESC LIMIT 1
+      ) AS outcome ON TRUE
     `;
     const row = rows[0];
     if (!row) return { score: null, hasSubmitted: false };
     const result = participantChoiceResult(row.result);
+    const outcome = participantRoundOutcome(row.outcome_score, row.outcome_answer);
+    const roundOutcome = outcome ? { ...outcome, streak: await this.checkedRoundStreak(input, transaction) } : undefined;
     return {
       score: row.score,
       hasSubmitted: row.has_submitted,
       hasVoted: row.has_voted,
       ...(result ? { result } : {}),
+      ...(roundOutcome ? { roundOutcome } : {}),
     };
   }
 
-  async getRoundVoteCounts(
-    input: { eventId: string; sessionId: string; roundKey: string },
+  private async checkedRoundStreak(
+    input: { eventId: string; sessionId: string; participationGrantId: string },
     transaction: PrismTransactionContext,
-  ): Promise<Array<{ label: string; count: number }>> {
-    // QUERY_AUDIT_RAW_SQL: Vote counts grouped by the payload option JSON field, filtered by a correlated latest-moderation subquery; Prisma groupBy cannot group on a JSON path.
-    const rows = await transaction.prisma.$queryRaw<VoteCountRow[]>`
-      SELECT s."payload"->>'option' AS "label", COUNT(*)::integer AS "count"
+  ): Promise<number> {
+    // QUERY_AUDIT_RAW_SQL: Reads this participant's latest checked answers per round, newest first and bounded, to count a correct streak; plain read.
+    const rows = await transaction.prisma.$queryRaw<CheckedRoundRow[]>`
+      SELECT DISTINCT ON (s."round_number") s."round_number", (s."score_result"->>'isCorrect')::boolean AS "is_correct"
       FROM "event_games"."submissions" s
       WHERE s."event_id" = ${input.eventId} AND s."session_id" = ${input.sessionId}
-        AND s."round_key" = ${input.roundKey} AND s."action_kind" = 'vote'
-        AND s."payload" ? 'option'
+        AND s."participation_grant_id" = ${input.participationGrantId}
+        AND s."action_kind" <> 'vote' AND s."score_result" IS NOT NULL
+      ORDER BY s."round_number" DESC, s."created_at" DESC
+      LIMIT 50
+    `;
+    return correctStreak(rows);
+  }
+
+  async countRoundParticipants(
+    input: { eventId: string; sessionId: string; roundKey: string },
+    transaction: PrismTransactionContext,
+  ): Promise<number> {
+    // QUERY_AUDIT_RAW_SQL: Counts distinct participants with a submission for one round; a single aggregate read.
+    const rows = await transaction.prisma.$queryRaw<RoundParticipantCountRow[]>`
+      SELECT COUNT(DISTINCT s."participation_grant_id")::integer AS "answered"
+      FROM "event_games"."submissions" s
+      WHERE s."event_id" = ${input.eventId} AND s."session_id" = ${input.sessionId}
+        AND s."round_key" = ${input.roundKey}
+    `;
+    return rows[0]?.answered ?? 0;
+  }
+
+  async getRoundVoteCounts(
+    input: { eventId: string; sessionId: string; roundKey: string; tally?: 'votes' | 'answers' },
+    transaction: PrismTransactionContext,
+  ): Promise<Array<{ label: string; count: number }>> {
+    // Votes are counted by their option; Live Trivia answers by the chosen answer.
+    const [actionKind, field] = input.tally === 'answers' ? ['answer', 'answer'] : ['vote', 'option'];
+    // QUERY_AUDIT_RAW_SQL: Vote or answer counts grouped by a payload JSON field, filtered by a correlated latest-moderation subquery; Prisma groupBy cannot group on a JSON path.
+    const rows = await transaction.prisma.$queryRaw<VoteCountRow[]>`
+      SELECT s."payload"->>${field}::text AS "label", COUNT(*)::integer AS "count"
+      FROM "event_games"."submissions" s
+      WHERE s."event_id" = ${input.eventId} AND s."session_id" = ${input.sessionId}
+        AND s."round_key" = ${input.roundKey} AND s."action_kind" = ${actionKind}
+        AND s."payload" ? ${field}::text
         AND COALESCE((
           SELECT m."action" FROM "event_games"."moderation_actions" m
           WHERE m."event_id" = s."event_id" AND m."session_id" = s."session_id"
             AND m."submission_id" = s."id"
           ORDER BY m."created_at" DESC, m."id" DESC LIMIT 1
         ), 'approve_submission') <> 'hide_submission'
-      GROUP BY s."payload"->>'option'
-      ORDER BY s."payload"->>'option'
+      GROUP BY 1
+      ORDER BY 1
     `;
     return rows.filter((row) => typeof row.label === 'string' && Number.isSafeInteger(row.count) && row.count >= 0);
   }

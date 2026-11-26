@@ -15,18 +15,20 @@ type AggregateInput = {
   configSnapshot: Readonly<Record<string, unknown>>;
   roundKey: string | null;
   status: string;
-  /** The current round's results window is open (Presenter Deck only). */
+  /** The current round's results window is open (Live Trivia and Presenter Deck). */
   resultsOpen?: boolean | undefined;
 };
 
-/** Presenter Deck results show while the host pauses or during each slide's timed results window. */
+/** Presenter Deck results and Live Trivia answer counts show while the host pauses or during each round's results window. */
 export function presenterDeckResultsVisible(status: string, resultsOpen: boolean | undefined): boolean {
   return status === 'paused' || (status === 'live' && resultsOpen === true);
 }
 
 function isAggregateVisible(input: AggregateInput): boolean {
   if (input.kind === 'would-you-rather') return Boolean(configuredVoteOptions(input));
-  if (input.kind === 'presenter-deck') return presenterDeckResultsVisible(input.status, input.resultsOpen);
+  if (input.kind === 'presenter-deck' || input.kind === 'live-trivia') {
+    return presenterDeckResultsVisible(input.status, input.resultsOpen);
+  }
   return input.kind === 'this-or-that'
     || input.kind === 'this-or-that-solo'
     || ((input.kind === 'split-the-room' || input.kind === 'live-poll') && input.status === 'paused');
@@ -62,7 +64,11 @@ function presenterDeckOptions(configuration: TemplateConfigurationOf<'presenter-
   return null;
 }
 
-/** Kinds whose rounds carry configured vote buckets; every other kind has none. */
+function liveTriviaOptions(configuration: TemplateConfigurationOf<'live-trivia'>, roundKey: string): readonly string[] | null {
+  return configuration.rounds.find(({ key }) => key === roundKey)?.options ?? null;
+}
+
+/** Kinds whose rounds carry configured vote buckets (or, for Live Trivia, answer choices); every other kind has none. */
 const VOTE_OPTION_READERS: Partial<{
   [K in PrismEventGameTemplateConfiguration['kind']]: VoteOptionReader<TemplateConfigurationOf<K>>;
 }> = {
@@ -71,6 +77,7 @@ const VOTE_OPTION_READERS: Partial<{
   'split-the-room': splitTheRoomOptions,
   'would-you-rather': wouldYouRatherOptions,
   'presenter-deck': presenterDeckOptions,
+  'live-trivia': liveTriviaOptions,
 };
 
 function configuredVoteOptions(input: AggregateInput): readonly string[] | null {
@@ -95,6 +102,7 @@ export async function readConfiguredVoteAggregate(input: AggregateInput): Promis
     eventId: input.eventId,
     sessionId: input.sessionId,
     roundKey: input.roundKey,
+    ...(input.kind === 'live-trivia' ? { tally: 'answers' as const } : {}),
   }, input.transaction);
   const counts = new Map(rows.map(({ label, count }) => [label, count]));
   return options.map((label) => ({ label, count: counts.get(label) ?? 0 }));

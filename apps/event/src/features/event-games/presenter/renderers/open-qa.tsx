@@ -1,38 +1,14 @@
 import type { PresenterRenderer } from "../presenter-types";
 import { PresenterNumberedResponses } from "../presenter-blocks";
+import { AudienceSlide } from "./audience-slide";
 
-/**
- * Open Q&A slides. Live: the prompt and how many people are in the room. Paused: the prompt and the
- * host-approved questions as a numbered list. Pending questions are never read.
- */
+/** Open Q&A slides: the question while the room asks; the host-approved questions once paused. */
 const OpenQaRenderer: PresenterRenderer = ({ state }) => {
-  const round = state.currentRound;
-  if (!round) return null;
-
-  if (state.status === "live") {
-    return (
-      <section aria-label="Current slide" className="flex flex-col items-center gap-8 py-8 text-center">
-        <p className="max-w-5xl text-5xl font-bold leading-tight md:text-7xl">{round.prompt}</p>
-        <p className="text-3xl text-white/80 md:text-4xl">
-          <span className="font-bold tabular-nums text-amber-300">{state.participantCount}</span>{" "}
-          {state.participantCount === 1 ? "person" : "people"} answering on their phones
-        </p>
-      </section>
-    );
-  }
-
-  if (state.status !== "paused") return null;
-
-  const approvedResponses = round.approvedResponses ?? [];
+  const approved = state.currentRound?.approvedResponses ?? [];
   return (
-    <div className="space-y-10">
-      <p className="text-center text-4xl font-bold leading-tight md:text-6xl">{round.prompt}</p>
-      {approvedResponses.length ? (
-        <PresenterNumberedResponses responses={approvedResponses} title="Questions from the room" />
-      ) : (
-        <p className="py-8 text-center text-3xl text-white/70">No questions to show for this slide yet.</p>
-      )}
-    </div>
+    <AudienceSlide state={state} showResults={state.status === "paused"} emptyNote="No questions to show for this slide yet.">
+      {approved.length ? <PresenterNumberedResponses responses={approved} title="Questions from the room" /> : null}
+    </AudienceSlide>
   );
 };
 

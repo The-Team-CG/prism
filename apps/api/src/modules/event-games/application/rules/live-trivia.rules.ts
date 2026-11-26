@@ -1,11 +1,7 @@
-import type { GameRuleDefinition, GameRuleCurrentRound } from '../../contracts/game-rule.port';
+import type { GameRuleDefinition } from '../../contracts/game-rule.port';
 import type { PrismSubmitEventGameActionInput } from '@prism/types';
 import { configurationErrors, normalizeAnswer, templateConfiguration } from './template-configuration';
-
-function roundFor(currentRound: GameRuleCurrentRound | undefined, key: string) {
-  if (!currentRound || currentRound.key !== key) return null;
-  return currentRound;
-}
+import { roundWithResultsWindow } from './results-window';
 
 export const liveTriviaRule: GameRuleDefinition = {
   templateId: 'live-trivia',
@@ -18,29 +14,20 @@ export const liveTriviaRule: GameRuleDefinition = {
     const collides = parsed.rounds.some((round) => new Set(round.options.map(normalizeAnswer)).size !== round.options.length);
     return collides ? ['Trivia options must stay distinct when accents and capitalization are ignored'] : [];
   },
+  // Each question is followed by a results window that reveals the answer before the next question starts.
   getCurrentRound: ({ configuration, startedAt, now }) => {
     const parsed = templateConfiguration(configuration, 'live-trivia');
-    if (!parsed) return null;
-    const elapsed = Math.max(0, now.getTime() - startedAt.getTime());
-    let elapsedBefore = 0;
-    for (const [index, round] of parsed.rounds.entries()) {
-      const durationMs = round.durationSeconds * 1000;
-      const deadlineAt = new Date(startedAt.getTime() + elapsedBefore + durationMs);
-      if (elapsed < elapsedBefore + durationMs) {
-        return {
-          key: round.key,
-          number: index + 1,
-          total: parsed.rounds.length,
-          prompt: round.prompt,
-          deadlineAt,
-          participantData: { kind: 'live-trivia', options: round.options },
-        };
-      }
-      elapsedBefore += durationMs;
-    }
-    return null;
+    const active = parsed ? roundWithResultsWindow(parsed.rounds, startedAt, now) : null;
+    if (!active) return null;
+    return {
+      key: active.round.key,
+      prompt: active.round.prompt,
+      ...active.timing,
+      participantData: { kind: 'live-trivia', options: active.round.options },
+    };
   },
   validateSubmission: ({ configuration, currentRound, action }) => {
+    if (currentRound.resultsOpen) return ['Answers are closed for this question'];
     const parsed = templateConfiguration(configuration, 'live-trivia');
     if (!parsed || !('templateId' in action) || action.templateId !== 'live-trivia'
       || action.actionKind !== 'answer' || action.roundKey !== currentRound.key) {

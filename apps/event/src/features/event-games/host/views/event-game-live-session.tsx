@@ -232,6 +232,16 @@ function GameLifecycleButtons({ hostState, activeSession, busy, onCommand }: {
   </>;
 }
 
+function advanceLabel(kind: PrismGameHostState["game"]["kind"], toResults: boolean): string {
+  if (!toResults) return "Next round";
+  return kind === "live-trivia" ? "Reveal answer" : "Show results";
+}
+
+/** Everyone in the room has answered, so the host can reveal without waiting for the clock. */
+function everyoneAnswered(participants: number, answered: number | undefined): boolean {
+  return participants > 0 && (answered ?? 0) >= participants;
+}
+
 function AdvanceRoundButton({ hostState, busy, onCommand }: {
   hostState: PrismGameHostState;
   busy: boolean;
@@ -239,8 +249,17 @@ function AdvanceRoundButton({ hostState, busy, onCommand }: {
 }) {
   const round = hostState.currentRound;
   // The API only advances timed rounds (it needs a deadline); untimed rounds such as Bingo number calls advance on their own.
-  if (!round || !round.deadlineAt || round.number >= round.total || !["live", "paused"].includes(hostState.status)) return null;
-  return <Button type="button" variant="outline" onClick={() => void onCommand(hostState.sessionId, "advance-round", round.key)} disabled={busy}>Next round</Button>;
+  if (!round || !round.deadlineAt || !["live", "paused"].includes(hostState.status)) return null;
+  // A question with a results window steps into it first (even on the last round), so the room always sees the answer.
+  const toResults = round.resultsOpen === false;
+  if (!toResults && round.number >= round.total) return null;
+  const label = advanceLabel(hostState.game.kind, toResults);
+  const everyoneIn = toResults && everyoneAnswered(hostState.participantCount, round.answeredCount);
+  return (
+    <Button type="button" variant={everyoneIn ? "default" : "outline"} onClick={() => void onCommand(hostState.sessionId, "advance-round", round.key)} disabled={busy}>
+      {everyoneIn ? `Everyone answered · ${label}` : label}
+    </Button>
+  );
 }
 
 function SessionPinButton({ hostState, activeSession, busy, pinDismissed, onCommand }: {

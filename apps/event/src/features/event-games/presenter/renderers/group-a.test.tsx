@@ -55,29 +55,37 @@ describe("Live Trivia presenter", () => {
     expect(screen.queryByText(/Unreviewed secret/)).toBeNull();
   });
 
+  it("shows answers coming in, then cues the host once everyone has answered", () => {
+    const { rerender } = render(<LiveTriviaPresenter state={hostState("live-trivia", {}, { prompt: "Capital of France?", answeredCount: 3 })} />);
+    expect(screen.getByRole("status").textContent).toContain("3 of 12 answered");
+
+    rerender(<LiveTriviaPresenter state={hostState("live-trivia", {}, { prompt: "Capital of France?", answeredCount: 12 })} />);
+    expect(screen.getByText("Everyone’s in!")).toBeTruthy();
+  });
+
   it("reveals the answer only once paused", () => {
     const { rerender } = render(<LiveTriviaPresenter state={hostState("live-trivia", {}, {
       prompt: "Capital of France?",
       revealedAnswer: "Paris",
     })} />);
-    expect(screen.queryByText("Answer: Paris")).toBeNull();
+    expect(screen.queryByText("Paris")).toBeNull();
 
     rerender(<LiveTriviaPresenter state={hostState("live-trivia", { status: "paused" }, {
       prompt: "Capital of France?",
       revealedAnswer: "Paris",
     })} />);
-    expect(screen.getByText("Answer: Paris")).toBeTruthy();
+    expect(screen.getByText("Paris")).toBeTruthy();
     expect(screen.getByText("Capital of France?")).toBeTruthy();
   });
 });
 
 describe("Bingo presenter", () => {
-  it("shows the prompt and participant count without called numbers or pending text", () => {
-    render(<BingoPresenter state={hostState("bingo", {}, { prompt: "Full house?" })} />);
+  it("shows the latest call large and lights it on the call board, without pending text", () => {
+    render(<BingoPresenter state={hostState("bingo", {}, { prompt: "Number called: 19", calledNumbers: [4, 19] })} />);
 
-    expect(screen.getByText("Full house?")).toBeTruthy();
-    expect(screen.getByText("12")).toBeTruthy();
-    expect(screen.getByText(/host console/)).toBeTruthy();
+    expect(screen.getAllByText("19").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByLabelText("Latest number").textContent).toContain("12 people playing");
+    expect(screen.getByText("75")).toBeTruthy();
     expect(screen.queryByText(/Unreviewed secret/)).toBeNull();
   });
 
@@ -150,7 +158,8 @@ describe("Family Feud presenter", () => {
     })} />);
 
     expect(screen.getByText("Pizza")).toBeTruthy();
-    expect(screen.getByText("Pie, Flatbread")).toBeTruthy();
     expect(screen.getByText("40")).toBeTruthy();
+    // Alternatives help the host score answers; the room only sees the board.
+    expect(screen.queryByText(/Flatbread/)).toBeNull();
   });
 });

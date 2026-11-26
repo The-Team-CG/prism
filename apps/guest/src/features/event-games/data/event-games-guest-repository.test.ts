@@ -428,8 +428,15 @@ describe("event games guest repository", () => {
     // The alias the server showed in that game replaces whatever was stored, so the lobby names the guest the same way.
     expect(eventGamesGuestRepository.readParticipantSession()).toEqual({
       eventId: "event-a", currentSessionId: null, participantCredential: "A".repeat(43),
-      participantAlias: participantState.participant.participantAlias,
+      participantAlias: participantState.participant.participantAlias, finishedSessionId: "session-a1",
     });
+
+    // A reload of the finished game still reads its final results, but it can no longer be answered.
+    api.getParticipantState.mockResolvedValueOnce({ ...participantState, status: "completed" });
+    await expect(eventGamesGuestRepository.getParticipantState("session-a1")).resolves.toMatchObject({ status: "completed" });
+    await expect(eventGamesGuestRepository.submitParticipantAction("session-a1", {
+      templateId: "live-trivia", roundKey: "round-1", actionKind: "answer", payload: { answer: "A" },
+    })).rejects.toThrow();
     expect(JSON.parse(persisted.get(PRISM_SESSION_STORAGE_KEYS.gameParticipant) ?? "{}")).not.toHaveProperty("name");
   });
 
@@ -453,6 +460,37 @@ describe("event games guest repository", () => {
     expect(JSON.stringify(result)).not.toContain("correctAnswer");
     // The lobby and PIN screens show this same server name for the guest.
     expect(eventGamesGuestRepository.readParticipantSession()?.participantAlias).toBe("Guest A1B2C3D4E5");
+  });
+
+  it("passes through the revealed answer, the guest's own result and wheel segments, and drops malformed ones", async () => {
+    savePrismSession(PRISM_SESSION_STORAGE_KEYS.gameParticipant, {
+      eventId: "event-a", currentSessionId: "session-a1", participantCredential: "A".repeat(43),
+    });
+    const revealed = {
+      ...participantState,
+      currentRound: { key: "round-1", number: 1, total: 3, resultsOpen: true, revealedAnswer: "Baguio" },
+      participant: { ...participantState.participant, hasSubmitted: true, roundOutcome: { isCorrect: false, points: 0, answer: "Cebu", streak: 0 } },
+    };
+    api.getParticipantState.mockResolvedValueOnce(revealed);
+    await expect(eventGamesGuestRepository.getParticipantState("session-a1")).resolves.toEqual(revealed);
+
+    api.getParticipantState.mockResolvedValueOnce({
+      ...participantState,
+      currentRound: { key: "round-1", number: 1, total: 3, revealedAnswer: 42 },
+      participant: { ...participantState.participant, roundOutcome: { isCorrect: "yes", points: -5 } },
+    });
+    const malformed = await eventGamesGuestRepository.getParticipantState("session-a1");
+    expect(malformed.currentRound).not.toHaveProperty("revealedAnswer");
+    expect(malformed.participant).not.toHaveProperty("roundOutcome");
+
+    const outcomes = [{ id: "mug", label: "Mug", points: 5 }];
+    api.getParticipantState.mockResolvedValueOnce({
+      ...participantState,
+      game: { title: "Wheel", kind: "spin-wheel" },
+      participant: { ...participantState.participant, gameData: { kind: "spin-wheel", outcomes: outcomes.map((outcome) => ({ ...outcome, weight: 9 })) } },
+    });
+    const wheel = await eventGamesGuestRepository.getParticipantState("session-a1");
+    expect(wheel.participant.gameData).toEqual({ kind: "spin-wheel", outcomes });
   });
 
   it("keeps Family Feud read data to the participant's team label only", async () => {
@@ -564,7 +602,7 @@ describe("event games guest repository", () => {
     expect(live).not.toHaveProperty("approvedResponses");
   });
 
-  it("passes poll options and word cloud limits through, shows approved answers only once paused, and drops malformed data", async () => {
+  it("passes poll options and word cloud limits through, shows approved answers, and drops malformed data", async () => {
     savePrismSession(PRISM_SESSION_STORAGE_KEYS.gameParticipant, {
       eventId: "event-a", currentSessionId: "session-a1", participantCredential: "A".repeat(43),
     });
@@ -627,12 +665,12 @@ describe("event games guest repository", () => {
     expect((await eventGamesGuestRepository.getParticipantState("session-a1")).participant).not.toHaveProperty("gameData");
   });
 
-  it("shows Presenter Deck approved word-cloud answers while live as well as paused", async () => {
+  it.each(["presenter-deck", "word-cloud"])("shows approved %s words while live as well as paused", async (kind) => {
     savePrismSession(PRISM_SESSION_STORAGE_KEYS.gameParticipant, {
       eventId: "event-a", currentSessionId: "session-a1", participantCredential: "A".repeat(43),
     });
     const deck = (status: string) => ({
-      ...participantState, status, game: { title: "Presenter Deck", kind: "presenter-deck" },
+      ...participantState, status, game: { title: "Word cloud", kind },
       approvedResponses: ["Inspiring"],
     });
     api.getParticipantState.mockResolvedValueOnce(deck("live")).mockResolvedValueOnce(deck("scheduled"));

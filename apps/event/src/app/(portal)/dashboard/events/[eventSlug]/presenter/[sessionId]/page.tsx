@@ -11,7 +11,7 @@ export default function EventGamePresenterPage({ params }: { params: Promise<{ e
 
   if (!viewModel.state) {
     return (
-      <main className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950 p-8 text-center text-white">
+      <main className="fixed inset-0 z-[100] flex items-center justify-center bg-[var(--prism-ink)] p-8 text-center text-white">
         <p role={viewModel.error ? "alert" : "status"} className="max-w-3xl text-3xl font-semibold">
           {viewModel.error ?? "Loading the game…"}
         </p>
@@ -30,6 +30,7 @@ export default function EventGamePresenterPage({ params }: { params: Promise<{ e
       issuingPin={viewModel.issuingPin}
       pinError={viewModel.pinError}
       onIssuePin={() => { void viewModel.issuePin(); }}
+      pictureUrl={viewModel.pictureUrl}
     />
   );
 }

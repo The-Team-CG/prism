@@ -14,13 +14,23 @@ const configuration = {
 };
 
 describe('Live Trivia rule', () => {
-  it('advances timed prompts using server timestamps and closes after the final round', () => {
-    expect(liveTriviaRule.getCurrentRound({
-      configuration, startedAt, now: new Date(startedAt.getTime() + 35_000),
-    })).toMatchObject({ key: 'q2', number: 2, total: 2, prompt: 'Second question' });
-    expect(liveTriviaRule.getCurrentRound({
-      configuration, startedAt, now: new Date(startedAt.getTime() + 50_000),
-    })).toBeNull();
+  it('follows each question with a results window, then closes after the final round', () => {
+    const at = (seconds: number) => liveTriviaRule.getCurrentRound({
+      configuration, startedAt, now: new Date(startedAt.getTime() + seconds * 1000),
+    });
+    expect(at(10)).toMatchObject({ key: 'q1', resultsOpen: false });
+    expect(at(35)).toMatchObject({ key: 'q1', resultsOpen: true });
+    expect(at(45)).toMatchObject({ key: 'q2', number: 2, total: 2, prompt: 'Second question', resultsOpen: false });
+    expect(at(65)).toMatchObject({ key: 'q2', resultsOpen: true });
+    expect(at(70)).toBeNull();
+  });
+
+  it('closes answers once the results window opens', () => {
+    const reveal = liveTriviaRule.getCurrentRound({ configuration, startedAt, now: new Date(startedAt.getTime() + 35_000) })!;
+    expect(liveTriviaRule.validateSubmission({
+      configuration, currentRound: reveal,
+      action: { templateId: 'live-trivia', roundKey: 'q1', actionKind: 'answer', payload: { answer: 'B' } },
+    })).toEqual(['Answers are closed for this question']);
   });
 
   it('checks the configured answer and applies server-timed speed points without client timing', () => {

@@ -1,5 +1,5 @@
 import type { PrismEventGameKind, PrismSubmitEventGameActionInput } from '@prism/types';
-import type { PrismGameParticipantResult, PrismGameSessionResult } from '@prism/types';
+import type { PrismGameParticipantResult, PrismGameRoundOutcome, PrismGameSessionResult } from '@prism/types';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 
 export const GAME_ACTION_STORE = Symbol('GAME_ACTION_STORE');
@@ -10,6 +10,8 @@ export interface GameParticipantStateSummary {
   hasSubmitted: boolean;
   hasVoted?: boolean;
   result?: PrismGameParticipantResult;
+  /** The participant's latest checked answer this round; the read model decides when it may be shown. */
+  roundOutcome?: PrismGameRoundOutcome;
 }
 
 export interface StoredGameResponse {
@@ -79,8 +81,14 @@ export interface GameActionStorePort {
     input: { eventId: string; sessionId: string; participationGrantId: string; roundKey: string | null },
     transaction: PrismTransactionContext,
   ): Promise<GameParticipantStateSummary>;
-  getRoundVoteCounts(
+  /** Distinct guests with any recorded answer or vote for the round. */
+  countRoundParticipants(
     input: { eventId: string; sessionId: string; roundKey: string },
+    transaction: PrismTransactionContext,
+  ): Promise<number>;
+  getRoundVoteCounts(
+    /** `tally: 'answers'` counts Live Trivia answers by choice instead of votes by option. */
+    input: { eventId: string; sessionId: string; roundKey: string; tally?: 'votes' | 'answers' },
     transaction: PrismTransactionContext,
   ): Promise<Array<{ label: string; count: number }>>;
   getRoundModerationQueue(

@@ -71,6 +71,7 @@ function setup(overrides: {
     } : overrides.context),
     getParticipantState: vi.fn().mockResolvedValue({ score: 20, hasSubmitted: true }),
     getRoundVoteCounts: vi.fn().mockResolvedValue([]),
+    countRoundParticipants: vi.fn().mockResolvedValue(0),
     getRoundModerationQueue: vi.fn().mockResolvedValue([]),
     getFamilyFeudModerationQueue: vi.fn().mockResolvedValue([]),
     getApprovedRoundResponses: vi.fn().mockResolvedValue([]),
@@ -431,7 +432,7 @@ describe('GameReadModelService', () => {
     }, tx);
   });
 
-  it.each(['word-cloud', 'open-qa'])('keeps approved %s text hidden from live participants until a pause', async (kind) => {
+  it.each([['word-cloud', true], ['open-qa', false]])('shows approved %s text to live participants when appropriate', async (kind, visible) => {
     const context = {
       eventId: 'event-1', sessionId: 'session-1', gameId: 'game-1', title: 'Moderated', kind,
       status: 'live', configSnapshot: { configuration: {} }, startedAt: new Date('2026-10-16T11:00:00Z'),
@@ -442,8 +443,12 @@ describe('GameReadModelService', () => {
 
     const state = await live.service.getParticipantState('session-1', credential);
 
-    expect(state).not.toHaveProperty('approvedResponses');
-    expect(live.actionStore.getApprovedRoundResponses).not.toHaveBeenCalled();
+    if (visible) {
+      expect(state.approvedResponses).toEqual(['Approved']);
+    } else {
+      expect(state).not.toHaveProperty('approvedResponses');
+      expect(live.actionStore.getApprovedRoundResponses).not.toHaveBeenCalled();
+    }
   });
 
   it('returns pending Split the Room text only in the authorized host read model', async () => {
@@ -472,7 +477,7 @@ describe('GameReadModelService', () => {
     }, tx);
   });
 
-  it('gives the host the same approved moderated text participants see, only while paused', async () => {
+  it('shows approved word-cloud responses live and paused while keeping pending text private', async () => {
     const hostContext = {
       kind: 'word-cloud', status: 'paused', configSnapshot: { configuration: {
         kind: 'word-cloud', rounds: [{ key: 'round-1', prompt: 'One word', maxResponseLength: 30, durationSeconds: 30 }],
@@ -492,9 +497,12 @@ describe('GameReadModelService', () => {
 
     const live = setup({ currentRound: { key: 'round-1', number: 1, total: 1, prompt: 'One word', deadlineAt: null } });
     live.sessions.getHostReadContext.mockResolvedValue({ ...hostContext, status: 'live', pausedAt: null });
+    live.actionStore.getApprovedRoundResponses.mockResolvedValue(['Bright', 'Calm']);
     const liveState = await live.service.getHostState('event-1', 'session-1', actor);
-    expect(liveState.currentRound).not.toHaveProperty('approvedResponses');
-    expect(live.actionStore.getApprovedRoundResponses).not.toHaveBeenCalled();
+    expect(liveState.currentRound?.approvedResponses).toEqual(['Bright', 'Calm']);
+    expect(live.actionStore.getApprovedRoundResponses).toHaveBeenCalledWith({
+      eventId: 'event-1', sessionId: 'session-1', roundKey: 'round-1',
+    }, tx);
 
     const trivia = setup();
     trivia.sessions.getHostReadContext.mockResolvedValue({ ...hostContext, kind: 'live-trivia', configSnapshot: {} });
@@ -642,7 +650,7 @@ describe('GameReadModelService', () => {
     expect(actionStore.getFamilyFeudModerationQueue).not.toHaveBeenCalled();
   });
 
-  it('keeps the trivia answer hidden from live hosts until pause and from participant reads', async () => {
+  it('keeps the trivia answer, tally and guest result hidden while the question is open, then reveals them', async () => {
     const configuration = { configuration: {
       kind: 'live-trivia', rounds: [{
         key: 'round-1', prompt: 'Which answer?', options: ['A', 'B'], correctAnswer: 'B',
@@ -658,12 +666,29 @@ describe('GameReadModelService', () => {
     live.rule.getCurrentRound.mockReturnValue({
       key: 'round-1', number: 1, total: 1, prompt: 'Which answer?', deadlineAt: null,
     });
+    live.actionStore.getParticipantState.mockResolvedValue({
+      score: 20, hasSubmitted: true, roundOutcome: { isCorrect: true, points: 20, answer: 'B' },
+    });
     const participantState = await live.service.getParticipantState('session-1', credential);
     expect(participantState).toMatchObject({
       currentPrompt: 'Which answer?',
       participant: { hasSubmitted: true, score: 20 },
     });
-    expect(participantState).not.toHaveProperty('revealedAnswer');
+    expect(participantState.currentRound).not.toHaveProperty('revealedAnswer');
+    expect(participantState.participant).not.toHaveProperty('roundOutcome');
+    expect(live.actionStore.getRoundVoteCounts).not.toHaveBeenCalled();
+
+    // Once the question closes into its results window, the guest sees the answer, their own result and the room's tally.
+    live.rule.getCurrentRound.mockReturnValue({
+      key: 'round-1', number: 1, total: 1, prompt: 'Which answer?', deadlineAt: null, resultsOpen: true,
+    });
+    live.actionStore.getRoundVoteCounts.mockResolvedValue([{ label: 'B', count: 3 }]);
+    await expect(live.service.getParticipantState('session-1', credential)).resolves.toMatchObject({
+      currentRound: { resultsOpen: true, revealedAnswer: 'B' },
+      participant: { roundOutcome: { isCorrect: true, points: 20, answer: 'B' } },
+      aggregateResults: [{ label: 'A', count: 0 }, { label: 'B', count: 3 }],
+    });
+    expect(live.actionStore.getRoundVoteCounts).toHaveBeenCalledWith(expect.objectContaining({ tally: 'answers' }), tx);
 
     const { service, sessions, rule } = setup();
     rule.getCurrentRound.mockReturnValue({
@@ -676,6 +701,71 @@ describe('GameReadModelService', () => {
 
     const hostState = await service.getHostState('event-1', 'session-1', actor);
     expect(hostState.currentRound).not.toHaveProperty('revealedAnswer');
+  });
+
+  it('shows puzzle results to the guest as soon as they answer', async () => {
+    const { service, actionStore } = setup({ context: {
+      eventId: 'event-1', sessionId: 'session-1', gameId: 'game-1', title: 'Scramble', kind: 'word-scramble',
+      status: 'live', configSnapshot: {}, startedAt: new Date('2026-10-16T11:00:00Z'), endedAt: null, pausedAt: null,
+      totalPausedMs: 0, participationGrantId: 'grant-1',
+    } });
+    actionStore.getParticipantState.mockResolvedValue({
+      score: 0, hasSubmitted: true, roundOutcome: { isCorrect: false, points: 0, answer: 'TOFECTNI' },
+    });
+    await expect(service.getParticipantState('session-1', credential)).resolves.toMatchObject({
+      participant: { roundOutcome: { isCorrect: false, points: 0 } },
+    });
+  });
+
+  it('gives the room screen the guest choices, Bingo calls, and the wheel, without revealing answers', async () => {
+    const trivia = setup();
+    trivia.rule.getCurrentRound.mockReturnValue({
+      key: 'round-1', number: 1, total: 1, prompt: 'Which?', deadlineAt: null, resultsOpen: false,
+      participantData: { kind: 'live-trivia', options: ['A', 'B'] },
+    });
+    trivia.actionStore.countRoundParticipants.mockResolvedValue(7);
+    const triviaState = await trivia.service.getHostState('event-1', 'session-1', actor);
+    expect(triviaState.currentRound).toMatchObject({ options: ['A', 'B'], resultsOpen: false, answeredCount: 7 });
+    expect(triviaState.currentRound).not.toHaveProperty('revealedAnswer');
+
+    const bingo = setup();
+    bingo.rule.getCurrentRound.mockReturnValue({ key: 'bingo-claim', number: 3, total: 33, prompt: 'Number called: 9', deadlineAt: null });
+    bingo.sessions.getHostReadContext.mockResolvedValue({
+      kind: 'bingo', status: 'live', startedAt: new Date('2026-10-16T11:00:00Z'), endedAt: null, pausedAt: null, totalPausedMs: 0,
+      configSnapshot: { configuration: { kind: 'bingo', callSequence: [4, 17, 9, ...Array.from({ length: 30 }, (_, index) => index + 30)], callIntervalSeconds: 20, winPattern: 'line', points: 10 } },
+    });
+    await expect(bingo.service.getHostState('event-1', 'session-1', actor)).resolves.toMatchObject({
+      currentRound: { calledNumbers: [4, 17, 9] },
+    });
+
+    const wheel = setup();
+    const outcomes = [{ id: 'mug', label: 'Mug', points: 5 }];
+    wheel.rule.getCurrentRound.mockReturnValue({
+      key: 'spin-1', number: 1, total: 1, prompt: 'Watch', deadlineAt: null, participantData: { kind: 'spin-wheel', outcomes },
+    });
+    await expect(wheel.service.getHostState('event-1', 'session-1', actor)).resolves.toMatchObject({ wheelOutcomes: outcomes });
+  });
+
+  it('signs only a configured picture for an authorized room screen', async () => {
+    const mediaObjectId = 'obj_11111111-1111-4111-8111-111111111111';
+    const { service, sessions, eventAccess, mediaStorage } = setup();
+    sessions.getHostState.mockResolvedValue({ eventId: 'event-1', sessionId: 'session-1', game: { id: 'game-1' }, status: 'live', leaderboard: [] });
+    sessions.getHostReadContext.mockResolvedValue({
+      kind: 'guess-picture', status: 'live', configSnapshot: { mediaObjectIds: [mediaObjectId] },
+      startedAt: new Date('2026-10-16T11:00:00Z'), endedAt: null, pausedAt: null, totalPausedMs: 0,
+    });
+
+    await expect(service.getHostMediaAuthorization('event-1', 'session-1', mediaObjectId, actor))
+      .resolves.toMatchObject({ downloadUrl: 'https://storage.example.test/signed-media' });
+    expect(mediaStorage.issueParticipantDownloadAuthorization).toHaveBeenCalledWith(
+      { eventId: 'event-1', gameId: 'game-1', objectId: mediaObjectId }, tx,
+    );
+    await expect(service.getHostMediaAuthorization('event-1', 'session-1', 'obj_22222222-2222-4222-8222-222222222222', actor))
+      .rejects.toBeInstanceOf(NotFoundException);
+
+    eventAccess.assertHostAccess.mockRejectedValueOnce(new ForbiddenException());
+    await expect(service.getHostMediaAuthorization('event-1', 'session-1', mediaObjectId, actor))
+      .rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('rejects event analytics before reading data when host access fails', async () => {

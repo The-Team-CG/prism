@@ -46,6 +46,16 @@ export class GameSessionHostController {
     return this.readModels.getHostState(eventId, sessionId, actor);
   }
 
+  @Get(':eventId/game-sessions/:sessionId/media/:objectId/download-authorization')
+  getHostMediaAuthorization(
+    @Param('eventId') eventId: string,
+    @Param('sessionId') sessionId: string,
+    @Param('objectId') objectId: string,
+    @VerifiedEventActor() actor: PrismVerifiedEventActor,
+  ) {
+    return this.readModels.getHostMediaAuthorization(eventId, sessionId, objectId, actor);
+  }
+
   @Get(':eventId/game-analytics')
   getEventAnalytics(
     @Param('eventId') eventId: string,

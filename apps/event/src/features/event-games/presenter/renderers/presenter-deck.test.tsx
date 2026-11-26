@@ -64,14 +64,14 @@ describe("PresenterDeckRenderer", () => {
     expect(screen.queryByText(/Unreviewed secret/)).toBeNull();
   });
 
-  it("shows the server's results while live, in the slide's results window, without a host pause", () => {
+  it("shows the server's results with the question still on screen in the slide's results window, without a host pause", () => {
     render(<PresenterDeckRenderer state={hostState({
       aggregateResults: [{ label: "Yes", count: 3 }, { label: "No", count: 1 }],
     }, { key: "choice-1", prompt: "Coffee?", resultsOpen: true })} />);
 
     expect(screen.getByText("How the room voted")).toBeTruthy();
     expect(screen.getByText("3 · 75%")).toBeTruthy();
-    expect(screen.queryByText("Coffee?")).toBeNull();
+    expect(screen.getByText("Coffee?")).toBeTruthy();
   });
 
   it("shows a word cloud only when the server sends approved words", () => {
@@ -83,6 +83,14 @@ describe("PresenterDeckRenderer", () => {
     render(<PresenterDeckRenderer state={hostState({}, { resultsOpen: true })} />);
     expect(screen.queryByText("What the room said")).toBeNull();
     expect(screen.getByText("No responses to show for this slide yet.")).toBeTruthy();
+  });
+
+  it("leads a rating slide's results with the average", () => {
+    render(<PresenterDeckRenderer state={hostState({
+      aggregateResults: [{ label: "1", count: 0 }, { label: "2", count: 1 }, { label: "3", count: 1 }],
+    }, { key: "scale-1", prompt: "Energy?", resultsOpen: true })} />);
+    expect(screen.getByText("2.5")).toBeTruthy();
+    expect(screen.getByText("Average rating")).toBeTruthy();
   });
 
   it("shows no word cloud while live without approved words, and keeps the prompt on screen", () => {
