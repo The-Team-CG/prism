@@ -62,11 +62,18 @@ describe("editor-time architecture lint", () => {
     );
   });
 
-  it("allows canonical schemas, the API Zod validation adapter, and the API runtime env schema", async () => {
+  it("allows canonical schemas, route contracts, the API Zod validation adapter, and the API runtime env schema", async () => {
     assert.deepEqual(
       await messages(
         "packages/types/src/schemas/example.ts",
         'import { z } from "zod";\nexport const exampleSchema = z.object({ email: z.string() });',
+      ),
+      [],
+    );
+    assert.deepEqual(
+      await messages(
+        "packages/types/src/routes/example.ts",
+        'import { z } from "zod";\nexport const listRoute = { response: z.array(z.string()) };',
       ),
       [],
     );
