@@ -78,25 +78,13 @@ import type {
   PrismBillingStatement,
   PrismPaymentMilestone,
   PrismEventFinancialSummary,
-  PrismPaymentAllocationTarget,
-  PrismPaymentReceipt,
   PrismSupplier,
   PrismSupplierQuote,
   PrismSupplierQuoteRequest,
   PrismSupplierQuoteRoundComparison,
-  AllocatePaymentReceiptInput,
   AttachPaymentReceiptEvidenceInput,
-  EarmarkPaymentReceiptInput,
-  ListPaymentAllocationTargetsQuery,
-  ListPaymentReceiptsQuery,
   RecordPaymentInput,
   SavePaymentDetailsInput,
-  RecordPaymentReceiptInput,
-  RecordPaymentRefundInput,
-  RejectPaymentReceiptInput,
-  ReversePaymentAllocationInput,
-  ReversePaymentReceiptInput,
-  VerifyPaymentReceiptInput,
   RequestSupplierQuotesInput,
   AddSupplierQuoteInput,
   SupplierAvailabilityInput,
@@ -135,19 +123,8 @@ export interface EventOpsCommercialContract {
     /** Money that arrived outside P.R.I.S.M: recorded first, applied to milestones afterwards. PMCM finance only. */
     /** PMCM finance across every active event: what needs PMCM, each event's money, and supplier payouts. */
     financeDesk(init?: EventOpsReadInit): Promise<PrismFinanceDesk>;
-    listPaymentReceipts(query: ListPaymentReceiptsQuery, init?: EventOpsReadInit): Promise<PrismPaymentReceipt[]>;
     /** Estimated and billed price, collections and how far to trust them, supplier cost and the margin. PMCM finance only. */
     eventFinancialSummary(eventId: string, init?: EventOpsReadInit): Promise<PrismEventFinancialSummary>;
-    paymentAllocationTargets(query: ListPaymentAllocationTargetsQuery, init?: EventOpsReadInit): Promise<PrismPaymentAllocationTarget[]>;
-    recordPaymentReceipt(input: RecordPaymentReceiptInput): Promise<PrismPaymentReceipt>;
-    allocatePaymentReceipt(receiptId: string, input: AllocatePaymentReceiptInput): Promise<PrismPaymentReceipt>;
-    attachPaymentReceiptEvidence(receiptId: string, input: AttachPaymentReceiptEvidenceInput): Promise<PrismPaymentReceipt>;
-    earmarkPaymentReceipt(receiptId: string, input: EarmarkPaymentReceiptInput): Promise<PrismPaymentReceipt>;
-    reversePaymentAllocation(receiptId: string, recordId: string, input: ReversePaymentAllocationInput): Promise<PrismPaymentReceipt>;
-    verifyPaymentReceipt(receiptId: string, input: VerifyPaymentReceiptInput): Promise<PrismPaymentReceipt>;
-    rejectPaymentReceipt(receiptId: string, input: RejectPaymentReceiptInput): Promise<PrismPaymentReceipt>;
-    reversePaymentReceipt(receiptId: string, input: ReversePaymentReceiptInput): Promise<PrismPaymentReceipt>;
-    recordPaymentRefund(receiptId: string, input: RecordPaymentRefundInput): Promise<PrismPaymentReceipt>;
     createSupplier(input: CreateSupplierInput): Promise<PrismSupplier>;
     updateSupplier(supplierId: string, input: UpdateSupplierInput): Promise<PrismSupplier>;
     changeSupplierTier(supplierId: string, input: ChangeSupplierTierInput): Promise<PrismSupplier>;

@@ -75,7 +75,7 @@ apps/api/          Nest modular monolith + Prisma (port 4000)
   prisma/          schema + migrations
 apps/{client,supplier,guest,event}/   Next portals 3001–3004
 packages/types       @prism/types     Zod write schemas + domain types + session keys
-packages/api-client  @prism/api-client  prismRequest/prismJson, createEventOpsClient, PrismApiError
+packages/api-client  @prism/api-client  prismRequest/prismJson, role clients from route contracts (createPmcmClient), createEventOpsClient, PrismApiError
 packages/floorplan-canvas  @prism/floorplan-canvas  Pascal editor host (/editor + /plugin), seating list, template store adapter
 packages/floorplan-scene  @prism/floorplan-scene  pure scene validation, seating, client plan drawings, scene builders (no UI)
 packages/portal-query  @prism/portal-query  one data cache per portal (resources, prefetch, invalidation)
@@ -217,7 +217,7 @@ export type CreatePrismInquiryInput = z.infer<typeof createPrismInquirySchema>;
 
 **Do not** invent a second DTO type in the app or api-client. api-client may re-export inferred types for convenience; **schemas live only in `@prism/types`**.
 
-No OpenAPI/Kubb codegen today.
+No OpenAPI/Kubb codegen today. Routes are written once as `defineRoute` contracts in `packages/types/src/routes/` (ADR-0011): the API mounts them with `@Endpoint`, role clients call them, and responses are parsed against them.
 
 ### API surface
 
@@ -225,7 +225,7 @@ No OpenAPI/Kubb codegen today.
 2. **Zod contract in `@prism/types`** (write) before controller work.
 3. ports → services → thin controller (`zodBody` / legacy DTO) → mappers (no Prisma models as public API).
 4. Cross-domain **reads** via `read-models` readers only; writers expose focused contracts/ports from their public index.
-5. Portal HTTP via `@prism/api-client` (data layer).
+5. Portal HTTP via `@prism/api-client` (data layer). A new route, or any route in a migrated context, is a `defineRoute` contract with a response schema, mounted with `@Endpoint` and called through the role client (ADR-0011); delete its hand-written client method.
 6. Co-located tests; **forbidden-role** cases on sensitive mutations.
 7. Docs/ledger updates only when governance requires (`docs/product/feature-ledger.md`, ADRs).
 

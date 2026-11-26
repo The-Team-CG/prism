@@ -4,6 +4,10 @@ This log records changes to documentation structure and durable contracts. Relea
 notes are in [`../CHANGELOG.md`](../CHANGELOG.md). Git history retains detailed
 implementation and verification history.
 
+## 2026-11-27
+
+- Added ADR-0011: routes are shared `defineRoute` contracts in `@prism/types`, with response schemas and role clients. Payment receipts are the first migrated context.
+
 ## 2026-11-18
 
 - Verified the bundle against the code; removed the ledger delivery overlay and duplicated actual-system tables, and condensed the ledger slices and changelog.

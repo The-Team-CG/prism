@@ -179,7 +179,8 @@ const noInlineZod = {
   },
   create(context) {
     const normalized = normalizedRelative(context.filename);
-    const canonical = normalized.startsWith("packages/types/src/schemas/");
+    // Route contracts (ADR-0011) are shared contracts too: they compose the schemas into routes.
+    const canonical = normalized.startsWith("packages/types/src/schemas/") || normalized.startsWith("packages/types/src/routes/");
     const zodValidationPipe = normalized === "apps/api/src/kernel/shared/zod-validation.pipe.ts";
     // The API process env schema is app-internal runtime config, not a shared contract.
     const apiRuntimeEnv = normalized === "apps/api/src/kernel/shared/runtime-env.ts";

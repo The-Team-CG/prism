@@ -13,27 +13,27 @@ import type {
   ReversePaymentReceiptInput,
   VerifyPaymentReceiptInput,
 } from "@prism/types";
-import { eventApi, storedEventAccessToken } from "@/lib/prism-api";
+import { pmcmApi, storedEventAccessToken } from "@/lib/prism-api";
 
 /** Receipts for one filter. Short freshness: a receipt changes whenever finance applies, reverses or refunds it. */
 export const paymentReceipts = defineResource({
   name: "finance.payment-receipts",
   staleMs: 10_000,
-  fetch: (query: ListPaymentReceiptsQuery, signal) => eventApi.commercial.listPaymentReceipts(query, { signal }),
+  fetch: (query: ListPaymentReceiptsQuery, signal) => pmcmApi.paymentReceipts.list({ query }, { signal }),
 });
 
 /** The milestones of one event that are still owed, for choosing where to apply money. */
 export const paymentAllocationTargets = defineResource({
   name: "finance.payment-allocation-targets",
   staleMs: 5_000,
-  fetch: (eventId: string, signal) => eventApi.commercial.paymentAllocationTargets({ eventId }, { signal }),
+  fetch: (eventId: string, signal) => pmcmApi.paymentReceipts.allocationTargets({ query: { eventId } }, { signal }),
 });
 
 export const receiptsRepository = {
-  record: (input: RecordPaymentReceiptInput) => eventApi.commercial.recordPaymentReceipt(input),
-  allocate: (receiptId: string, input: AllocatePaymentReceiptInput) => eventApi.commercial.allocatePaymentReceipt(receiptId, input),
+  record: (input: RecordPaymentReceiptInput) => pmcmApi.paymentReceipts.record({ body: input }),
+  allocate: (receiptId: string, input: AllocatePaymentReceiptInput) => pmcmApi.paymentReceipts.allocate({ params: { receiptId }, body: input }),
   reverseAllocation: (receiptId: string, recordId: string, input: ReversePaymentAllocationInput) =>
-    eventApi.commercial.reversePaymentAllocation(receiptId, recordId, input),
+    pmcmApi.paymentReceipts.reverseAllocation({ params: { receiptId, recordId }, body: input }),
   /** The proof is stored with the receipt's event, as its own kind of file only PMCM can read. */
   uploadEvidence: (file: File, eventId: string, receiptId: string) =>
     uploadStorageObject(file, {
@@ -43,13 +43,13 @@ export const receiptsRepository = {
       logicalTarget: paymentReceiptEvidenceTarget(receiptId, crypto.randomUUID()),
       usage: "payment_receipt_evidence",
     }, { authToken: storedEventAccessToken() }),
-  attachEvidence: (receiptId: string, input: AttachPaymentReceiptEvidenceInput) => eventApi.commercial.attachPaymentReceiptEvidence(receiptId, input),
+  attachEvidence: (receiptId: string, input: AttachPaymentReceiptEvidenceInput) => pmcmApi.paymentReceipts.attachEvidence({ params: { receiptId }, body: input }),
   downloadEvidence: (objectId: string) => getStorageObjectDownload(objectId, { authToken: storedEventAccessToken() }),
-  earmark: (receiptId: string, input: EarmarkPaymentReceiptInput) => eventApi.commercial.earmarkPaymentReceipt(receiptId, input),
-  verify: (receiptId: string, input: VerifyPaymentReceiptInput) => eventApi.commercial.verifyPaymentReceipt(receiptId, input),
-  reject: (receiptId: string, input: RejectPaymentReceiptInput) => eventApi.commercial.rejectPaymentReceipt(receiptId, input),
-  reverse: (receiptId: string, input: ReversePaymentReceiptInput) => eventApi.commercial.reversePaymentReceipt(receiptId, input),
-  refund: (receiptId: string, input: RecordPaymentRefundInput) => eventApi.commercial.recordPaymentRefund(receiptId, input),
+  earmark: (receiptId: string, input: EarmarkPaymentReceiptInput) => pmcmApi.paymentReceipts.earmark({ params: { receiptId }, body: input }),
+  verify: (receiptId: string, input: VerifyPaymentReceiptInput) => pmcmApi.paymentReceipts.verify({ params: { receiptId }, body: input }),
+  reject: (receiptId: string, input: RejectPaymentReceiptInput) => pmcmApi.paymentReceipts.reject({ params: { receiptId }, body: input }),
+  reverse: (receiptId: string, input: ReversePaymentReceiptInput) => pmcmApi.paymentReceipts.reverse({ params: { receiptId }, body: input }),
+  refund: (receiptId: string, input: RecordPaymentRefundInput) => pmcmApi.paymentReceipts.refund({ params: { receiptId }, body: input }),
 };
 
 export type ReceiptCommands = typeof receiptsRepository;
