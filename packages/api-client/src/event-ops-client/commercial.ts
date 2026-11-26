@@ -104,8 +104,6 @@ export function createCommercialClient(options: EventOpsClientOptions): Pick<Eve
         prismRequest<PrismPaymentReceipt[]>(`/payment-receipts${search(query)}`, withBase(options, { signal: init.signal })),
       eventFinancialSummary: (eventId, init = {}) =>
         prismRequest<PrismEventFinancialSummary>(event(eventId, "/financial-summary"), withBase(options, { signal: init.signal })),
-      paymentReceipt: (receiptId, init = {}) =>
-        prismRequest<PrismPaymentReceipt>(receipt(receiptId), withBase(options, { signal: init.signal })),
       paymentAllocationTargets: (query, init = {}) =>
         prismRequest<PrismPaymentAllocationTarget[]>(`/payment-receipts/allocation-targets${search(query)}`, withBase(options, { signal: init.signal })),
       recordPaymentReceipt: (input, actor = {}) =>

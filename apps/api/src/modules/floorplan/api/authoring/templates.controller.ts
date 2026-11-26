@@ -23,13 +23,6 @@ export class TemplatesController {
     return this.templatesService.listTemplates();
   }
 
-  @Get(':templateId')
-  @UseGuards(EventSessionGuard)
-  async getOne(@Param('templateId') templateId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
-    await this.requireAuthoring(verifiedActor);
-    return this.templatesService.getTemplate(templateId);
-  }
-
   @Post()
   @UseGuards(EventSessionGuard)
   @HttpCode(HttpStatus.CREATED)

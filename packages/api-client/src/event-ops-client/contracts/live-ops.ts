@@ -177,10 +177,6 @@ export interface EventOpsLiveOpsContract {
       input: EscalateLiveOpsInput,
       actor?: EventOpsActorQuery,
     ): Promise<PrismUrgentIssue>;
-    listTaskReassignmentRequests(
-      eventId: string,
-      actor?: EventOpsActorQuery,
-    ): Promise<PrismEventTaskReassignmentRequest[]>;
     requestTaskReassignment(
       eventId: string,
       taskId: string,

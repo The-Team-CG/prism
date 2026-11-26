@@ -95,16 +95,6 @@ function createDefinitionService(overrides: {
       beforeVersion: 1,
     }),
     listForEvent: vi.fn().mockResolvedValue([]),
-    findForEvent: vi.fn().mockResolvedValue({
-      id: gameId,
-      eventId,
-      kind: 'live-trivia',
-      entryMode: 'active',
-      status: 'draft',
-      title: 'Trivia',
-      version: 1,
-      config: { description: 'Original description', instructions: 'Original instructions' },
-    }),
   };
   const audit = overrides.audit ?? { recordHostWrite: vi.fn().mockResolvedValue(undefined) };
   const rules = overrides.rules ?? { get: vi.fn().mockReturnValue(undefined) };
@@ -509,7 +499,7 @@ describe('GameDefinitionService', () => {
     const unavailableGame = createDefinitionService({
       mediaStorage: { validateReferences: vi.fn(), requestGameMediaUpload },
       store: {
-        createDraft: vi.fn(), findForEvent: vi.fn(), listForEvent: vi.fn(), findDraftForUpdate: vi.fn().mockResolvedValue(null),
+        createDraft: vi.fn(), listForEvent: vi.fn(), findDraftForUpdate: vi.fn().mockResolvedValue(null),
         appendDraftVersion: vi.fn(), removeUnstartedGame: vi.fn(), publishDraft: vi.fn(),
       },
     });
@@ -526,16 +516,4 @@ describe('GameDefinitionService', () => {
     expect(store.listForEvent).toHaveBeenCalledWith(eventId, transaction);
   });
 
-  it('does not return a game when the requested event does not own its id', async () => {
-    const store = {
-      createDraft: vi.fn(), findDraftForUpdate: vi.fn(), appendDraftVersion: vi.fn(),
-      removeUnstartedGame: vi.fn(), publishDraft: vi.fn(), listForEvent: vi.fn(),
-      findForEvent: vi.fn().mockResolvedValue(null),
-    };
-    const { service, store: actualStore } = createDefinitionService({ store });
-
-    await expect(service.getForEvent(eventId, 'another-event-game', actor())).rejects.toBeInstanceOf(NotFoundException);
-
-    expect(actualStore.findForEvent).toHaveBeenCalledWith({ eventId, gameId: 'another-event-game' }, expect.any(Object));
-  });
 });

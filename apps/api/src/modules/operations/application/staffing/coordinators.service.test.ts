@@ -730,9 +730,6 @@ describe('Coordinator staffing workflows', () => {
       pmcmAdminActor,
     );
 
-    await expect(service.listCoordinators()).resolves.toEqual([
-      expect.objectContaining({ id: 'coord_marco', name: 'Marco Santos' }),
-    ]);
     const assignments = await service.listAssignmentsForCoordinator(coordinator.id);
     expect(assignments).toEqual(
       expect.arrayContaining([

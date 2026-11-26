@@ -43,17 +43,17 @@ export async function run(ctx) {
   // ---------------------------------------------------------------- roster and capacity
   await step("PMCM reads the coordinator directory (roster with roles)", async () => {
     if (!s.admin) blocked("no admin");
-    const r = list(expectStatus(await call("GET", "/coordinators", s.admin), 200));
+    const r = list(expectStatus(await call("GET", "/pmcm/reference", s.admin), 200).coordinators);
     s.coordinatorProfiles = r;
     s.marcoProfile = r.find((c) => c.id === "coord_marco" || /marco/i.test(c.name ?? ""));
     s.biancaProfile = r.find((c) => c.id === "coord_bianca" || /bianca/i.test(c.name ?? ""));
     expect(s.marcoProfile && s.biancaProfile, `seeded coordinators missing from directory (${r.length} rows)`);
     return `${r.length} coordinators; Marco roles=${JSON.stringify(s.marcoProfile.roleTags ?? s.marcoProfile.roles)}`;
   });
-  await step("coordinator directory is PMCM-only (coordinator and supplier 403, anonymous 401)", async () => {
-    status(await call("GET", "/coordinators", s.marco), 403);
-    status(await call("GET", "/coordinators", s.supplier), 403);
-    status(await call("GET", "/coordinators"), 401);
+  await step("coordinator roster is PMCM-only (coordinator and supplier 403, anonymous 401)", async () => {
+    status(await call("GET", "/pmcm/reference", s.marco), 403);
+    status(await call("GET", "/pmcm/reference", s.supplier), 403);
+    status(await call("GET", "/pmcm/reference"), 401);
   });
   await step("PMCM reads coordinator suggestions for a role", async () => {
     const r = await call("GET", `/events/${A}/staffing/coordinator-suggestions?role=${encodeURIComponent("Registration Staff")}`, s.admin);
@@ -65,19 +65,19 @@ export async function run(ctx) {
     status(await call("GET", `/events/${A}/staffing/coordinator-suggestions?role=Wizard`, s.admin), 400);
     status(await call("GET", `/events/${A}/staffing/coordinator-suggestions?role=Usher`, s.marco), 403);
   });
-  await step("PMCM sets and reads coordinator coverage requirements", async () => {
+  await step("PMCM sets coordinator coverage and reads it back in the event workspace", async () => {
     const set = await call("POST", `/events/${A}/staffing/coverage`, s.admin, { role: "Registration Staff", required: 1, requiredSkills: [] });
     status(set, 200, 201);
-    const get = expectStatus(await call("GET", `/events/${A}/staffing/coverage`, s.admin), 200);
-    expect(JSON.stringify(get).includes("Registration Staff"), "saved coverage requirement is not in the coverage read");
-    return `coverage keys=${Object.keys(Array.isArray(get) ? get[0] ?? {} : get).slice(0, 6).join(",")}`;
+    const { coordinatorCoverage: get } = expectStatus(await call("GET", `/pmcm/events/${A}/workspace`, s.admin), 200);
+    expect((get ?? []).some((row) => row.role === "Registration Staff"), "saved coverage requirement is not in the workspace coverage");
+    return `coverage keys=${Object.keys(get[0] ?? {}).slice(0, 6).join(",")}`;
   });
   await step("coverage rejects an invalid role/negative count (400) and non-PMCM roles (403/401)", async () => {
     status(await call("POST", `/events/${A}/staffing/coverage`, s.admin, { role: "Wizard", required: 1 }), 400);
     status(await call("POST", `/events/${A}/staffing/coverage`, s.admin, { role: "Usher", required: -1 }), 400);
     status(await call("POST", `/events/${A}/staffing/coverage`, s.marco, { role: "Usher", required: 1 }), 403);
-    status(await call("GET", `/events/${A}/staffing/coverage`, s.supplier), 403);
-    status(await call("GET", `/events/${A}/staffing/coverage`), 401);
+    status(await call("GET", `/pmcm/events/${A}/workspace`, s.supplier), 403);
+    status(await call("GET", `/pmcm/events/${A}/workspace`), 401);
   });
 
   // ---------------------------------------------------------------- availability
@@ -193,7 +193,7 @@ export async function run(ctx) {
     return `isDesignatedOperator=${mine.body.isDesignatedOperator}`;
   });
   await step("coordinator cannot read PMCM-only data of an unassigned event", async () => {
-    for (const p of [`/events/${D}/handoffs`, `/events/${D}/operator-designation`, `/events/${D}/staffing/coverage`, `/events/${D}/guest-privacy`, `/events/${D}/registration-platform`]) {
+    for (const p of [`/events/${D}/handoffs`, `/events/${D}/operator-designation`, `/pmcm/events/${D}/workspace`, `/events/${D}/guest-privacy`, `/events/${D}/registration-platform`]) {
       const r = await call("GET", p, s.marco);
       expect(r.status === 403, `${p} -> ${r.status}: ${msg(r)}`);
     }

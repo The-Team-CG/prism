@@ -172,14 +172,6 @@ export class EventLiveOpsCommandService {
     return this.taskIssueCommandService.requestTaskReassignment(eventId, taskId, input, actor);
   }
 
-  async listTaskReassignmentRequests(eventId: string, actor: ResolvedEventOpsActor) {
-    const { designatedOperator } = await this.requireEventDayActor(eventId, actor, 'task reassignment requests');
-    if (actor.role === OpsUserRole.Coordinator && !designatedOperator) {
-      throw new ForbiddenException('Only the designated Event Day System Operator may view task reassignment requests');
-    }
-    return this.taskIssueCommandService.listTaskReassignmentRequests(eventId);
-  }
-
   async decideTaskReassignment(eventId: string, requestId: string, input: DecideEventTaskReassignmentInput, actor: ResolvedEventOpsActor) {
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'task reassignment decision', eventId);
     return this.taskIssueCommandService.decideTaskReassignment(eventId, requestId, input, actor);
