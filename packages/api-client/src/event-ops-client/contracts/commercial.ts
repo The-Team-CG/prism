@@ -104,24 +104,24 @@ import type {
   VerifySupplierStatusInput,
 } from "@prism/types";
 import type { PrismFile } from "../../http";
-import type { EventOpsActorQuery, EventOpsReadInit } from "./primitives";
+import type { EventOpsReadInit } from "./primitives";
 
 /** Billing, payments, supplier records and quote requests: the PMCM commercial commands. */
 export interface EventOpsCommercialContract {
   commercial: {
-    createBillingSource(eventId: string, input: CreateBillingSourceInput, actor?: EventOpsActorQuery): Promise<PrismBillingSource>;
-    approveBillingSource(eventId: string, sourceId: string, approvalNotes?: string, actor?: EventOpsActorQuery): Promise<PrismBillingSource>;
-    generateBillingStatement(eventId: string, sourceId?: string, actor?: EventOpsActorQuery): Promise<PrismBillingStatement>;
-    sendBillingStatement(eventId: string, billingId: string, actor?: EventOpsActorQuery): Promise<PrismBillingStatement>;
-    createBillingDispute(eventId: string, input: CreateBillingDisputeInput, actor?: EventOpsActorQuery): Promise<PrismBillingDispute>;
-    resolveBillingDispute(eventId: string, disputeId: string, input: ResolveBillingDisputeInput, actor?: EventOpsActorQuery): Promise<PrismBillingDispute>;
-    requestBillingCorrection(eventId: string, input: RequestBillingCorrectionInput, actor?: EventOpsActorQuery): Promise<PrismBillingCorrection>;
-    resolveBillingCorrection(eventId: string, correctionId: string, input: ResolveBillingCorrectionInput, actor?: EventOpsActorQuery): Promise<PrismBillingCorrection>;
-    createAdditionalBilling(eventId: string, input: CreateAdditionalBillingInput, actor?: EventOpsActorQuery): Promise<PrismAdditionalBilling>;
-    waiveAdditionalBilling(eventId: string, additionalBillingId: string, input: WaiveAdditionalBillingInput, actor?: EventOpsActorQuery): Promise<PrismAdditionalBilling>;
-    recordPayment(eventId: string, milestoneId: string, input: RecordPaymentInput, actor?: EventOpsActorQuery): Promise<PrismPaymentMilestone>;
+    createBillingSource(eventId: string, input: CreateBillingSourceInput): Promise<PrismBillingSource>;
+    approveBillingSource(eventId: string, sourceId: string, approvalNotes?: string): Promise<PrismBillingSource>;
+    generateBillingStatement(eventId: string, sourceId?: string): Promise<PrismBillingStatement>;
+    sendBillingStatement(eventId: string, billingId: string): Promise<PrismBillingStatement>;
+    createBillingDispute(eventId: string, input: CreateBillingDisputeInput): Promise<PrismBillingDispute>;
+    resolveBillingDispute(eventId: string, disputeId: string, input: ResolveBillingDisputeInput): Promise<PrismBillingDispute>;
+    requestBillingCorrection(eventId: string, input: RequestBillingCorrectionInput): Promise<PrismBillingCorrection>;
+    resolveBillingCorrection(eventId: string, correctionId: string, input: ResolveBillingCorrectionInput): Promise<PrismBillingCorrection>;
+    createAdditionalBilling(eventId: string, input: CreateAdditionalBillingInput): Promise<PrismAdditionalBilling>;
+    waiveAdditionalBilling(eventId: string, additionalBillingId: string, input: WaiveAdditionalBillingInput): Promise<PrismAdditionalBilling>;
+    recordPayment(eventId: string, milestoneId: string, input: RecordPaymentInput): Promise<PrismPaymentMilestone>;
     /** PMCM reminds the client about one owed payment; at most once a day. */
-    remindClientPayment(eventId: string, milestoneId: string, actor?: EventOpsActorQuery): Promise<PrismPaymentReminder>;
+    remindClientPayment(eventId: string, milestoneId: string): Promise<PrismPaymentReminder>;
     /** PMCM's one set of payment details. PMCM finance only. */
     paymentDetails(init?: EventOpsReadInit): Promise<PrismPaymentDetails>;
     savePaymentDetails(input: SavePaymentDetailsInput): Promise<PrismPaymentDetails>;
@@ -131,7 +131,7 @@ export interface EventOpsCommercialContract {
     paymentQrImage(imageId: string, init?: EventOpsReadInit): Promise<PrismFile>;
     /** Everything that happened to one payment, oldest first. PMCM finance only. */
     paymentHistory(eventId: string, milestoneId: string, init?: EventOpsReadInit): Promise<PrismPaymentHistory>;
-    markPayment(eventId: string, milestoneId: string, input: MarkPaymentInput, actor?: EventOpsActorQuery): Promise<PrismPaymentMilestone>;
+    markPayment(eventId: string, milestoneId: string, input: MarkPaymentInput): Promise<PrismPaymentMilestone>;
     /** Money that arrived outside P.R.I.S.M: recorded first, applied to milestones afterwards. PMCM finance only. */
     /** PMCM finance across every active event: what needs PMCM, each event's money, and supplier payouts. */
     financeDesk(init?: EventOpsReadInit): Promise<PrismFinanceDesk>;
@@ -139,70 +139,70 @@ export interface EventOpsCommercialContract {
     /** Estimated and billed price, collections and how far to trust them, supplier cost and the margin. PMCM finance only. */
     eventFinancialSummary(eventId: string, init?: EventOpsReadInit): Promise<PrismEventFinancialSummary>;
     paymentAllocationTargets(query: ListPaymentAllocationTargetsQuery, init?: EventOpsReadInit): Promise<PrismPaymentAllocationTarget[]>;
-    recordPaymentReceipt(input: RecordPaymentReceiptInput, actor?: EventOpsActorQuery): Promise<PrismPaymentReceipt>;
-    allocatePaymentReceipt(receiptId: string, input: AllocatePaymentReceiptInput, actor?: EventOpsActorQuery): Promise<PrismPaymentReceipt>;
-    attachPaymentReceiptEvidence(receiptId: string, input: AttachPaymentReceiptEvidenceInput, actor?: EventOpsActorQuery): Promise<PrismPaymentReceipt>;
-    earmarkPaymentReceipt(receiptId: string, input: EarmarkPaymentReceiptInput, actor?: EventOpsActorQuery): Promise<PrismPaymentReceipt>;
-    reversePaymentAllocation(receiptId: string, recordId: string, input: ReversePaymentAllocationInput, actor?: EventOpsActorQuery): Promise<PrismPaymentReceipt>;
-    verifyPaymentReceipt(receiptId: string, input: VerifyPaymentReceiptInput, actor?: EventOpsActorQuery): Promise<PrismPaymentReceipt>;
-    rejectPaymentReceipt(receiptId: string, input: RejectPaymentReceiptInput, actor?: EventOpsActorQuery): Promise<PrismPaymentReceipt>;
-    reversePaymentReceipt(receiptId: string, input: ReversePaymentReceiptInput, actor?: EventOpsActorQuery): Promise<PrismPaymentReceipt>;
-    recordPaymentRefund(receiptId: string, input: RecordPaymentRefundInput, actor?: EventOpsActorQuery): Promise<PrismPaymentReceipt>;
-    createSupplier(input: CreateSupplierInput, actor?: EventOpsActorQuery): Promise<PrismSupplier>;
-    updateSupplier(supplierId: string, input: UpdateSupplierInput, actor?: EventOpsActorQuery): Promise<PrismSupplier>;
-    changeSupplierTier(supplierId: string, input: ChangeSupplierTierInput, actor?: EventOpsActorQuery): Promise<PrismSupplier>;
-    promoteSupplier(supplierId: string, input: PromoteSupplierInput, actor?: EventOpsActorQuery): Promise<PrismSupplier>;
-    addSupplierCertification(supplierId: string, input: CreateSupplierCertificationInput, actor?: EventOpsActorQuery): Promise<PrismSupplier>;
-    addSupplierReliabilityNote(supplierId: string, input: CreateSupplierReliabilityNoteInput, actor?: EventOpsActorQuery): Promise<PrismSupplier>;
-    addSupplierReview(supplierId: string, input: CreateSupplierReviewInput, actor?: EventOpsActorQuery): Promise<PrismSupplier>;
-    setSupplierAvailability(supplierId: string, input: SupplierAvailabilityInput, actor?: EventOpsActorQuery): Promise<{ id: string }>;
+    recordPaymentReceipt(input: RecordPaymentReceiptInput): Promise<PrismPaymentReceipt>;
+    allocatePaymentReceipt(receiptId: string, input: AllocatePaymentReceiptInput): Promise<PrismPaymentReceipt>;
+    attachPaymentReceiptEvidence(receiptId: string, input: AttachPaymentReceiptEvidenceInput): Promise<PrismPaymentReceipt>;
+    earmarkPaymentReceipt(receiptId: string, input: EarmarkPaymentReceiptInput): Promise<PrismPaymentReceipt>;
+    reversePaymentAllocation(receiptId: string, recordId: string, input: ReversePaymentAllocationInput): Promise<PrismPaymentReceipt>;
+    verifyPaymentReceipt(receiptId: string, input: VerifyPaymentReceiptInput): Promise<PrismPaymentReceipt>;
+    rejectPaymentReceipt(receiptId: string, input: RejectPaymentReceiptInput): Promise<PrismPaymentReceipt>;
+    reversePaymentReceipt(receiptId: string, input: ReversePaymentReceiptInput): Promise<PrismPaymentReceipt>;
+    recordPaymentRefund(receiptId: string, input: RecordPaymentRefundInput): Promise<PrismPaymentReceipt>;
+    createSupplier(input: CreateSupplierInput): Promise<PrismSupplier>;
+    updateSupplier(supplierId: string, input: UpdateSupplierInput): Promise<PrismSupplier>;
+    changeSupplierTier(supplierId: string, input: ChangeSupplierTierInput): Promise<PrismSupplier>;
+    promoteSupplier(supplierId: string, input: PromoteSupplierInput): Promise<PrismSupplier>;
+    addSupplierCertification(supplierId: string, input: CreateSupplierCertificationInput): Promise<PrismSupplier>;
+    addSupplierReliabilityNote(supplierId: string, input: CreateSupplierReliabilityNoteInput): Promise<PrismSupplier>;
+    addSupplierReview(supplierId: string, input: CreateSupplierReviewInput): Promise<PrismSupplier>;
+    setSupplierAvailability(supplierId: string, input: SupplierAvailabilityInput): Promise<{ id: string }>;
     /** A quote PMCM received outside the portal (phone, email), usually tied to the request it answers. */
-    addSupplierQuote(eventId: string, input: AddSupplierQuoteInput, actor?: EventOpsActorQuery): Promise<PrismSupplierQuote>;
-    requestSupplierQuotes(eventId: string, input: RequestSupplierQuotesInput, actor?: EventOpsActorQuery): Promise<PrismSupplierQuoteRequest[]>;
-    withdrawQuoteRequest(eventId: string, requestId: string, actor?: EventOpsActorQuery): Promise<{ ok: boolean }>;
-    compareQuoteRound(eventId: string, roundId: string, actor?: EventOpsActorQuery): Promise<PrismSupplierQuoteRoundComparison>;
-    verifySupplierStatus(eventId: string, requestId: string, input: VerifySupplierStatusInput, actor?: EventOpsActorQuery): Promise<PrismSupplierQuoteRequest>;
-    selectSupplierQuote(eventId: string, quoteId: string, actor?: EventOpsActorQuery): Promise<PrismSupplierQuote>;
-    proposal(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEventProposalResponse>;
-    createCostEstimate(eventId: string, input: CreateCostEstimateInput, actor?: EventOpsActorQuery): Promise<PrismCostEstimate>;
-    issueProposalVersion(eventId: string, input: IssueProposalVersionInput, actor?: EventOpsActorQuery): Promise<PrismProposalVersion>;
-    selectedQuoteLines(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEstimateLineSource[]>;
-    previousCostEstimates(eventId: string, actor?: EventOpsActorQuery): Promise<PrismPreviousCostEstimate[]>;
-    draftProposalWording(input: ProposalDraftRequest, actor?: EventOpsActorQuery): Promise<ProposalDraftResponse>;
-    proposalComments(eventId: string, actor?: EventOpsActorQuery): Promise<PrismProposalComment[]>;
-    addProposalComment(eventId: string, input: CreateProposalCommentInput, actor?: EventOpsActorQuery): Promise<PrismProposalComment>;
-    clientReviewItems(eventId: string, actor?: EventOpsActorQuery): Promise<PrismClientReviewItem[]>;
-    issueClientReviewItem(eventId: string, input: CreateClientReviewItemInput, actor?: EventOpsActorQuery): Promise<PrismClientReviewItem>;
-    clientMessageTriggers(eventId: string, actor?: EventOpsActorQuery): Promise<PrismClientMessageTriggerState[]>;
-    draftClientMessage(input: ClientMessageDraftRequest, actor?: EventOpsActorQuery): Promise<{ draft: CommsDraftResult; requestId: string; modelVersion: string }>;
-    sendClientMessage(input: SendClientMessageInput, actor?: EventOpsActorQuery): Promise<{ sent: boolean }>;
-    externalCreativeTickets(eventId: string, actor?: EventOpsActorQuery): Promise<PrismExternalCreativeTicket[]>;
-    createExternalCreativeTicket(eventId: string, input: CreateExternalCreativeTicketInput, actor?: EventOpsActorQuery): Promise<PrismExternalCreativeTicket>;
-    updateExternalCreativeTicket(eventId: string, ticketId: string, input: UpdateExternalCreativeTicketInput, actor?: EventOpsActorQuery): Promise<PrismExternalCreativeTicket>;
-    completeExternalCreativeTicket(eventId: string, ticketId: string, input: CompleteExternalCreativeTicketInput, actor?: EventOpsActorQuery): Promise<PrismExternalCreativeTicket>;
-    venueScouting(eventId: string, actor?: EventOpsActorQuery): Promise<PrismVenueScouting>;
-    addVenueScoutingOption(eventId: string, input: CreateVenueScoutingOptionInput, actor?: EventOpsActorQuery): Promise<PrismVenueScoutingOption>;
-    withdrawVenueScoutingOption(eventId: string, optionId: string, actor?: EventOpsActorQuery): Promise<PrismVenueScoutingOption>;
-    publishVenueScouting(eventId: string, actor?: EventOpsActorQuery): Promise<PrismVenueScouting>;
-    presentationMeetings(eventId: string, actor?: EventOpsActorQuery): Promise<PrismPresentationMeetings>;
-    proposePresentationMeeting(eventId: string, input: ProposePresentationMeetingInput, actor?: EventOpsActorQuery): Promise<PrismPresentationMeeting>;
-    recordPresentationOutcome(eventId: string, meetingId: string, input: RecordPresentationOutcomeInput, actor?: EventOpsActorQuery): Promise<PrismPresentationMeeting>;
+    addSupplierQuote(eventId: string, input: AddSupplierQuoteInput): Promise<PrismSupplierQuote>;
+    requestSupplierQuotes(eventId: string, input: RequestSupplierQuotesInput): Promise<PrismSupplierQuoteRequest[]>;
+    withdrawQuoteRequest(eventId: string, requestId: string): Promise<{ ok: boolean }>;
+    compareQuoteRound(eventId: string, roundId: string): Promise<PrismSupplierQuoteRoundComparison>;
+    verifySupplierStatus(eventId: string, requestId: string, input: VerifySupplierStatusInput): Promise<PrismSupplierQuoteRequest>;
+    selectSupplierQuote(eventId: string, quoteId: string): Promise<PrismSupplierQuote>;
+    proposal(eventId: string): Promise<PrismEventProposalResponse>;
+    createCostEstimate(eventId: string, input: CreateCostEstimateInput): Promise<PrismCostEstimate>;
+    issueProposalVersion(eventId: string, input: IssueProposalVersionInput): Promise<PrismProposalVersion>;
+    selectedQuoteLines(eventId: string): Promise<PrismEstimateLineSource[]>;
+    previousCostEstimates(eventId: string): Promise<PrismPreviousCostEstimate[]>;
+    draftProposalWording(input: ProposalDraftRequest): Promise<ProposalDraftResponse>;
+    proposalComments(eventId: string): Promise<PrismProposalComment[]>;
+    addProposalComment(eventId: string, input: CreateProposalCommentInput): Promise<PrismProposalComment>;
+    clientReviewItems(eventId: string): Promise<PrismClientReviewItem[]>;
+    issueClientReviewItem(eventId: string, input: CreateClientReviewItemInput): Promise<PrismClientReviewItem>;
+    clientMessageTriggers(eventId: string): Promise<PrismClientMessageTriggerState[]>;
+    draftClientMessage(input: ClientMessageDraftRequest): Promise<{ draft: CommsDraftResult; requestId: string; modelVersion: string }>;
+    sendClientMessage(input: SendClientMessageInput): Promise<{ sent: boolean }>;
+    externalCreativeTickets(eventId: string): Promise<PrismExternalCreativeTicket[]>;
+    createExternalCreativeTicket(eventId: string, input: CreateExternalCreativeTicketInput): Promise<PrismExternalCreativeTicket>;
+    updateExternalCreativeTicket(eventId: string, ticketId: string, input: UpdateExternalCreativeTicketInput): Promise<PrismExternalCreativeTicket>;
+    completeExternalCreativeTicket(eventId: string, ticketId: string, input: CompleteExternalCreativeTicketInput): Promise<PrismExternalCreativeTicket>;
+    venueScouting(eventId: string): Promise<PrismVenueScouting>;
+    addVenueScoutingOption(eventId: string, input: CreateVenueScoutingOptionInput): Promise<PrismVenueScoutingOption>;
+    withdrawVenueScoutingOption(eventId: string, optionId: string): Promise<PrismVenueScoutingOption>;
+    publishVenueScouting(eventId: string): Promise<PrismVenueScouting>;
+    presentationMeetings(eventId: string): Promise<PrismPresentationMeetings>;
+    proposePresentationMeeting(eventId: string, input: ProposePresentationMeetingInput): Promise<PrismPresentationMeeting>;
+    recordPresentationOutcome(eventId: string, meetingId: string, input: RecordPresentationOutcomeInput): Promise<PrismPresentationMeeting>;
     /** The client raises a dispute on their own statement; the API returns the client's view of it. */
-    createClientBillingDispute(eventId: string, input: CreateBillingDisputeInput, actor?: EventOpsActorQuery): Promise<PrismClientBillingDispute>;
+    createClientBillingDispute(eventId: string, input: CreateBillingDisputeInput): Promise<PrismClientBillingDispute>;
     /** The client reports a payment they made; PMCM checks it before it counts. */
-    submitClientPayment(eventId: string, input: SubmitClientPaymentInput, actor?: EventOpsActorQuery): Promise<PrismPaymentSubmission>;
-    attachClientPaymentProof(eventId: string, receiptId: string, input: AttachPaymentReceiptEvidenceInput, actor?: EventOpsActorQuery): Promise<PrismPaymentSubmission>;
-    decideClientReviewItem(eventId: string, itemId: string, input: DecideClientReviewItemInput, actor?: EventOpsActorQuery): Promise<unknown>;
-    chooseVenueScoutingPreference(eventId: string, input: ChooseVenueScoutingPreferenceInput, actor?: EventOpsActorQuery): Promise<PrismVenueScouting>;
-    choosePresentationSlot(eventId: string, meetingId: string, input: ChoosePresentationSlotInput, actor?: EventOpsActorQuery): Promise<PrismPresentationMeeting>;
-    createClientOwnedSupplier(eventId: string, input: CreateClientOwnedSupplierInput, actor?: EventOpsActorQuery): Promise<PrismClientOwnedSupplier>;
-    confirmClientOwnedSupplier(eventId: string, supplierId: string, actor?: EventOpsActorQuery): Promise<PrismClientOwnedSupplier>;
-    unresponsiveSuppliers(eventId: string, actor?: EventOpsActorQuery): Promise<PrismUnresponsiveSupplier[]>;
-    clientOwnedSuppliers(eventId: string, actor?: EventOpsActorQuery): Promise<PrismClientOwnedSupplier[]>;
-    raiseClientSupplierRisk(eventId: string, supplierId: string, input: RaiseClientSupplierRiskInput, actor?: EventOpsActorQuery): Promise<PrismClientOwnedSupplier>;
-    supplierGaps(eventId: string, actor?: EventOpsActorQuery): Promise<PrismSupplierGap[]>;
-    acknowledgeSupplierGap(eventId: string, categoryId: string, input: AcknowledgeSupplierGapInput, actor?: EventOpsActorQuery): Promise<PrismSupplierGap>;
-    supplierSchedules(eventId: string, actor?: EventOpsActorQuery): Promise<PrismSupplierSchedule[]>;
+    submitClientPayment(eventId: string, input: SubmitClientPaymentInput): Promise<PrismPaymentSubmission>;
+    attachClientPaymentProof(eventId: string, receiptId: string, input: AttachPaymentReceiptEvidenceInput): Promise<PrismPaymentSubmission>;
+    decideClientReviewItem(eventId: string, itemId: string, input: DecideClientReviewItemInput): Promise<unknown>;
+    chooseVenueScoutingPreference(eventId: string, input: ChooseVenueScoutingPreferenceInput): Promise<PrismVenueScouting>;
+    choosePresentationSlot(eventId: string, meetingId: string, input: ChoosePresentationSlotInput): Promise<PrismPresentationMeeting>;
+    createClientOwnedSupplier(eventId: string, input: CreateClientOwnedSupplierInput): Promise<PrismClientOwnedSupplier>;
+    confirmClientOwnedSupplier(eventId: string, supplierId: string): Promise<PrismClientOwnedSupplier>;
+    unresponsiveSuppliers(eventId: string): Promise<PrismUnresponsiveSupplier[]>;
+    clientOwnedSuppliers(eventId: string): Promise<PrismClientOwnedSupplier[]>;
+    raiseClientSupplierRisk(eventId: string, supplierId: string, input: RaiseClientSupplierRiskInput): Promise<PrismClientOwnedSupplier>;
+    supplierGaps(eventId: string): Promise<PrismSupplierGap[]>;
+    acknowledgeSupplierGap(eventId: string, categoryId: string, input: AcknowledgeSupplierGapInput): Promise<PrismSupplierGap>;
+    supplierSchedules(eventId: string): Promise<PrismSupplierSchedule[]>;
     supplierCategories(init?: EventOpsReadInit): Promise<PrismSupplierCategory[]>;
     supplierDirectory(query: PmcmSupplierDirectoryQuery, init?: EventOpsReadInit): Promise<PrismPmcmSupplierDirectoryPage>;
     supplierProfile(supplierId: string, query: PmcmSupplierProfileQuery, init?: EventOpsReadInit): Promise<PrismPmcmSupplierProfile>;

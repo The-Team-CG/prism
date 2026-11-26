@@ -17,119 +17,119 @@ import type {
 } from "@prism/types";
 import { prismFile, prismRequest, toQueryString } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
-import { withBase, actorPath } from "./shared";
+import { withBase } from "./shared";
 
 export function createEventsClient(
   options: EventOpsClientOptions,
 ): Pick<EventOpsClient, "events"> {
   return {
     events: {
-      list: (actor = {}, cursor?: string) => {
-        const query = toQueryString({ ...actor, cursor });
+      list: (cursor?: string) => {
+        const query = toQueryString({ cursor });
         return prismRequest<PrismEventPage>(query ? `/events?${query}` : "/events", withBase(options),
         );
       },
-      detail: (eventId, actor = {}) =>
+      detail: (eventId) =>
         prismRequest<PrismEvent>(
-          actorPath(`/events/${eventId}`, actor),
+          `/events/${eventId}`,
           withBase(options),
         ),
-      decisionHistory: (eventId, actor = {}) =>
+      decisionHistory: (eventId) =>
         prismRequest<PrismEventDecision[]>(
-          actorPath(`/events/${eventId}/decisions`, actor),
+          `/events/${eventId}/decisions`,
           withBase(options),
         ),
-      recordDecision: (eventId, input, actor = {}) =>
+      recordDecision: (eventId, input) =>
         prismRequest<PrismEventDecision>(
-          actorPath(`/events/${eventId}/decisions`, actor),
+          `/events/${eventId}/decisions`,
           withBase(options, { method: "POST", body: input }),
         ),
-      changeRequests: (eventId, actor = {}) =>
+      changeRequests: (eventId) =>
         prismRequest<PrismClientChangeRequest[]>(
-          actorPath(`/events/${eventId}/change-requests`, actor),
+          `/events/${eventId}/change-requests`,
           withBase(options),
         ),
-      scopeChangeRequests: (eventId, actor = {}) =>
+      scopeChangeRequests: (eventId) =>
         prismRequest<PrismScopeChangeRequest[]>(
-          actorPath(`/events/${eventId}/scope-changes`, actor),
+          `/events/${eventId}/scope-changes`,
           withBase(options),
         ),
-      submitScopeChangeRequest: (eventId, input, actor = {}) =>
+      submitScopeChangeRequest: (eventId, input) =>
         prismRequest<PrismScopeChangeRequest>(
-          actorPath(`/events/${eventId}/scope-changes`, actor),
+          `/events/${eventId}/scope-changes`,
           withBase(options, { method: "POST", body: input }),
         ),
-      withdrawScopeChangeRequest: (eventId, requestId, actor = {}) =>
+      withdrawScopeChangeRequest: (eventId, requestId) =>
         prismRequest<PrismScopeChangeRequest>(
-          actorPath(`/events/${eventId}/scope-changes/${requestId}/withdraw`, actor),
+          `/events/${eventId}/scope-changes/${requestId}/withdraw`,
           withBase(options, { method: "POST" }),
         ),
-      reviewScopeChangeRequest: (eventId, requestId, input, actor = {}) =>
+      reviewScopeChangeRequest: (eventId, requestId, input) =>
         prismRequest<PrismScopeChangeRequest>(
-          actorPath(`/events/${eventId}/scope-changes/${requestId}`, actor),
+          `/events/${eventId}/scope-changes/${requestId}`,
           withBase(options, { method: "PATCH", body: input }),
         ),
-      riskAssessment: (eventId, actor = {}) =>
+      riskAssessment: (eventId) =>
         prismRequest<PrismEventRiskView>(
-          actorPath(`/events/${eventId}/risk-assessment`, actor),
+          `/events/${eventId}/risk-assessment`,
           withBase(options),
         ),
-      recordRiskAssessment: (eventId, input, actor = {}) =>
+      recordRiskAssessment: (eventId, input) =>
         prismRequest<PrismEventRiskView>(
-          actorPath(`/events/${eventId}/risk-assessment`, actor),
+          `/events/${eventId}/risk-assessment`,
           withBase(options, { method: "POST", body: input }),
         ),
-      fileRequirements: (eventId, actor = {}) =>
+      fileRequirements: (eventId) =>
         prismRequest<PrismFileRequirementsMatrix>(
-          actorPath(`/events/${eventId}/file-requirements`, actor),
+          `/events/${eventId}/file-requirements`,
           withBase(options),
         ),
-      createFileRequirement: (eventId, input, actor = {}) =>
+      createFileRequirement: (eventId, input) =>
         prismRequest<PrismFileRequirementItem>(
-          actorPath(`/events/${eventId}/file-requirements`, actor),
+          `/events/${eventId}/file-requirements`,
           withBase(options, { method: "POST", body: input }),
         ),
-      updateFileRequirement: (eventId, key, input, actor = {}) =>
+      updateFileRequirement: (eventId, key, input) =>
         prismRequest<PrismFileRequirementItem>(
-          actorPath(`/events/${eventId}/file-requirements/${encodeURIComponent(key)}`, actor),
+          `/events/${eventId}/file-requirements/${encodeURIComponent(key)}`,
           withBase(options, { method: "PATCH", body: input }),
         ),
-      sendFileRequirementReminders: (eventId, actor = {}) =>
+      sendFileRequirementReminders: (eventId) =>
         prismRequest<{ reminders: import("@prism/types").PrismFileRequirementReminder[] }>(
-          actorPath(`/events/${eventId}/file-requirements/reminders`, actor),
+          `/events/${eventId}/file-requirements/reminders`,
           withBase(options, { method: "POST" }),
         ),
-      listFileRequirementTemplates: (actor = {}) =>
-        prismRequest<import("@prism/types").PrismFileRequirementTemplate[]>(actorPath("/file-requirement-templates", actor), withBase(options)),
-      upsertFileRequirementTemplate: (input, actor = {}) =>
-        prismRequest<import("@prism/types").PrismFileRequirementTemplate>(actorPath("/file-requirement-templates", actor), withBase(options, { method: "POST", body: input })),
-      applyFileRequirementTemplate: (eventId, actor = {}) =>
+      listFileRequirementTemplates: () =>
+        prismRequest<import("@prism/types").PrismFileRequirementTemplate[]>("/file-requirement-templates", withBase(options)),
+      upsertFileRequirementTemplate: (input) =>
+        prismRequest<import("@prism/types").PrismFileRequirementTemplate>("/file-requirement-templates", withBase(options, { method: "POST", body: input })),
+      applyFileRequirementTemplate: (eventId) =>
         prismRequest<{ eventId: string; eventType: string; templateId: string; createdKeys: string[]; skippedExistingCount: number }>(
-          actorPath(`/events/${eventId}/file-requirements/apply-template`, actor), withBase(options, { method: "POST" })),
-      bindFileRequirementUpload: (eventId, key, input, actor = {}) =>
-        prismRequest<PrismFileRequirementItem>(actorPath(`/events/${eventId}/file-requirements/${encodeURIComponent(key)}/upload`, actor), withBase(options, { method: "POST", body: input })),
-      reviewRequirementFile: (eventId, key, input, actor = {}) =>
-        prismRequest<PrismFileRequirementItem>(actorPath(`/events/${eventId}/file-requirements/${encodeURIComponent(key)}/review`, actor), withBase(options, { method: "POST", body: input })),
-      reviewProposal: (eventId, input, actor = {}) =>
+          `/events/${eventId}/file-requirements/apply-template`, withBase(options, { method: "POST" })),
+      bindFileRequirementUpload: (eventId, key, input) =>
+        prismRequest<PrismFileRequirementItem>(`/events/${eventId}/file-requirements/${encodeURIComponent(key)}/upload`, withBase(options, { method: "POST", body: input })),
+      reviewRequirementFile: (eventId, key, input) =>
+        prismRequest<PrismFileRequirementItem>(`/events/${eventId}/file-requirements/${encodeURIComponent(key)}/review`, withBase(options, { method: "POST", body: input })),
+      reviewProposal: (eventId, input) =>
         prismRequest<PrismEvent>(
-          actorPath(`/events/${eventId}/proposal/review`, actor),
+          `/events/${eventId}/proposal/review`,
           withBase(options, { method: "PATCH", body: input }),
         ),
-      searchArchive: (filters = {}, actor = {}) => {
-        const query = toQueryString({ ...actor, ...filters });
+      searchArchive: (filters = {}) => {
+        const query = toQueryString({ ...filters });
         return prismRequest<PrismArchivedEventSearchHit[]>(
           query ? `/events/archive?${query}` : "/events/archive",
           withBase(options),
         );
       },
-      storageObjects: (eventId, actor = {}) =>
+      storageObjects: (eventId) =>
         prismRequest<PrismStoredObject[]>(
-          actorPath(`/storage/objects/events/${encodeURIComponent(eventId)}`, actor),
+          `/storage/objects/events/${encodeURIComponent(eventId)}`,
           withBase(options),
         ),
-      addenda: (eventId, actor = {}) =>
+      addenda: (eventId) =>
         prismRequest<PrismAddendum[]>(
-          actorPath(`/events/${eventId}/addenda`, actor),
+          `/events/${eventId}/addenda`,
           withBase(options),
         ),
       statementOfAccount: (eventId, init = {}) =>
@@ -140,32 +140,29 @@ export function createEventsClient(
         prismFile(`/events/${encodeURIComponent(eventId)}/statement-of-account/payment-qr/${encodeURIComponent(imageId)}`, withBase(options), "payment-qr"),
       paymentReceiptPdf: (eventId, recordId) =>
         prismFile(`/events/${encodeURIComponent(eventId)}/payment-records/${encodeURIComponent(recordId)}/receipt`, withBase(options), "payment-receipt.pdf"),
-      freezeExceptions: (eventId, actor = {}) =>
+      freezeExceptions: (eventId) =>
         prismRequest<PrismEventFreezeException[]>(
-          actorPath(`/events/${eventId}/freeze-exceptions`, actor),
+          `/events/${eventId}/freeze-exceptions`,
           withBase(options),
         ),
-      freeze: (eventId, input, actor = {}) =>
+      freeze: (eventId, input) =>
         prismRequest(
-          actorPath(`/events/${eventId}/freeze`, actor),
+          `/events/${eventId}/freeze`,
           withBase(options, { method: "POST", body: input }),
         ),
-      requestFreezeException: (eventId, input, actor = {}) =>
+      requestFreezeException: (eventId, input) =>
         prismRequest<PrismEventFreezeException>(
-          actorPath(`/events/${eventId}/freeze-exceptions`, actor),
+          `/events/${eventId}/freeze-exceptions`,
           withBase(options, { method: "POST", body: input }),
         ),
-      decideFreezeException: (eventId, exceptionId, input, actor = {}) =>
+      decideFreezeException: (eventId, exceptionId, input) =>
         prismRequest<PrismEventFreezeException>(
-          actorPath(
-            `/events/${eventId}/freeze-exceptions/${exceptionId}`,
-            actor,
-          ),
+          `/events/${eventId}/freeze-exceptions/${exceptionId}`,
           withBase(options, { method: "PATCH", body: input }),
         ),
-      issueAddendum: (eventId, input, actor = {}) =>
+      issueAddendum: (eventId, input) =>
         prismRequest<PrismAddendum>(
-          actorPath(`/events/${eventId}/addenda`, actor),
+          `/events/${eventId}/addenda`,
           withBase(options, { method: "POST", body: input }),
         ),
       // Identity comes from the verified bearer token; these routes take no actor query.

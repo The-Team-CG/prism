@@ -1,5 +1,4 @@
 export type {
-  EventOpsActorQuery,
   EventOpsClientOptions,
   EventOpsReadInit,
 } from "./contracts/primitives";

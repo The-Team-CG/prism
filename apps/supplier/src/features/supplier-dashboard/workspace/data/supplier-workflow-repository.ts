@@ -125,11 +125,10 @@ export const supplierWorkflowRepository = {
   },
 
   /** Event-day status update; the actor is derived from the bearer token, as on the other workflow writes. */
-  updateEventStatus(session: PrismAuthenticatedSession, requestId: string, status: string, notes: string, storedObjectId?: string) {
+  updateEventStatus(_session: PrismAuthenticatedSession, requestId: string, status: string, notes: string, storedObjectId?: string) {
     return eventOpsClient.supplierWorkspace.updateEventStatus(
       requestId,
       { status: status as "arrived" | "set_up_ready" | "done_leaving", notes, ...(storedObjectId ? { storedObjectId } : {}) },
-      { actorRole: "supplier", actorName: session.name, actorEmail: session.email },
     );
   },
 

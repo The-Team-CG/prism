@@ -14,29 +14,27 @@ import type {
   PrismCoordinatorSuggestion,
   ReplaceCoordinatorAssignmentInput,
 } from "@prism/types";
-import type { EventOpsActorQuery } from "./primitives";
 
 /** PMCM coordinator staffing: assignments, availability, suggestions and coverage. */
 export interface EventOpsStaffingContract {
   staffing: {
-    reliabilityHistory(coordinatorId: string, actor?: EventOpsActorQuery): Promise<PrismCoordinatorReliabilityHistoryEntry[]>;
-    assign(eventId: string, input: CreateCoordinatorAssignmentInput, actor?: EventOpsActorQuery): Promise<PrismCoordinatorAssignment>;
+    reliabilityHistory(coordinatorId: string): Promise<PrismCoordinatorReliabilityHistoryEntry[]>;
+    assign(eventId: string, input: CreateCoordinatorAssignmentInput): Promise<PrismCoordinatorAssignment>;
     replace(
       eventId: string,
       assignmentId: string,
       input: ReplaceCoordinatorAssignmentInput,
-      actor?: EventOpsActorQuery,
     ): Promise<{ replacedAssignment: PrismCoordinatorAssignment; replacementAssignment: PrismCoordinatorAssignment }>;
     /** PMCM moves an assignment to another catalog role the coordinator is tagged for. */
-    changeRole(eventId: string, assignmentId: string, input: ChangeCoordinatorAssignmentRoleInput, actor?: EventOpsActorQuery): Promise<PrismCoordinatorAssignment>;
-    suggestions(eventId: string, input: CoordinatorSuggestionsQueryInput, actor?: EventOpsActorQuery): Promise<PrismCoordinatorSuggestion[]>;
-    poolAvailability(eventId: string, actor?: EventOpsActorQuery): Promise<PrismCoordinatorPoolAvailability>;
-    listAvailability(eventId: string, coordinatorId: string, actor?: EventOpsActorQuery): Promise<PrismCoordinatorAvailability[]>;
-    createAvailability(eventId: string, coordinatorId: string, input: CreateCoordinatorAvailabilityInput, actor?: EventOpsActorQuery): Promise<PrismCoordinatorAvailability>;
-    deleteAvailability(eventId: string, coordinatorId: string, availabilityId: string, actor?: EventOpsActorQuery): Promise<{ id: string }>;
-    replacementRecommendations(eventId: string, actor?: EventOpsActorQuery): Promise<PrismCoordinatorReplacementRecommendation[]>;
-    decideReplacement(eventId: string, recommendationId: string, input: DecideCoordinatorReplacementInput, actor?: EventOpsActorQuery): Promise<PrismCoordinatorReplacementRecommendation>;
-    sendAcknowledgementReminders(eventId: string, actor?: EventOpsActorQuery): Promise<PrismAcknowledgementReminderResult>;
-    upsertCoverage(eventId: string, input: CreateCoordinatorCoverageRequirementInput, actor?: EventOpsActorQuery): Promise<unknown>;
+    changeRole(eventId: string, assignmentId: string, input: ChangeCoordinatorAssignmentRoleInput): Promise<PrismCoordinatorAssignment>;
+    suggestions(eventId: string, input: CoordinatorSuggestionsQueryInput): Promise<PrismCoordinatorSuggestion[]>;
+    poolAvailability(eventId: string): Promise<PrismCoordinatorPoolAvailability>;
+    listAvailability(eventId: string, coordinatorId: string): Promise<PrismCoordinatorAvailability[]>;
+    createAvailability(eventId: string, coordinatorId: string, input: CreateCoordinatorAvailabilityInput): Promise<PrismCoordinatorAvailability>;
+    deleteAvailability(eventId: string, coordinatorId: string, availabilityId: string): Promise<{ id: string }>;
+    replacementRecommendations(eventId: string): Promise<PrismCoordinatorReplacementRecommendation[]>;
+    decideReplacement(eventId: string, recommendationId: string, input: DecideCoordinatorReplacementInput): Promise<PrismCoordinatorReplacementRecommendation>;
+    sendAcknowledgementReminders(eventId: string): Promise<PrismAcknowledgementReminderResult>;
+    upsertCoverage(eventId: string, input: CreateCoordinatorCoverageRequirementInput): Promise<unknown>;
   };
 }

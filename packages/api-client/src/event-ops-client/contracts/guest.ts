@@ -22,7 +22,6 @@ import type {
   UpdateGuestVerificationInput,
   UpdateGuestPrivacyClassificationInput,
 } from "@prism/types";
-import type { EventOpsActorQuery } from "./primitives";
 
 export interface EventOpsGuestContract {
   guest: {
@@ -46,23 +45,19 @@ export interface EventOpsGuestContract {
     uploadFeedbackMedia(accessCode: string, file: File): Promise<PrismGuestFeedbackMediaUpload>;
     pendingFeedback(
       eventId: string,
-      actor?: EventOpsActorQuery,
     ): Promise<PrismGuestFeedback[]>;
     moderateFeedback(
       eventId: string,
       feedbackId: string,
       input: ModerateGuestFeedbackInput,
-      actor?: EventOpsActorQuery,
     ): Promise<PrismGuestFeedback>;
     roster(
       eventId: string,
       query?: string,
-      actor?: EventOpsActorQuery,
     ): Promise<PrismGuestRosterEntry[]>;
     searchRoster(
       eventId: string,
       filters?: GuestRosterSearchInput,
-      actor?: EventOpsActorQuery,
     ): Promise<PrismGuestRosterEntry[]>;
     registrationRoster(
       eventId: string,
@@ -71,18 +66,15 @@ export interface EventOpsGuestContract {
     importRoster(
       eventId: string,
       input: ImportGuestRosterInput,
-      actor?: EventOpsActorQuery,
     ): Promise<PrismGuestRosterEntry[]>;
     checkInRoster(
       eventId: string,
       rosterEntryId: string,
-      actor?: EventOpsActorQuery,
     ): Promise<PrismGuestCheckIn>;
     verifyRoster(
       eventId: string,
       rosterEntryId: string,
       input: UpdateGuestVerificationInput,
-      actor?: EventOpsActorQuery,
     ): Promise<PrismGuestRosterEntry>;
     verifyRegistrationRoster(
       eventId: string,
@@ -107,7 +99,6 @@ export interface EventOpsGuestContract {
     ): Promise<PrismGuestPrivacyClassification>;
     walkInPolicy(
       eventId: string,
-      actor?: EventOpsActorQuery,
     ): Promise<{
       eventId: string;
       policy: "closed" | "open" | "threshold";
@@ -116,7 +107,6 @@ export interface EventOpsGuestContract {
     updateWalkInPolicy(
       eventId: string,
       input: UpdateWalkInPolicyInput,
-      actor?: EventOpsActorQuery,
     ): Promise<{
       eventId: string;
       policy: "closed" | "open" | "threshold";

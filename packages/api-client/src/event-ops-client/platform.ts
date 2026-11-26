@@ -11,39 +11,39 @@ import type {
 } from "@prism/types";
 import { prismRequest } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
-import { withBase, actorPath } from "./shared";
+import { withBase } from "./shared";
 
 export function createPlatformClient(options: EventOpsClientOptions): Pick<EventOpsClient, "advisory" | "canva" | "pare"> {
   return {
     advisory: {
-      compliance: (input, actor = {}) =>
-        prismRequest<ComplianceAdvisoryResult>(actorPath("/ai-advisory/compliance", actor), withBase(options, { method: "POST", body: input })),
-      themes: (input, actor = {}) =>
-        prismRequest<ThemeSuggestionResult>(actorPath("/ai-advisory/themes", actor), withBase(options, { method: "POST", body: input })),
-      eventIntelligence: (input, actor = {}) =>
-        prismRequest<EventIntelligenceResult>(actorPath("/ai-advisory/event-intelligence", actor), withBase(options, { method: "POST", body: input })),
-      eventDayCopilot: (input, actor = {}) =>
-        prismRequest<PrismEventDayCopilot>(actorPath("/ai-advisory/event-day-copilot", actor), withBase(options, { method: "POST", body: input })),
-      askAssistant: (eventId, input, actor = {}) =>
-        prismRequest<OperationsAssistantResult>(actorPath(`/ai-advisory/events/${encodeURIComponent(eventId)}/assistant`, actor), withBase(options, { method: "POST", body: input })),
-      supplierReliabilityScore: (supplierId, actor = {}) =>
-        prismRequest<PrismSupplierReliabilityScore>(actorPath(`/suppliers/${encodeURIComponent(supplierId)}/reliability-score`, actor), withBase(options)),
+      compliance: (input) =>
+        prismRequest<ComplianceAdvisoryResult>("/ai-advisory/compliance", withBase(options, { method: "POST", body: input })),
+      themes: (input) =>
+        prismRequest<ThemeSuggestionResult>("/ai-advisory/themes", withBase(options, { method: "POST", body: input })),
+      eventIntelligence: (input) =>
+        prismRequest<EventIntelligenceResult>("/ai-advisory/event-intelligence", withBase(options, { method: "POST", body: input })),
+      eventDayCopilot: (input) =>
+        prismRequest<PrismEventDayCopilot>("/ai-advisory/event-day-copilot", withBase(options, { method: "POST", body: input })),
+      askAssistant: (eventId, input) =>
+        prismRequest<OperationsAssistantResult>(`/ai-advisory/events/${encodeURIComponent(eventId)}/assistant`, withBase(options, { method: "POST", body: input })),
+      supplierReliabilityScore: (supplierId) =>
+        prismRequest<PrismSupplierReliabilityScore>(`/suppliers/${encodeURIComponent(supplierId)}/reliability-score`, withBase(options)),
     },
     canva: {
-      status: (actor = {}) => prismRequest<PrismCanvaConnection>(actorPath("/integrations/canva", actor), withBase(options)),
-      authorize: (actor = {}) => prismRequest<{ url: string }>(actorPath("/integrations/canva/authorize", actor), withBase(options, { method: "POST" })),
-      disconnect: (actor = {}) => prismRequest<PrismCanvaConnection>(actorPath("/integrations/canva", actor), withBase(options, { method: "DELETE" })),
-      proposalDesign: (eventId, actor = {}) =>
-        prismRequest<PrismCanvaDesign>(actorPath(`/events/${encodeURIComponent(eventId)}/proposal/canva`, actor), withBase(options, { method: "POST" })),
-      testimonialDesign: (eventId, actor = {}) =>
-        prismRequest<PrismCanvaDesign>(actorPath(`/events/${encodeURIComponent(eventId)}/client-closeout/testimonial/canva`, actor), withBase(options, { method: "POST" })),
+      status: () => prismRequest<PrismCanvaConnection>("/integrations/canva", withBase(options)),
+      authorize: () => prismRequest<{ url: string }>("/integrations/canva/authorize", withBase(options, { method: "POST" })),
+      disconnect: () => prismRequest<PrismCanvaConnection>("/integrations/canva", withBase(options, { method: "DELETE" })),
+      proposalDesign: (eventId) =>
+        prismRequest<PrismCanvaDesign>(`/events/${encodeURIComponent(eventId)}/proposal/canva`, withBase(options, { method: "POST" })),
+      testimonialDesign: (eventId) =>
+        prismRequest<PrismCanvaDesign>(`/events/${encodeURIComponent(eventId)}/client-closeout/testimonial/canva`, withBase(options, { method: "POST" })),
     },
     pare: {
-      pending: (actor = {}) => prismRequest<PAREApprovalRecord[]>(actorPath("/ai/pare/pending", actor), withBase(options)),
-      approve: (approvalRecordId, actor = {}) =>
-        prismRequest<PAREApprovalRecord>(actorPath(`/ai/pare/${approvalRecordId}/approve`, actor), withBase(options, { method: "PATCH" })),
-      reject: (approvalRecordId, actor = {}) =>
-        prismRequest<PAREApprovalRecord>(actorPath(`/ai/pare/${approvalRecordId}/reject`, actor), withBase(options, { method: "PATCH" })),
+      pending: () => prismRequest<PAREApprovalRecord[]>("/ai/pare/pending", withBase(options)),
+      approve: (approvalRecordId) =>
+        prismRequest<PAREApprovalRecord>(`/ai/pare/${approvalRecordId}/approve`, withBase(options, { method: "PATCH" })),
+      reject: (approvalRecordId) =>
+        prismRequest<PAREApprovalRecord>(`/ai/pare/${approvalRecordId}/reject`, withBase(options, { method: "PATCH" })),
     },
   };
 }

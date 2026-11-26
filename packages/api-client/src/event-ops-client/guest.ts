@@ -15,7 +15,7 @@ import type {
 } from "@prism/types";
 import { prismRequest, toQueryString } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
-import { withBase, actorPath } from "./shared";
+import { withBase } from "./shared";
 
 export function createGuestClient(
   options: EventOpsClientOptions,
@@ -56,22 +56,18 @@ export function createGuestClient(
           `/guest/events/${encodeURIComponent(accessCode)}/feedback/${encodeURIComponent(feedbackId)}/consent-withdrawal`,
           withBase(options, { method: "POST", body: input }),
         ),
-      pendingFeedback: (eventId, actor = {}) =>
+      pendingFeedback: (eventId) =>
         prismRequest<PrismGuestFeedback[]>(
-          actorPath(`/guest/events/${eventId}/feedback/moderation`, actor),
+          `/guest/events/${eventId}/feedback/moderation`,
           withBase(options),
         ),
-      moderateFeedback: (eventId, feedbackId, input, actor = {}) =>
+      moderateFeedback: (eventId, feedbackId, input) =>
         prismRequest<PrismGuestFeedback>(
-          actorPath(
-            `/guest/events/${eventId}/feedback/${feedbackId}/moderate`,
-            actor,
-          ),
+          `/guest/events/${eventId}/feedback/${feedbackId}/moderate`,
           withBase(options, { method: "POST", body: input }),
         ),
-      roster: (eventId, query = "", actor = {}) => {
+      roster: (eventId, query = "") => {
         const params = toQueryString({
-          ...actor,
           ...(query.trim() ? { query: query.trim() } : {}),
         });
         return prismRequest<PrismGuestRosterEntry[]>(
@@ -79,8 +75,8 @@ export function createGuestClient(
           withBase(options),
         );
       },
-      searchRoster: (eventId, filters = {}, actor = {}) => {
-        const params = toQueryString({ ...actor, ...filters });
+      searchRoster: (eventId, filters = {}) => {
+        const params = toQueryString({ ...filters });
         return prismRequest<PrismGuestRosterEntry[]>(
           `/guest/events/${eventId}/roster/search${params ? `?${params}` : ""}`,
           withBase(options),
@@ -93,25 +89,19 @@ export function createGuestClient(
           withBase(options),
         );
       },
-      importRoster: (eventId, input, actor = {}) =>
+      importRoster: (eventId, input) =>
         prismRequest<PrismGuestRosterEntry[]>(
-          actorPath(`/guest/events/${eventId}/roster/import`, actor),
+          `/guest/events/${eventId}/roster/import`,
           withBase(options, { method: "POST", body: input }),
         ),
-      checkInRoster: (eventId, rosterEntryId, actor = {}) =>
+      checkInRoster: (eventId, rosterEntryId) =>
         prismRequest<PrismGuestCheckIn>(
-          actorPath(
-            `/guest/events/${eventId}/roster/${rosterEntryId}/check-in`,
-            actor,
-          ),
+          `/guest/events/${eventId}/roster/${rosterEntryId}/check-in`,
           withBase(options, { method: "POST" }),
         ),
-      verifyRoster: (eventId, rosterEntryId, input, actor = {}) =>
+      verifyRoster: (eventId, rosterEntryId, input) =>
         prismRequest<PrismGuestRosterEntry>(
-          actorPath(
-            `/guest/events/${eventId}/roster/${rosterEntryId}/verification`,
-            actor,
-          ),
+          `/guest/events/${eventId}/roster/${rosterEntryId}/verification`,
           withBase(options, { method: "PATCH", body: input }),
         ),
       verifyRegistrationRoster: (eventId, rosterEntryId, input) =>
@@ -145,14 +135,14 @@ export function createGuestClient(
           `/events/${encodeURIComponent(eventId)}/guest-privacy`,
           withBase(options, { method: "PATCH", body: input }),
         ),
-      walkInPolicy: (eventId, actor = {}) =>
+      walkInPolicy: (eventId) =>
         prismRequest(
-          actorPath(`/events/${eventId}/walk-in-policy`, actor),
+          `/events/${eventId}/walk-in-policy`,
           withBase(options),
         ),
-      updateWalkInPolicy: (eventId, input, actor = {}) =>
+      updateWalkInPolicy: (eventId, input) =>
         prismRequest(
-          actorPath(`/events/${eventId}/walk-in-policy`, actor),
+          `/events/${eventId}/walk-in-policy`,
           withBase(options, { method: "PATCH", body: input }),
         ),
     },
