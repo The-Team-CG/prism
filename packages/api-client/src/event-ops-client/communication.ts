@@ -9,7 +9,7 @@ import type {
 } from "@prism/types";
 import { prismRequest } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
-import { withBase, actorPath } from "./shared";
+import { withBase } from "./shared";
 
 /** Paging and search for the conversation lists; every field is optional and the API applies its defaults. */
 type ThreadPageRequest = Partial<CommunicationInboxQuery>;
@@ -30,46 +30,43 @@ export function createCommunicationClient(
 ): Pick<EventOpsClient, "communication"> {
   return {
     communication: {
-      readReceipts: (threadId, actor = {}) => prismRequest<PrismCommunicationReadReceipt[]>(actorPath(`/communication/threads/${encodeURIComponent(threadId)}/read-receipts`, actor), withBase(options)),
-      listThreads: (eventId, query = {}, actor = {}) =>
+      readReceipts: (threadId) => prismRequest<PrismCommunicationReadReceipt[]>(`/communication/threads/${encodeURIComponent(threadId)}/read-receipts`, withBase(options)),
+      listThreads: (eventId, query = {}) =>
         prismRequest<PrismCursorPage<PrismCommunicationThread>>(
-          actorPath(pagePath("/communication/threads", query, eventId), actor),
+          pagePath("/communication/threads", query, eventId),
           withBase(options),
         ),
-      getThread: (threadId, actor = {}) =>
+      getThread: (threadId) =>
         prismRequest<PrismCommunicationThread>(
-          actorPath(`/communication/threads/${encodeURIComponent(threadId)}`, actor),
+          `/communication/threads/${encodeURIComponent(threadId)}`,
           withBase(options),
         ),
-      listInbox: (query = {}, actor = {}) =>
+      listInbox: (query = {}) =>
         prismRequest<PrismCursorPage<PrismCommunicationInboxThread>>(
-          actorPath(pagePath("/communication/inbox", query), actor),
+          pagePath("/communication/inbox", query),
           withBase(options),
         ),
-      unreadCount: (query = {}, actor = {}) =>
+      unreadCount: (query = {}) =>
         prismRequest<PrismCommunicationUnreadCount>(
-          actorPath(`/communication/unread-count${query.eventId ? `?eventId=${encodeURIComponent(query.eventId)}` : ""}`, actor),
+          `/communication/unread-count${query.eventId ? `?eventId=${encodeURIComponent(query.eventId)}` : ""}`,
           withBase(options),
         ),
-      listParticipants: (eventId, actor = {}) =>
+      listParticipants: (eventId) =>
         prismRequest<PrismCommunicationParticipantChoice[]>(
-          actorPath(
-            `/communication/participants?eventId=${encodeURIComponent(eventId)}`,
-            actor,
-          ),
+          `/communication/participants?eventId=${encodeURIComponent(eventId)}`,
           withBase(options),
         ),
-      createThread: (input, actor = {}) =>
+      createThread: (input) =>
         prismRequest<PrismCommunicationThread>(
-          actorPath("/communication/threads", actor),
+          "/communication/threads",
           withBase(options, { method: "POST", body: input }),
         ),
-      sendMessage: (threadId, input, actor = {}) =>
+      sendMessage: (threadId, input) =>
         prismRequest<PrismCommunicationThread["messages"][number]>(
-          actorPath(`/communication/threads/${threadId}/messages`, actor),
+          `/communication/threads/${threadId}/messages`,
           withBase(options, { method: "POST", body: input }),
         ),
-      listMessages: (threadId, query = {}, actor = {}) => {
+      listMessages: (threadId, query = {}) => {
         const params = new URLSearchParams();
         if (query.cursor) params.set("cursor", query.cursor);
         if (query.limit) params.set("limit", String(query.limit));
@@ -79,31 +76,28 @@ export function createCommunicationClient(
             PrismCommunicationThread["messages"][number]
           >
         >(
-          actorPath(
-            `/communication/threads/${threadId}/messages${suffix}`,
-            actor,
-          ),
+          `/communication/threads/${threadId}/messages${suffix}`,
           withBase(options),
         );
       },
-      markThreadRead: (threadId, actor = {}) =>
+      markThreadRead: (threadId) =>
         prismRequest<{ lastReadAt: string }>(
-          actorPath(`/communication/threads/${threadId}/read`, actor),
+          `/communication/threads/${threadId}/read`,
           withBase(options, { method: "POST" }),
         ),
-      addParticipants: (threadId, input, actor = {}) =>
+      addParticipants: (threadId, input) =>
         prismRequest<PrismCommunicationThread>(
-          actorPath(`/communication/threads/${encodeURIComponent(threadId)}/participants`, actor),
+          `/communication/threads/${encodeURIComponent(threadId)}/participants`,
           withBase(options, { method: "POST", body: input }),
         ),
-      removeParticipant: (threadId, actorId, actor = {}) =>
+      removeParticipant: (threadId, actorId) =>
         prismRequest<PrismCommunicationThread>(
-          actorPath(`/communication/threads/${encodeURIComponent(threadId)}/participants/${encodeURIComponent(actorId)}`, actor),
+          `/communication/threads/${encodeURIComponent(threadId)}/participants/${encodeURIComponent(actorId)}`,
           withBase(options, { method: "DELETE" }),
         ),
-      setThreadStatus: (threadId, status, actor = {}) =>
+      setThreadStatus: (threadId, status) =>
         prismRequest<PrismCommunicationThread>(
-          actorPath(`/communication/threads/${encodeURIComponent(threadId)}`, actor),
+          `/communication/threads/${encodeURIComponent(threadId)}`,
           withBase(options, { method: "PATCH", body: { status } }),
         ),
     },

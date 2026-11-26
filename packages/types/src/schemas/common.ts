@@ -34,20 +34,6 @@ export const nonEmptyStringSchema = z.string().trim().min(1);
 /** Optional trimmed string. */
 export const optionalTrimmedStringSchema = z.string().trim().optional();
 
-/** Event-ops actor query (headers/query on scoped APIs). */
-export const prismEventOpsActorSchema = z.object({
-  actorId: z.string().trim().optional(),
-  actorRole: z.string().trim().min(1).optional(),
-  actorEmail: z.string().trim().email().optional(),
-  actorName: z.string().trim().optional(),
-  clientName: z.string().trim().optional(),
-  supplierId: z.string().trim().optional(),
-  coordinatorId: z.string().trim().optional(),
-  eventId: z.string().trim().optional(),
-  accessCode: z.string().trim().optional(),
-});
-export type PrismEventOpsActorInput = z.infer<typeof prismEventOpsActorSchema>;
-
 /** Generic uploaded file metadata. */
 export const uploadMetadataSchema = z.object({
   fileName: nonEmptyStringSchema,

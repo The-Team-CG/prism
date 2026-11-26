@@ -62,8 +62,8 @@ describe("clientDashboardRepository.loadWorkspace", () => {
 
     const workspace = await clientDashboardRepository.loadWorkspace();
 
-    expect(detailMock).toHaveBeenNthCalledWith(1, {}, undefined);
-    expect(detailMock).toHaveBeenNthCalledWith(2, {}, "cursor-2");
+    expect(detailMock).toHaveBeenNthCalledWith(1, undefined);
+    expect(detailMock).toHaveBeenNthCalledWith(2, "cursor-2");
     expect(workspace.events.map((item) => item.id)).toEqual(["evt_a", "evt_b"]);
     expect(workspace.pagination).toEqual({
       nextCursor: null,

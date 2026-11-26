@@ -41,7 +41,7 @@ export const clientDashboardRepository = {
     const seenCursors = new Set<string>();
     let cursor: string | undefined;
     do {
-      const page = await clientApi.clientWorkspace.detail({}, cursor);
+      const page = await clientApi.clientWorkspace.detail(cursor);
       pages.push(page);
       if (!page.pagination.hasMore) break;
       const nextCursor = page.pagination.nextCursor;

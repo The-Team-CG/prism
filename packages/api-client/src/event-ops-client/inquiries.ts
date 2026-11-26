@@ -9,16 +9,16 @@ import type {
 } from "@prism/types";
 import { prismRequest, prismSse } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
-import { withBase, actorPath, parseCommsDraftStreamEvent } from "./shared";
+import { withBase, parseCommsDraftStreamEvent } from "./shared";
 
 export function createInquiriesClient(
   options: EventOpsClientOptions,
 ): Pick<EventOpsClient, "inquiries" | "conformeDrafts"> {
   return {
     inquiries: {
-      list: (actor = {}) =>
+      list: () =>
         prismRequest<PrismInquiry[]>(
-          actorPath("/inquiries", actor),
+          "/inquiries",
           withBase(options),
         ),
       create: (input) =>
@@ -31,59 +31,59 @@ export function createInquiriesClient(
           `/inquiries/${encodeURIComponent(inquiryId)}/portal-invitation/resend`,
           withBase(options, { method: "POST" }),
         ),
-      updateStatus: (inquiryId, input, actor = {}) =>
+      updateStatus: (inquiryId, input) =>
         prismRequest<PrismInquiry>(
-          actorPath(`/inquiries/${inquiryId}/status`, actor),
+          `/inquiries/${inquiryId}/status`,
           withBase(options, { method: "PATCH", body: input }),
         ),
-      merge: (primaryInquiryId, input, actor = {}) =>
+      merge: (primaryInquiryId, input) =>
         prismRequest<PrismInquiryMergeRecord>(
-          actorPath(`/inquiries/${primaryInquiryId}/merge`, actor),
+          `/inquiries/${primaryInquiryId}/merge`,
           withBase(options, { method: "POST", body: input }),
         ),
-      logOnBehalf: (input, actor = {}) =>
+      logOnBehalf: (input) =>
         prismRequest<PrismInquiry>(
-          actorPath("/inquiries/log-on-behalf", actor),
+          "/inquiries/log-on-behalf",
           withBase(options, { method: "POST", body: input }),
         ),
-      sendConformeReminder: (inquiryId, actor = {}) =>
+      sendConformeReminder: (inquiryId) =>
         prismRequest<PrismInquiry>(
-          actorPath(`/inquiries/${inquiryId}/conforme-reminders`, actor),
+          `/inquiries/${inquiryId}/conforme-reminders`,
           withBase(options, { method: "POST" }),
         ),
-      uploadConforme: (inquiryId, input, actor = {}) =>
+      uploadConforme: (inquiryId, input) =>
         prismRequest<PrismDocument>(
-          actorPath(`/inquiries/${inquiryId}/conforme`, actor),
+          `/inquiries/${inquiryId}/conforme`,
           withBase(options, { method: "POST", body: input }),
         ),
-      setIntakePath: (inquiryId, input, actor = {}) =>
-        prismRequest<PrismInquiry>(actorPath(`/inquiries/${inquiryId}/intake-path`, actor), withBase(options, { method: "PATCH", body: input })),
-      setLanguage: (inquiryId, input, actor = {}) =>
-        prismRequest<PrismInquiry>(actorPath(`/inquiries/${encodeURIComponent(inquiryId)}/language`, actor), withBase(options, { method: "PATCH", body: input })),
-      companyNameChanges: (inquiryId, actor = {}) =>
-        prismRequest<PrismCompanyNameChange[]>(actorPath(`/inquiries/${inquiryId}/company-name-changes`, actor), withBase(options)),
-      updateCompanyName: (inquiryId, input, actor = {}) =>
-        prismRequest<PrismCompanyNameChange>(actorPath(`/inquiries/${inquiryId}/company-name`, actor), withBase(options, { method: "PATCH", body: input })),
-      contextNotes: (inquiryId, actor = {}) =>
-        prismRequest<PrismInquiryContextNote[]>(actorPath(`/inquiries/${inquiryId}/context-notes`, actor), withBase(options)),
-      addContextNote: (inquiryId, input, actor = {}) =>
-        prismRequest<PrismInquiryContextNote>(actorPath(`/inquiries/${inquiryId}/context-notes`, actor), withBase(options, { method: "POST", body: input })),
-      preConformeContext: (eventId, actor = {}) =>
-        prismRequest<PrismInquiryContextNote[]>(actorPath(`/events/${eventId}/pre-conforme-context`, actor), withBase(options)),
-      existingPreConformeWorkspace: (inquiryId, actor = {}) =>
-        prismRequest<{ eventId: string | null }>(actorPath(`/inquiries/${encodeURIComponent(inquiryId)}/pre-conforme-workspace`, actor), withBase(options)),
-      createPreConformeWorkspace: (inquiryId, actor = {}) =>
-        prismRequest<{ eventId: string }>(actorPath(`/inquiries/${encodeURIComponent(inquiryId)}/pre-conforme-workspace`, actor), withBase(options, { method: "POST" })),
-      latestConformeExecution: (inquiryId, actor = {}) =>
-        prismRequest<PrismConformeExecution>(actorPath(`/inquiries/${encodeURIComponent(inquiryId)}/conforme-executions/latest`, actor), withBase(options)),
-      createConformeExecution: (inquiryId, input, actor = {}) =>
-        prismRequest<PrismConformeExecution>(actorPath(`/inquiries/${encodeURIComponent(inquiryId)}/conforme-executions`, actor), withBase(options, { method: "POST", body: input })),
-      signConformeExecution: (inquiryId, executionId, input, actor = {}) =>
-        prismRequest<PrismConformeExecution>(actorPath(`/inquiries/${encodeURIComponent(inquiryId)}/conforme-executions/${encodeURIComponent(executionId)}/sign`, actor), withBase(options, { method: "POST", body: input })),
-      triageReview: (inquiryId, actor = {}) =>
-        prismRequest<unknown>(actorPath(`/inquiry-triage/${encodeURIComponent(inquiryId)}`, actor), withBase(options)),
-      runTriage: (inquiryId, actor = {}) =>
-        prismRequest<unknown>(actorPath("/inquiry-triage", actor), withBase(options, { method: "POST", body: { inquiryId } })),
+      setIntakePath: (inquiryId, input) =>
+        prismRequest<PrismInquiry>(`/inquiries/${inquiryId}/intake-path`, withBase(options, { method: "PATCH", body: input })),
+      setLanguage: (inquiryId, input) =>
+        prismRequest<PrismInquiry>(`/inquiries/${encodeURIComponent(inquiryId)}/language`, withBase(options, { method: "PATCH", body: input })),
+      companyNameChanges: (inquiryId) =>
+        prismRequest<PrismCompanyNameChange[]>(`/inquiries/${inquiryId}/company-name-changes`, withBase(options)),
+      updateCompanyName: (inquiryId, input) =>
+        prismRequest<PrismCompanyNameChange>(`/inquiries/${inquiryId}/company-name`, withBase(options, { method: "PATCH", body: input })),
+      contextNotes: (inquiryId) =>
+        prismRequest<PrismInquiryContextNote[]>(`/inquiries/${inquiryId}/context-notes`, withBase(options)),
+      addContextNote: (inquiryId, input) =>
+        prismRequest<PrismInquiryContextNote>(`/inquiries/${inquiryId}/context-notes`, withBase(options, { method: "POST", body: input })),
+      preConformeContext: (eventId) =>
+        prismRequest<PrismInquiryContextNote[]>(`/events/${eventId}/pre-conforme-context`, withBase(options)),
+      existingPreConformeWorkspace: (inquiryId) =>
+        prismRequest<{ eventId: string | null }>(`/inquiries/${encodeURIComponent(inquiryId)}/pre-conforme-workspace`, withBase(options)),
+      createPreConformeWorkspace: (inquiryId) =>
+        prismRequest<{ eventId: string }>(`/inquiries/${encodeURIComponent(inquiryId)}/pre-conforme-workspace`, withBase(options, { method: "POST" })),
+      latestConformeExecution: (inquiryId) =>
+        prismRequest<PrismConformeExecution>(`/inquiries/${encodeURIComponent(inquiryId)}/conforme-executions/latest`, withBase(options)),
+      createConformeExecution: (inquiryId, input) =>
+        prismRequest<PrismConformeExecution>(`/inquiries/${encodeURIComponent(inquiryId)}/conforme-executions`, withBase(options, { method: "POST", body: input })),
+      signConformeExecution: (inquiryId, executionId, input) =>
+        prismRequest<PrismConformeExecution>(`/inquiries/${encodeURIComponent(inquiryId)}/conforme-executions/${encodeURIComponent(executionId)}/sign`, withBase(options, { method: "POST", body: input })),
+      triageReview: (inquiryId) =>
+        prismRequest<unknown>(`/inquiry-triage/${encodeURIComponent(inquiryId)}`, withBase(options)),
+      runTriage: (inquiryId) =>
+        prismRequest<unknown>("/inquiry-triage", withBase(options, { method: "POST", body: { inquiryId } })),
     },
     conformeDrafts: {
       getForInquiry: (inquiryId) =>

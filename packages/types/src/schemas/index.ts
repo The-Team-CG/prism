@@ -17,10 +17,8 @@ export {
   optionalTrimmedStringSchema,
   privacyConsentSchema,
   privacyNoticeVersionSchema,
-  prismEventOpsActorSchema,
   uploadMetadataSchema,
   type PrivacyConsentInput,
-  type PrismEventOpsActorInput,
   type UploadMetadataInput,
 } from "./common.js";
 

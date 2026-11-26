@@ -17,7 +17,6 @@ export {
   type CreateFloorPlanPreferenceInput,
   type CreateSupplierApplicationInput,
   type SupplierApplicationStatusQuery,
-  type EventOpsActorQuery,
   type EventOpsClient,
   type EventOpsClientOptions,
 } from "./event-ops-client";

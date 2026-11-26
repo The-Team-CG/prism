@@ -24,7 +24,7 @@ import type {
 } from "@prism/types";
 import { prismRequest, toQueryString } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
-import { withBase, actorPath } from "./shared";
+import { withBase } from "./shared";
 
 export function createWorkspacesClient(
   options: EventOpsClientOptions,
@@ -34,16 +34,16 @@ export function createWorkspacesClient(
 > {
   return {
     clientWorkspace: {
-      detail: (actor = {}, cursor?: string) => {
-        const query = toQueryString({ ...actor, cursor });
+      detail: (cursor?: string) => {
+        const query = toQueryString({ cursor });
         return prismRequest<PrismClientWorkspace>(
           query ? `/client/workspace?${query}` : "/client/workspace",
           withBase(options),
         );
       },
-      actionCenter: (actor = {}) =>
+      actionCenter: () =>
         prismRequest<PrismClientActionCenter>(
-          actorPath("/client/action-center", actor),
+          "/client/action-center",
           withBase(options),
         ),
     },
@@ -58,28 +58,19 @@ export function createWorkspacesClient(
           "/supplier/readiness-board",
           withBase(options),
         ),
-      confirmAssignment: (requestId, actor = {}) =>
+      confirmAssignment: (requestId) =>
         prismRequest<PrismSupplierQuoteRequest>(
-          actorPath(
-            `/supplier/quote-requests/${requestId}/assignment/confirm`,
-            actor,
-          ),
+          `/supplier/quote-requests/${requestId}/assignment/confirm`,
           withBase(options, { method: "PATCH" }),
         ),
-      confirmReadiness: (requestId, input, actor = {}) =>
+      confirmReadiness: (requestId, input) =>
         prismRequest<PrismSupplierQuoteRequest>(
-          actorPath(
-            `/supplier/quote-requests/${requestId}/readiness/confirm`,
-            actor,
-          ),
+          `/supplier/quote-requests/${requestId}/readiness/confirm`,
           withBase(options, { method: "PATCH", body: input }),
         ),
-      updateEventStatus: (requestId, input, actor = {}) =>
+      updateEventStatus: (requestId, input) =>
         prismRequest<PrismSupplierQuoteRequest>(
-          actorPath(
-            `/supplier/quote-requests/${requestId}/event-status`,
-            actor,
-          ),
+          `/supplier/quote-requests/${requestId}/event-status`,
           withBase(options, { method: "PATCH", body: input }),
         ),
       // The link's token is the credential, so an `authToken` of "" keeps a stored session token off the request
@@ -96,9 +87,9 @@ export function createWorkspacesClient(
         ),
     },
     billing: {
-      list: (actor = {}) =>
+      list: () =>
         prismRequest<PrismBillingWorkspace>(
-          actorPath("/billing", actor),
+          "/billing",
           withBase(options),
         ),
     },
@@ -126,9 +117,9 @@ export function createWorkspacesClient(
           withBase(options),
         );
       },
-      eventWorkspace: (eventId, actor = {}) =>
+      eventWorkspace: (eventId) =>
         prismRequest<PrismPmcmEventWorkspace>(
-          actorPath(`/pmcm/events/${eventId}/workspace`, actor),
+          `/pmcm/events/${eventId}/workspace`,
           withBase(options),
         ),
       supplierReadiness: (eventId) =>
@@ -136,32 +127,29 @@ export function createWorkspacesClient(
           `/pmcm/events/${encodeURIComponent(eventId)}/supplier-readiness`,
           withBase(options),
         ),
-      registrationPlatform: (eventId, actor = {}) =>
+      registrationPlatform: (eventId) =>
         prismRequest<PrismRegistrationPlatform | null>(
-          actorPath(`/events/${eventId}/registration-platform`, actor),
+          `/events/${eventId}/registration-platform`,
           withBase(options),
         ),
-      upsertRegistrationPlatform: (eventId, input, actor = {}) =>
+      upsertRegistrationPlatform: (eventId, input) =>
         prismRequest<PrismRegistrationPlatform>(
-          actorPath(`/events/${eventId}/registration-platform`, actor),
+          `/events/${eventId}/registration-platform`,
           withBase(options, { method: "POST", body: input }),
         ),
-      updateRegistrationPlatform: (eventId, input, actor = {}) =>
+      updateRegistrationPlatform: (eventId, input) =>
         prismRequest<PrismRegistrationPlatform>(
-          actorPath(`/events/${eventId}/registration-platform`, actor),
+          `/events/${eventId}/registration-platform`,
           withBase(options, { method: "PATCH", body: input }),
         ),
-      updateRegistrationPlatformSetup: (eventId, input, actor = {}) =>
+      updateRegistrationPlatformSetup: (eventId, input) =>
         prismRequest<PrismRegistrationPlatform>(
-          actorPath(`/events/${eventId}/registration-platform/setup-confirmation`, actor),
+          `/events/${eventId}/registration-platform/setup-confirmation`,
           withBase(options, { method: "POST", body: input }),
         ),
-      importHeadcount: (eventId, input, actor = {}) =>
+      importHeadcount: (eventId, input) =>
         prismRequest<PrismRegistrationPlatform>(
-          actorPath(
-            `/events/${eventId}/registration-platform/headcount-import`,
-            actor,
-          ),
+          `/events/${eventId}/registration-platform/headcount-import`,
           withBase(options, { method: "POST", body: input }),
         ),
     },

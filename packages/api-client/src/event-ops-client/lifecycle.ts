@@ -30,131 +30,131 @@ import type {
 } from "@prism/types";
 import { prismRequest } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
-import { withBase, actorPath } from "./shared";
+import { withBase } from "./shared";
 
 export function createLifecycleClient(options: EventOpsClientOptions): Pick<EventOpsClient, "lifecycle" | "risks" | "closure" | "compliance" | "floorplans"> {
   const event = (eventId: string, rest: string) => `/events/${eventId}${rest}`;
   return {
     lifecycle: {
-      scheduleOcularVisit: (eventId, input, actor = {}) =>
-        prismRequest<PrismPmcmOcularVisit>(actorPath(event(eventId, "/ocular-visit/schedule"), actor), withBase(options, { method: "PATCH", body: input })),
-      completeOcularVisit: (eventId, actor = {}) =>
-        prismRequest<PrismPmcmOcularVisit>(actorPath(event(eventId, "/ocular-visit/complete"), actor), withBase(options, { method: "POST" })),
-      waiveOcularVisit: (eventId, input, actor = {}) =>
-        prismRequest<PrismPmcmOcularVisit>(actorPath(event(eventId, "/ocular-visit/waive"), actor), withBase(options, { method: "POST", body: input })),
-      setModules: (eventId, input, actor = {}) =>
-        prismRequest<{ eventId: string; disabledModules: SetEventModulesInput["disabledModules"] }>(actorPath(event(eventId, "/modules"), actor), withBase(options, { method: "PATCH", body: input })),
-      setPrivacy: (eventId, input, actor = {}) =>
-        prismRequest<{ eventId: string; privacy: SetEventPrivacyInput["privacy"] }>(actorPath(event(eventId, "/privacy"), actor), withBase(options, { method: "PATCH", body: input })),
+      scheduleOcularVisit: (eventId, input) =>
+        prismRequest<PrismPmcmOcularVisit>(event(eventId, "/ocular-visit/schedule"), withBase(options, { method: "PATCH", body: input })),
+      completeOcularVisit: (eventId) =>
+        prismRequest<PrismPmcmOcularVisit>(event(eventId, "/ocular-visit/complete"), withBase(options, { method: "POST" })),
+      waiveOcularVisit: (eventId, input) =>
+        prismRequest<PrismPmcmOcularVisit>(event(eventId, "/ocular-visit/waive"), withBase(options, { method: "POST", body: input })),
+      setModules: (eventId, input) =>
+        prismRequest<{ eventId: string; disabledModules: SetEventModulesInput["disabledModules"] }>(event(eventId, "/modules"), withBase(options, { method: "PATCH", body: input })),
+      setPrivacy: (eventId, input) =>
+        prismRequest<{ eventId: string; privacy: SetEventPrivacyInput["privacy"] }>(event(eventId, "/privacy"), withBase(options, { method: "PATCH", body: input })),
       setCover: (eventId, input) =>
         prismRequest<{ eventId: string; coverObjectId: string | null }>(event(eventId, "/cover"), withBase(options, { method: "PATCH", body: input })),
-      setClientEventDayView: (eventId, input, actor = {}) =>
-        prismRequest<PrismEvent>(actorPath(event(eventId, "/client-event-day-view"), actor), withBase(options, { method: "PATCH", body: input })),
-      archive: (eventId, overrideReason, actor = {}) =>
-        prismRequest<PrismEvent>(actorPath(event(eventId, "/archive"), actor), withBase(options, { method: "POST", body: { overrideReason } })),
-      recordActualEnd: (eventId, input, actor = {}) =>
-        prismRequest<PrismEvent>(actorPath(event(eventId, "/actual-end"), actor), withBase(options, { method: "POST", body: input })),
-      startEventDay: (eventId, actor = {}) =>
-        prismRequest<StartEventDayResult>(actorPath(event(eventId, "/start-event-day"), actor), withBase(options, { method: "POST", body: {} })),
-      defenseReadiness: (eventId, actor = {}) =>
-        prismRequest<PrismDefenseReadiness>(actorPath(event(eventId, "/defense-readiness"), actor), withBase(options)),
-      eventDayStatusFeed: (eventId, actor = {}) =>
-        prismRequest<PrismEventDayStatusFeed>(actorPath(event(eventId, "/event-day/status-feed"), actor), withBase(options)),
-      cancellationSummary: (eventId, actor = {}) =>
-        prismRequest<PrismCancellationSummary>(actorPath(event(eventId, "/decisions/cancellation-summary"), actor), withBase(options)),
-      venueConfirmations: (eventId, actor = {}) =>
-        prismRequest<PrismVenueConfirmationTask[]>(actorPath(event(eventId, "/decisions/venue-confirmations"), actor), withBase(options)),
-      resolveVenueConfirmation: (eventId, taskId, input, actor = {}) =>
-        prismRequest<PrismVenueConfirmationTask>(actorPath(event(eventId, `/decisions/venue-confirmations/${taskId}/resolve`), actor), withBase(options, { method: "POST", body: input })),
+      setClientEventDayView: (eventId, input) =>
+        prismRequest<PrismEvent>(event(eventId, "/client-event-day-view"), withBase(options, { method: "PATCH", body: input })),
+      archive: (eventId, overrideReason) =>
+        prismRequest<PrismEvent>(event(eventId, "/archive"), withBase(options, { method: "POST", body: { overrideReason } })),
+      recordActualEnd: (eventId, input) =>
+        prismRequest<PrismEvent>(event(eventId, "/actual-end"), withBase(options, { method: "POST", body: input })),
+      startEventDay: (eventId) =>
+        prismRequest<StartEventDayResult>(event(eventId, "/start-event-day"), withBase(options, { method: "POST", body: {} })),
+      defenseReadiness: (eventId) =>
+        prismRequest<PrismDefenseReadiness>(event(eventId, "/defense-readiness"), withBase(options)),
+      eventDayStatusFeed: (eventId) =>
+        prismRequest<PrismEventDayStatusFeed>(event(eventId, "/event-day/status-feed"), withBase(options)),
+      cancellationSummary: (eventId) =>
+        prismRequest<PrismCancellationSummary>(event(eventId, "/decisions/cancellation-summary"), withBase(options)),
+      venueConfirmations: (eventId) =>
+        prismRequest<PrismVenueConfirmationTask[]>(event(eventId, "/decisions/venue-confirmations"), withBase(options)),
+      resolveVenueConfirmation: (eventId, taskId, input) =>
+        prismRequest<PrismVenueConfirmationTask>(event(eventId, `/decisions/venue-confirmations/${taskId}/resolve`), withBase(options, { method: "POST", body: input })),
     },
     risks: {
-      list: (eventId, actor = {}) =>
-        prismRequest<PrismEventRisk[]>(actorPath(event(eventId, "/risks"), actor), withBase(options)),
-      loadStandard: (eventId, actor = {}) =>
-        prismRequest<PrismEventRisk[]>(actorPath(event(eventId, "/risks/standard"), actor), withBase(options, { method: "POST" })),
-      create: (eventId, input, actor = {}) =>
-        prismRequest<PrismEventRisk>(actorPath(event(eventId, "/risks"), actor), withBase(options, { method: "POST", body: input })),
-      update: (eventId, riskId, input, actor = {}) =>
-        prismRequest<PrismEventRisk>(actorPath(event(eventId, `/risks/${riskId}`), actor), withBase(options, { method: "PATCH", body: input })),
+      list: (eventId) =>
+        prismRequest<PrismEventRisk[]>(event(eventId, "/risks"), withBase(options)),
+      loadStandard: (eventId) =>
+        prismRequest<PrismEventRisk[]>(event(eventId, "/risks/standard"), withBase(options, { method: "POST" })),
+      create: (eventId, input) =>
+        prismRequest<PrismEventRisk>(event(eventId, "/risks"), withBase(options, { method: "POST", body: input })),
+      update: (eventId, riskId, input) =>
+        prismRequest<PrismEventRisk>(event(eventId, `/risks/${riskId}`), withBase(options, { method: "PATCH", body: input })),
     },
     closure: {
-      closeGates: (eventId, actor = {}) =>
-        prismRequest<PrismCloseGates>(actorPath(event(eventId, "/close-gates"), actor), withBase(options)),
-      insights: (eventId, actor = {}) =>
-        prismRequest<PrismEventInsight[]>(actorPath(event(eventId, "/insights"), actor), withBase(options)),
-      generateInsights: (eventId, actor = {}) =>
-        prismRequest<PrismEventInsight>(actorPath(event(eventId, "/insights/generate"), actor), withBase(options, { method: "POST" })),
-      wrapUp: (eventId, actor = {}) =>
-        prismRequest<PrismEventWrapUp | null>(actorPath(event(eventId, "/wrap-up"), actor), withBase(options)),
-      startWrapUp: (eventId, input, actor = {}) =>
-        prismRequest<PrismEventWrapUp>(actorPath(event(eventId, "/wrap-up"), actor), withBase(options, { method: "POST", body: input })),
-      updateWrapUp: (eventId, input, actor = {}) =>
-        prismRequest<PrismEventWrapUp>(actorPath(event(eventId, "/wrap-up"), actor), withBase(options, { method: "PATCH", body: input })),
-      logisticsBookings: (eventId, actor = {}) =>
-        prismRequest<PrismLogisticsBooking[]>(actorPath(event(eventId, "/logistics-bookings"), actor), withBase(options)),
-      createLogisticsBooking: (eventId, input, actor = {}) =>
-        prismRequest<PrismLogisticsBooking>(actorPath(event(eventId, "/logistics-bookings"), actor), withBase(options, { method: "POST", body: input })),
-      compareArchived: (eventIds, actor = {}) =>
-        prismRequest<PrismArchiveComparisonRow[]>(actorPath(`/events/archive/compare?eventIds=${encodeURIComponent(eventIds.join(","))}`, actor), withBase(options)),
-      completePostEventDocument: (eventId, documentId, actor = {}) =>
-        prismRequest<PrismPostEventDocument>(actorPath(`/events/${encodeURIComponent(eventId)}/post-event-documents/${encodeURIComponent(documentId)}/complete`, actor), withBase(options, { method: "PATCH" })),
-      logisticsCompletion: (eventId, actor = {}) =>
-        prismRequest<PrismLogisticsCompletion | null>(actorPath(event(eventId, "/logistics-completion"), actor), withBase(options)),
-      recordLogisticsCompletion: (eventId, input, actor = {}) =>
-        prismRequest<PrismLogisticsCompletion>(actorPath(event(eventId, "/logistics-completion"), actor), withBase(options, { method: "POST", body: input })),
-      clientCloseoutModeration: (eventId, actor = {}) =>
-        prismRequest<(PrismClientCloseoutResponse & { actorEmail?: string | null }) | null>(actorPath(event(eventId, "/client-closeout/moderation"), actor), withBase(options)),
-      moderateClientCloseout: (eventId, input, actor = {}) =>
-        prismRequest<PrismClientCloseoutResponse>(actorPath(event(eventId, "/client-closeout/moderation"), actor), withBase(options, { method: "PATCH", body: input })),
+      closeGates: (eventId) =>
+        prismRequest<PrismCloseGates>(event(eventId, "/close-gates"), withBase(options)),
+      insights: (eventId) =>
+        prismRequest<PrismEventInsight[]>(event(eventId, "/insights"), withBase(options)),
+      generateInsights: (eventId) =>
+        prismRequest<PrismEventInsight>(event(eventId, "/insights/generate"), withBase(options, { method: "POST" })),
+      wrapUp: (eventId) =>
+        prismRequest<PrismEventWrapUp | null>(event(eventId, "/wrap-up"), withBase(options)),
+      startWrapUp: (eventId, input) =>
+        prismRequest<PrismEventWrapUp>(event(eventId, "/wrap-up"), withBase(options, { method: "POST", body: input })),
+      updateWrapUp: (eventId, input) =>
+        prismRequest<PrismEventWrapUp>(event(eventId, "/wrap-up"), withBase(options, { method: "PATCH", body: input })),
+      logisticsBookings: (eventId) =>
+        prismRequest<PrismLogisticsBooking[]>(event(eventId, "/logistics-bookings"), withBase(options)),
+      createLogisticsBooking: (eventId, input) =>
+        prismRequest<PrismLogisticsBooking>(event(eventId, "/logistics-bookings"), withBase(options, { method: "POST", body: input })),
+      compareArchived: (eventIds) =>
+        prismRequest<PrismArchiveComparisonRow[]>(`/events/archive/compare?eventIds=${encodeURIComponent(eventIds.join(","))}`, withBase(options)),
+      completePostEventDocument: (eventId, documentId) =>
+        prismRequest<PrismPostEventDocument>(`/events/${encodeURIComponent(eventId)}/post-event-documents/${encodeURIComponent(documentId)}/complete`, withBase(options, { method: "PATCH" })),
+      logisticsCompletion: (eventId) =>
+        prismRequest<PrismLogisticsCompletion | null>(event(eventId, "/logistics-completion"), withBase(options)),
+      recordLogisticsCompletion: (eventId, input) =>
+        prismRequest<PrismLogisticsCompletion>(event(eventId, "/logistics-completion"), withBase(options, { method: "POST", body: input })),
+      clientCloseoutModeration: (eventId) =>
+        prismRequest<(PrismClientCloseoutResponse & { actorEmail?: string | null }) | null>(event(eventId, "/client-closeout/moderation"), withBase(options)),
+      moderateClientCloseout: (eventId, input) =>
+        prismRequest<PrismClientCloseoutResponse>(event(eventId, "/client-closeout/moderation"), withBase(options, { method: "PATCH", body: input })),
     },
     compliance: {
-      listRules: (actor = {}) => prismRequest<PrismComplianceRule[]>(actorPath("/compliance/rules", actor), withBase(options)),
-      createRule: (input, actor = {}) =>
-        prismRequest<PrismComplianceRule>(actorPath("/compliance/rules", actor), withBase(options, { method: "POST", body: input })),
-      updateRule: (ruleId, input, actor = {}) =>
-        prismRequest<PrismComplianceRule>(actorPath(`/compliance/rules/${encodeURIComponent(ruleId)}`, actor), withBase(options, { method: "PATCH", body: input })),
-      resolve: (eventId, checkId, input, actor = {}) =>
-        prismRequest<PrismComplianceCheck>(actorPath(event(eventId, `/compliance/${checkId}`), actor), withBase(options, { method: "PATCH", body: input })),
-      run: (eventId, input, actor = {}) =>
-        prismRequest<PrismComplianceCheck[]>(actorPath(event(eventId, "/compliance"), actor), withBase(options, { method: "POST", body: input })),
-      runs: (eventId, actor = {}) =>
-        prismRequest<PrismComplianceRun[]>(actorPath(event(eventId, "/compliance/runs"), actor), withBase(options)),
-      risks: (eventId, actor = {}) =>
-        prismRequest<PrismComplianceRisk[]>(actorPath(event(eventId, "/compliance/risks"), actor), withBase(options)),
-      accreditationRequirements: (eventId, actor = {}) =>
-        prismRequest<PrismAccreditationRequirement[]>(actorPath(event(eventId, "/accreditation"), actor), withBase(options)),
-      createAccreditationRequirement: (eventId, input, actor = {}) =>
-        prismRequest<PrismAccreditationRequirement>(actorPath(event(eventId, "/accreditation"), actor), withBase(options, { method: "POST", body: input })),
-      updateAccreditationRequirement: (eventId, requirementId, input, actor = {}) =>
-        prismRequest<PrismAccreditationRequirement>(actorPath(event(eventId, `/accreditation/${requirementId}`), actor), withBase(options, { method: "PATCH", body: input })),
-      createRisk: (eventId, input, actor = {}) =>
-        prismRequest<PrismComplianceRisk>(actorPath(event(eventId, "/compliance/risks"), actor), withBase(options, { method: "POST", body: input })),
-      updateRisk: (eventId, riskId, input, actor = {}) =>
-        prismRequest<PrismComplianceRisk>(actorPath(event(eventId, `/compliance/risks/${encodeURIComponent(riskId)}`), actor), withBase(options, { method: "PATCH", body: input })),
+      listRules: () => prismRequest<PrismComplianceRule[]>("/compliance/rules", withBase(options)),
+      createRule: (input) =>
+        prismRequest<PrismComplianceRule>("/compliance/rules", withBase(options, { method: "POST", body: input })),
+      updateRule: (ruleId, input) =>
+        prismRequest<PrismComplianceRule>(`/compliance/rules/${encodeURIComponent(ruleId)}`, withBase(options, { method: "PATCH", body: input })),
+      resolve: (eventId, checkId, input) =>
+        prismRequest<PrismComplianceCheck>(event(eventId, `/compliance/${checkId}`), withBase(options, { method: "PATCH", body: input })),
+      run: (eventId, input) =>
+        prismRequest<PrismComplianceCheck[]>(event(eventId, "/compliance"), withBase(options, { method: "POST", body: input })),
+      runs: (eventId) =>
+        prismRequest<PrismComplianceRun[]>(event(eventId, "/compliance/runs"), withBase(options)),
+      risks: (eventId) =>
+        prismRequest<PrismComplianceRisk[]>(event(eventId, "/compliance/risks"), withBase(options)),
+      accreditationRequirements: (eventId) =>
+        prismRequest<PrismAccreditationRequirement[]>(event(eventId, "/accreditation"), withBase(options)),
+      createAccreditationRequirement: (eventId, input) =>
+        prismRequest<PrismAccreditationRequirement>(event(eventId, "/accreditation"), withBase(options, { method: "POST", body: input })),
+      updateAccreditationRequirement: (eventId, requirementId, input) =>
+        prismRequest<PrismAccreditationRequirement>(event(eventId, `/accreditation/${requirementId}`), withBase(options, { method: "PATCH", body: input })),
+      createRisk: (eventId, input) =>
+        prismRequest<PrismComplianceRisk>(event(eventId, "/compliance/risks"), withBase(options, { method: "POST", body: input })),
+      updateRisk: (eventId, riskId, input) =>
+        prismRequest<PrismComplianceRisk>(event(eventId, `/compliance/risks/${encodeURIComponent(riskId)}`), withBase(options, { method: "PATCH", body: input })),
     },
     floorplans: {
-      createDraft: (eventId, input, actor = {}) =>
-        prismRequest<PrismFloorPlanDraft>(actorPath(event(eventId, "/floorplans"), actor), withBase(options, { method: "POST", body: input })),
-      submitDraft: (eventId, draftId, actor = {}) =>
-        prismRequest<PrismFloorPlanDraft>(actorPath(event(eventId, `/floorplans/${draftId}/submit`), actor), withBase(options, { method: "POST" })),
-      approveDraft: (eventId, draftId, actor = {}) =>
-        prismRequest<PrismFloorPlanDraft>(actorPath(event(eventId, `/floorplans/${draftId}/approve`), actor), withBase(options, { method: "POST" })),
-      reopenPreference: (eventId, draftId, actor = {}) =>
-        prismRequest<PrismFloorPlanDraft>(actorPath(event(eventId, `/floorplans/${draftId}/reopen-preference`), actor), withBase(options, { method: "POST" })),
-      clientAccess: (eventId, actor = {}) =>
-        prismRequest<PrismEventClientAccess>(actorPath(`/events/${encodeURIComponent(eventId)}/client-floorplan-access`, actor), withBase(options)),
-      searchClientCandidates: (eventId, query, actor = {}) =>
-        prismRequest<PrismApprovedClientAccount[]>(actorPath(`/events/${encodeURIComponent(eventId)}/client-floorplan-access/candidates?${new URLSearchParams({ query }).toString()}`, actor), withBase(options)),
-      grantClientAccess: (eventId, userId, actor = {}) =>
-        prismRequest<PrismEventClientAccess>(actorPath(`/events/${encodeURIComponent(eventId)}/client-floorplan-access`, actor), withBase(options, { method: "POST", body: { userId } })),
-      revokeClientAccess: (eventId, userId, actor = {}) =>
-        prismRequest<PrismEventClientAccess>(actorPath(`/events/${encodeURIComponent(eventId)}/client-floorplan-access/${encodeURIComponent(userId)}`, actor), withBase(options, { method: "DELETE" })),
-      history: (eventId, draftId, actor = {}) =>
-        prismRequest<PrismFloorPlanSnapshotVersion[]>(actorPath(`/events/${encodeURIComponent(eventId)}/floorplans/${encodeURIComponent(draftId)}/history`, actor), withBase(options)),
-      plan: <TPlan = unknown>(planId: string, actor = {}) =>
-        prismRequest<TPlan>(actorPath(`/plans/${planId}`, actor), withBase(options)),
-      savePlan: <TPlan = unknown>(planId: string, body: unknown, actor = {}) =>
-        prismRequest<TPlan>(actorPath(`/plans/${planId}`, actor), withBase(options, { method: "PUT", body })),
+      createDraft: (eventId, input) =>
+        prismRequest<PrismFloorPlanDraft>(event(eventId, "/floorplans"), withBase(options, { method: "POST", body: input })),
+      submitDraft: (eventId, draftId) =>
+        prismRequest<PrismFloorPlanDraft>(event(eventId, `/floorplans/${draftId}/submit`), withBase(options, { method: "POST" })),
+      approveDraft: (eventId, draftId) =>
+        prismRequest<PrismFloorPlanDraft>(event(eventId, `/floorplans/${draftId}/approve`), withBase(options, { method: "POST" })),
+      reopenPreference: (eventId, draftId) =>
+        prismRequest<PrismFloorPlanDraft>(event(eventId, `/floorplans/${draftId}/reopen-preference`), withBase(options, { method: "POST" })),
+      clientAccess: (eventId) =>
+        prismRequest<PrismEventClientAccess>(`/events/${encodeURIComponent(eventId)}/client-floorplan-access`, withBase(options)),
+      searchClientCandidates: (eventId, query) =>
+        prismRequest<PrismApprovedClientAccount[]>(`/events/${encodeURIComponent(eventId)}/client-floorplan-access/candidates?${new URLSearchParams({ query }).toString()}`, withBase(options)),
+      grantClientAccess: (eventId, userId) =>
+        prismRequest<PrismEventClientAccess>(`/events/${encodeURIComponent(eventId)}/client-floorplan-access`, withBase(options, { method: "POST", body: { userId } })),
+      revokeClientAccess: (eventId, userId) =>
+        prismRequest<PrismEventClientAccess>(`/events/${encodeURIComponent(eventId)}/client-floorplan-access/${encodeURIComponent(userId)}`, withBase(options, { method: "DELETE" })),
+      history: (eventId, draftId) =>
+        prismRequest<PrismFloorPlanSnapshotVersion[]>(`/events/${encodeURIComponent(eventId)}/floorplans/${encodeURIComponent(draftId)}/history`, withBase(options)),
+      plan: <TPlan = unknown>(planId: string) =>
+        prismRequest<TPlan>(`/plans/${planId}`, withBase(options)),
+      savePlan: <TPlan = unknown>(planId: string, body: unknown) =>
+        prismRequest<TPlan>(`/plans/${planId}`, withBase(options, { method: "PUT", body })),
     },
   };
 }

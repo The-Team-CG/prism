@@ -19,72 +19,66 @@ import type {
 } from "@prism/types";
 import { prismRequest } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
-import { withBase, actorPath } from "./shared";
+import { withBase } from "./shared";
 
 export function createLiveOpsClient(
   options: EventOpsClientOptions,
 ): Pick<EventOpsClient, "coordinator" | "liveOps"> {
   return {
     coordinator: {
-      workspace: (actor = {}) =>
+      workspace: () =>
         prismRequest<PrismCoordinatorWorkspace>(
-          actorPath("/coordinator/workspace", actor),
+          "/coordinator/workspace",
           withBase(options),
         ),
-      eventSchedule: (eventId, actor = {}) =>
+      eventSchedule: (eventId) =>
         prismRequest<PrismCoordinatorEventSchedule>(
-          actorPath(`/coordinator/events/${eventId}/schedule`, actor),
+          `/coordinator/events/${eventId}/schedule`,
           withBase(options),
         ),
       focusRoleView: (init = {}) =>
         prismRequest<PrismCoordinatorRoleView | null>("/coordinator/focus-role-view", withBase(options, { signal: init.signal })),
-      roleView: (eventId, actor = {}) =>
-        prismRequest<PrismCoordinatorRoleView>(actorPath(`/coordinator/events/${eventId}/role-view`, actor), withBase(options)),
-      acknowledgeAssignment: (eventId, assignmentId, input, actor = {}) =>
-        prismRequest<PrismCoordinatorAssignment>(actorPath(`/events/${eventId}/coordinators/${assignmentId}/acknowledge`, actor), withBase(options, { method: "PATCH", body: input })),
-      withdrawAssignment: (eventId, assignmentId, input, actor = {}) =>
-        prismRequest<PrismCoordinatorAssignment>(actorPath(`/events/${eventId}/coordinators/${assignmentId}/withdraw`, actor), withBase(options, { method: "PATCH", body: input })),
-      reportSupplierStatus: (eventId, requestId, input, actor = {}) =>
-        prismRequest<PrismSupplierQuoteRequest>(actorPath(`/events/${eventId}/supplier-status/${requestId}/report`, actor), withBase(options, { method: "PATCH", body: input })),
-      roleBriefs: (eventId, actor = {}) =>
-        prismRequest<PrismCoordinatorRoleBrief[]>(actorPath(`/events/${eventId}/coordinator-role-briefs`, actor), withBase(options)),
-      saveRoleBrief: (eventId, role, input, actor = {}) =>
-        prismRequest<PrismCoordinatorRoleBrief>(actorPath(`/events/${eventId}/coordinator-role-briefs/${encodeURIComponent(role)}`, actor), withBase(options, { method: "PUT", body: input })),
+      roleView: (eventId) =>
+        prismRequest<PrismCoordinatorRoleView>(`/coordinator/events/${eventId}/role-view`, withBase(options)),
+      acknowledgeAssignment: (eventId, assignmentId, input) =>
+        prismRequest<PrismCoordinatorAssignment>(`/events/${eventId}/coordinators/${assignmentId}/acknowledge`, withBase(options, { method: "PATCH", body: input })),
+      withdrawAssignment: (eventId, assignmentId, input) =>
+        prismRequest<PrismCoordinatorAssignment>(`/events/${eventId}/coordinators/${assignmentId}/withdraw`, withBase(options, { method: "PATCH", body: input })),
+      reportSupplierStatus: (eventId, requestId, input) =>
+        prismRequest<PrismSupplierQuoteRequest>(`/events/${eventId}/supplier-status/${requestId}/report`, withBase(options, { method: "PATCH", body: input })),
+      roleBriefs: (eventId) =>
+        prismRequest<PrismCoordinatorRoleBrief[]>(`/events/${eventId}/coordinator-role-briefs`, withBase(options)),
+      saveRoleBrief: (eventId, role, input) =>
+        prismRequest<PrismCoordinatorRoleBrief>(`/events/${eventId}/coordinator-role-briefs/${encodeURIComponent(role)}`, withBase(options, { method: "PUT", body: input })),
     },
     liveOps: {
-      eventDayWorkspace: (eventId, actor = {}) =>
+      eventDayWorkspace: (eventId) =>
         prismRequest<PrismLiveOps>(
-          actorPath(`/events/${eventId}/live-ops`, actor),
+          `/events/${eventId}/live-ops`,
           withBase(options),
         ),
-      schedule: (eventId, actor = {}) =>
+      schedule: (eventId) =>
         prismRequest<PrismEventSchedule>(
-          actorPath(`/events/${eventId}/schedule`, actor),
+          `/events/${eventId}/schedule`,
           withBase(options),
         ),
-      createScheduleDay: (eventId, input, actor = {}) =>
+      createScheduleDay: (eventId, input) =>
         prismRequest(
-          actorPath(`/events/${eventId}/schedule/days`, actor),
+          `/events/${eventId}/schedule/days`,
           withBase(options, { method: "POST", body: input }),
         ),
-      createScheduleSegment: (eventId, dayId, input, actor = {}) =>
+      createScheduleSegment: (eventId, dayId, input) =>
         prismRequest<PrismEventScheduleSegment>(
-          actorPath(
-            `/events/${eventId}/schedule/days/${dayId}/segments`,
-            actor,
-          ),
+          `/events/${eventId}/schedule/days/${dayId}/segments`,
           withBase(options, { method: "POST", body: input }),
         ),
-      updateScheduleSegmentStatus: (eventId, segmentId, input, actor = {}) =>
+      updateScheduleSegmentStatus: (eventId, segmentId, input) =>
         prismRequest<PrismEventScheduleSegment>(
-          actorPath(
-            `/events/${eventId}/schedule/segments/${segmentId}/status`,
-            actor,
-          ),
+          `/events/${eventId}/schedule/segments/${segmentId}/status`,
           withBase(options, { method: "PATCH", body: input }),
         ),
-      runSheet: (eventId, dayId, actor = {}) => {
-        const path = actorPath(`/events/${eventId}/run-sheet`, actor);
+      runSheet: (eventId, dayId) => {
+        const path = `/events/${eventId}/run-sheet`;
         const day = dayId
           ? `${path.includes("?") ? "&" : "?"}dayId=${encodeURIComponent(dayId)}`
           : "";
@@ -93,129 +87,114 @@ export function createLiveOpsClient(
           withBase(options),
         );
       },
-      designateOperator: (eventId, input, actor = {}) =>
+      designateOperator: (eventId, input) =>
         prismRequest(
-          actorPath(`/events/${eventId}/operator-designation`, actor),
+          `/events/${eventId}/operator-designation`,
           withBase(options, { method: "POST", body: input }),
         ),
-      operatorDesignation: (eventId, actor = {}) =>
+      operatorDesignation: (eventId) =>
         prismRequest<PrismEventOperatorDesignation>(
-          actorPath(`/events/${eventId}/operator-designation`, actor),
+          `/events/${eventId}/operator-designation`,
           withBase(options),
         ),
-      revokeOperator: (eventId, actor = {}) =>
+      revokeOperator: (eventId) =>
         prismRequest<PrismEventOperatorDesignation>(
-          actorPath(`/events/${eventId}/operator-designation`, actor),
+          `/events/${eventId}/operator-designation`,
           withBase(options, { method: "DELETE" }),
         ),
-      createHandoff: (eventId, input, actor = {}) =>
+      createHandoff: (eventId, input) =>
         prismRequest<PrismEventHandoff>(
-          actorPath(`/events/${eventId}/handoffs`, actor),
+          `/events/${eventId}/handoffs`,
           withBase(options, { method: "POST", body: input }),
         ),
-      listHandoffs: (eventId, actor = {}) =>
+      listHandoffs: (eventId) =>
         prismRequest<PrismEventHandoff[]>(
-          actorPath(`/events/${eventId}/handoffs`, actor),
+          `/events/${eventId}/handoffs`,
           withBase(options),
         ),
-      handoffBrief: (eventId, actor = {}) =>
+      handoffBrief: (eventId) =>
         prismRequest<PrismHandoffBrief>(
-          actorPath(`/events/${eventId}/handoff-brief`, actor),
+          `/events/${eventId}/handoff-brief`,
           withBase(options),
         ),
-      listEodReports: (eventId, actor = {}) =>
+      listEodReports: (eventId) =>
         prismRequest<PrismEventEodReport[]>(
-          actorPath(`/events/${eventId}/eod-reports`, actor),
+          `/events/${eventId}/eod-reports`,
           withBase(options),
         ),
-      submitEodReport: (eventId, input, actor = {}) =>
+      submitEodReport: (eventId, input) =>
         prismRequest<PrismEventEodReport>(
-          actorPath(`/events/${eventId}/eod-reports`, actor),
+          `/events/${eventId}/eod-reports`,
           withBase(options, { method: "POST", body: input }),
         ),
-      replyEodReport: (eventId, reportId, input, actor = {}) =>
+      replyEodReport: (eventId, reportId, input) =>
         prismRequest<PrismEventEodReport["replies"][number]>(
-          actorPath(
-            `/events/${eventId}/eod-reports/${reportId}/replies`,
-            actor,
-          ),
+          `/events/${eventId}/eod-reports/${reportId}/replies`,
           withBase(options, { method: "POST", body: input }),
         ),
-      setEodIncompleteTasks: (eventId, reportId, input, actor = {}) =>
+      setEodIncompleteTasks: (eventId, reportId, input) =>
         prismRequest<PrismEventEodReport>(
-          actorPath(
-            `/events/${eventId}/eod-reports/${reportId}/incomplete-tasks`,
-            actor,
-          ),
+          `/events/${eventId}/eod-reports/${reportId}/incomplete-tasks`,
           withBase(options, { method: "PUT", body: input }),
         ),
-      createTask: (eventId, input, actor = {}) =>
+      createTask: (eventId, input) =>
         prismRequest<PrismEventDayTask>(
-          actorPath(`/events/${eventId}/event-day/tasks`, actor),
+          `/events/${eventId}/event-day/tasks`,
           withBase(options, { method: "POST", body: input }),
         ),
-      updateTask: (eventId, taskId, input, actor = {}) =>
+      updateTask: (eventId, taskId, input) =>
         prismRequest<PrismEventDayTask>(
-          actorPath(`/events/${eventId}/event-day/tasks/${taskId}`, actor),
+          `/events/${eventId}/event-day/tasks/${taskId}`,
           withBase(options, { method: "PATCH", body: input }),
         ),
-      blockTask: (eventId, taskId, input, actor = {}) =>
+      blockTask: (eventId, taskId, input) =>
         prismRequest<PrismEventDayTask>(
-          actorPath(`/events/${eventId}/event-day/tasks/${taskId}/block`, actor),
+          `/events/${eventId}/event-day/tasks/${taskId}/block`,
           withBase(options, { method: "POST", body: input }),
         ),
-      unblockTask: (eventId, taskId, actor = {}) =>
+      unblockTask: (eventId, taskId) =>
         prismRequest<PrismEventDayTask>(
-          actorPath(`/events/${eventId}/event-day/tasks/${taskId}/unblock`, actor),
+          `/events/${eventId}/event-day/tasks/${taskId}/unblock`,
           withBase(options, { method: "POST" }),
         ),
-      escalateTask: (eventId, taskId, input, actor = {}) =>
+      escalateTask: (eventId, taskId, input) =>
         prismRequest<PrismEventDayTask>(
-          actorPath(`/events/${eventId}/event-day/tasks/${taskId}/escalate`, actor),
+          `/events/${eventId}/event-day/tasks/${taskId}/escalate`,
           withBase(options, { method: "POST", body: input }),
         ),
-      updateUrgentIssue: (eventId, issueId, input, actor = {}) =>
+      updateUrgentIssue: (eventId, issueId, input) =>
         prismRequest<PrismUrgentIssue>(
-          actorPath(`/events/${eventId}/urgent-issues/${issueId}`, actor),
+          `/events/${eventId}/urgent-issues/${issueId}`,
           withBase(options, { method: "PATCH", body: input }),
         ),
-      escalateUrgentIssue: (eventId, issueId, input, actor = {}) =>
+      escalateUrgentIssue: (eventId, issueId, input) =>
         prismRequest<PrismUrgentIssue>(
-          actorPath(`/events/${eventId}/urgent-issues/${issueId}/escalate`, actor),
+          `/events/${eventId}/urgent-issues/${issueId}/escalate`,
           withBase(options, { method: "POST", body: input }),
         ),
-      listTaskReassignmentRequests: (eventId, actor = {}) =>
+      listTaskReassignmentRequests: (eventId) =>
         prismRequest<PrismEventTaskReassignmentRequest[]>(
-          actorPath(`/events/${eventId}/event-day/task-reassignments`, actor),
+          `/events/${eventId}/event-day/task-reassignments`,
           withBase(options),
         ),
-      requestTaskReassignment: (eventId, taskId, input, actor = {}) =>
+      requestTaskReassignment: (eventId, taskId, input) =>
         prismRequest<PrismEventTaskReassignmentRequest>(
-          actorPath(
-            `/events/${eventId}/event-day/tasks/${taskId}/reassignments`,
-            actor,
-          ),
+          `/events/${eventId}/event-day/tasks/${taskId}/reassignments`,
           withBase(options, { method: "POST", body: input }),
         ),
-      decideTaskReassignment: (eventId, requestId, input, actor = {}) =>
+      decideTaskReassignment: (eventId, requestId, input) =>
         prismRequest<PrismEventTaskReassignmentRequest>(
-          actorPath(
-            `/events/${eventId}/event-day/task-reassignments/${requestId}`,
-            actor,
-          ),
+          `/events/${eventId}/event-day/task-reassignments/${requestId}`,
           withBase(options, { method: "PATCH", body: input }),
         ),
-      updateCoordinatorAttendance: (eventId, assignmentId, input, actor = {}) =>
+      updateCoordinatorAttendance: (eventId, assignmentId, input) =>
         prismRequest<PrismCoordinatorAssignment>(
-          actorPath(
-            `/events/${eventId}/coordinators/${assignmentId}/status`,
-            actor,
-          ),
+          `/events/${eventId}/coordinators/${assignmentId}/status`,
           withBase(options, { method: "PATCH", body: input }),
         ),
-      createUrgentIssue: (eventId, input, actor = {}) =>
+      createUrgentIssue: (eventId, input) =>
         prismRequest<PrismUrgentIssue>(
-          actorPath(`/events/${eventId}/urgent-issues`, actor),
+          `/events/${eventId}/urgent-issues`,
           withBase(options, { method: "POST", body: input }),
         ),
     },

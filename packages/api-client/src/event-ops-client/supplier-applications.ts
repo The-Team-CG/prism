@@ -5,7 +5,7 @@ import type {
 } from "@prism/types";
 import { prismRequest, toQueryString } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
-import { withBase, actorPath } from "./shared";
+import { withBase } from "./shared";
 
 export function createSupplierApplicationsClient(
   options: EventOpsClientOptions,
@@ -27,14 +27,14 @@ export function createSupplierApplicationsClient(
           "/supplier-applications/categories",
           withBase(options),
         ),
-      listInbox: (actor = {}) =>
+      listInbox: () =>
         prismRequest<PrismSupplierApplication[]>(
-          actorPath("/supplier-applications/inbox", actor),
+          "/supplier-applications/inbox",
           withBase(options),
         ),
-      review: (applicationId, input, actor = {}) =>
+      review: (applicationId, input) =>
         prismRequest<PrismSupplierApplication>(
-          actorPath(`/supplier-applications/${applicationId}/review`, actor),
+          `/supplier-applications/${applicationId}/review`,
           withBase(options, { method: "PATCH", body: input }),
         ),
       resendAccountInvitation: (applicationId) =>
