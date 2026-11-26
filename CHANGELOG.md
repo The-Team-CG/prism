@@ -93,6 +93,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- Browser acceptance no longer trips the public inquiry limit: fixture and form inquiry submissions share one pace under 10 a minute. The inquiry company-name and context-notes panels also stop updating after they unmount, which removes an intermittent `window is not defined` failure in the event app's unit tests.
 - Payment verification now leads PMCM to allocate the receipt, and clients can see when verified money is still awaiting application. PMCM can review compliance risks during planning.
 - Browser acceptance exercises desktop floorplan editing and guest pass check-in, including the camera workflow with simulated QR decoding.
 

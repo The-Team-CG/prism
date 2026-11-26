@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { formatPortalDateTime } from "@prism/ui/format-date";
 import { createInquiryContextNoteSchema, INQUIRY_CONTEXT_NOTE_KINDS, INQUIRY_CONTEXT_NOTE_LABELS, parseContract, type PrismInquiryContextNote } from "@prism/types";
 import { contextNotesRepository } from "../data/context-notes-repository";
@@ -28,8 +28,12 @@ export function ContextNotesLog({ inquiryId }: { inquiryId: string }) {
   const [body, setBody] = useState("");
   const [followUpAt, setFollowUpAt] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const load = useCallback(async () => {
-    try { setNotes(await contextNotesRepository.list(inquiryId)); } catch { setNotes([]); }
+    let next: PrismInquiryContextNote[] = [];
+    try { next = await contextNotesRepository.list(inquiryId); } catch { /* unreadable notes show as empty */ }
+    if (mounted.current) setNotes(next);
   }, [inquiryId]);
   useEffect(() => { void load(); }, [load]);
 
@@ -75,7 +79,9 @@ export function ContextNotesLog({ inquiryId }: { inquiryId: string }) {
 export function PreConformeContextPanel({ eventId }: { eventId: string }) {
   const [notes, setNotes] = useState<PrismInquiryContextNote[] | null>(null);
   useEffect(() => {
-    void contextNotesRepository.forEvent(eventId).then(setNotes).catch(() => setNotes([]));
+    let current = true;
+    void contextNotesRepository.forEvent(eventId).catch((): PrismInquiryContextNote[] => []).then((next) => { if (current) setNotes(next); });
+    return () => { current = false; };
   }, [eventId]);
   return (
     <section className="rounded-lg border border-border bg-card p-5 text-sm">
