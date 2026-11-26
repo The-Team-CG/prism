@@ -16,7 +16,20 @@ export type AccountTwoStepActions = {
   enable: AccountChange<string>;
   /** Turns it off with the password. Absent where it is required (PMCM staff). */
   disable?: AccountChange<string>;
+  /** Makes a fresh set of one-time backup codes with the password; the old set stops working. */
+  makeBackupCodes?: (password: string) => Promise<{ codes: string[] } | { error: string }>;
 };
+
+/** Wraps the API call that makes backup codes as the panel expects: the codes, or the API's own reason it was refused. */
+export function twoStepBackupCodes(call: (password: string) => Promise<{ backupCodes: string[] }>): NonNullable<AccountTwoStepActions["makeBackupCodes"]> {
+  return async (password) => {
+    try {
+      return { codes: (await call(password)).backupCodes };
+    } catch (cause) {
+      return { error: cause instanceof Error && cause.message ? cause.message : "That did not go through. Try again." };
+    }
+  };
+}
 
 /** Wraps the API call that starts setup as the panel expects: the setup, or the API's own reason it was refused. */
 export function twoStepStart(call: (password: string) => Promise<PrismOwnTwoFactorSetup>): AccountTwoStepActions["start"] {
@@ -120,16 +133,59 @@ function TurnOff({ disable, onDone }: { disable: AccountChange<string>; onDone: 
   );
 }
 
-/** The two-step sign-in panel: turn it on, turn it off, or, for PMCM staff, why it stays on. */
+/** One-time backup codes for a lost phone: made with the password and shown once. */
+function BackupCodes({ make }: { make: NonNullable<AccountTwoStepActions["makeBackupCodes"]> }) {
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [codes, setCodes] = useState<string[] | null>(null);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    const result = await make(password);
+    setBusy(false);
+    if ("error" in result) return setProblem(result.error);
+    setProblem(null);
+    setPassword("");
+    setCodes(result.codes);
+  };
+  if (codes) {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-foreground">Save these backup codes now; they are not shown again. Each signs you in once if you lose your phone.</p>
+        <ul aria-label="Backup codes" className="grid w-fit grid-cols-2 gap-x-6 gap-y-1 rounded-md bg-muted p-3 font-mono text-sm">
+          {codes.map((code) => <li key={code}>{code}</li>)}
+        </ul>
+        <Button type="button" variant="outline" size="sm" onClick={() => void navigator.clipboard?.writeText(codes.join("\n"))}>Copy codes</Button>
+      </div>
+    );
+  }
+  return (
+    <form onSubmit={(event) => void submit(event)} className="space-y-3">
+      <p className="text-sm text-muted-foreground">Backup codes sign you in once each if you lose your phone. Making new ones ends the old set.</p>
+      <PasswordField value={password} onChange={setPassword} />
+      <Problem text={problem} />
+      <Button type="submit" variant="outline" disabled={busy || !password}>{busy ? "Making…" : "Make new backup codes"}</Button>
+    </form>
+  );
+}
+
+/** The two-step sign-in panel: turn it on, turn it off, or, for PMCM staff, why it stays on; plus backup codes once on. */
 export function TwoStepPanel({ enabled, required, actions, onDone }: {
   enabled: boolean;
   required: boolean;
   actions: AccountTwoStepActions;
   onDone: (note: string) => void;
 }) {
+  const backup = actions.makeBackupCodes && (enabled || required) ? <BackupCodes make={actions.makeBackupCodes} /> : null;
   if (required) {
-    return <p className="text-sm text-muted-foreground">PMCM staff always sign in with a code from their authenticator app. If you lose your phone, another PMCM admin can reset it so you set it up again at your next sign-in.</p>;
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-muted-foreground">PMCM staff always sign in with a code from their authenticator app. If you lose your phone, use a backup code, or another PMCM admin can reset it so you set it up again at your next sign-in.</p>
+        {backup}
+      </div>
+    );
   }
-  if (enabled) return actions.disable ? <TurnOff disable={actions.disable} onDone={onDone} /> : null;
+  if (enabled) return <div className="space-y-6">{actions.disable ? <TurnOff disable={actions.disable} onDone={onDone} /> : null}{backup}</div>;
   return <TurnOn actions={actions} onDone={onDone} />;
 }

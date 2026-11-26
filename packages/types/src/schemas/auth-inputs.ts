@@ -1,9 +1,18 @@
 import { z } from 'zod';
 import { nonEmptyStringSchema, privacyConsentSchema, privacyNoticeVersionSchema } from './common.js';
 
+/** A browser trusted after an authenticator code skips that step for this many days. */
+export const TRUSTED_DEVICE_DAYS = 30;
+/** Backup codes issued when an authenticator is set up, for a lost phone; each works once. */
+export const TWO_FACTOR_BACKUP_CODE_COUNT = 10;
+/** A backup code reads as two groups of four letters or digits, e.g. "k7p2-9xqm"; the dash is optional when typed. */
+export const TWO_FACTOR_BACKUP_CODE_PATTERN = /^[a-z0-9]{4}-?[a-z0-9]{4}$/i;
+
 export const loginSchema = z.object({
   email: z.string().trim().email(),
   password: nonEmptyStringSchema,
+  /** Present when this browser was trusted after an authenticator code; a valid one skips that step. */
+  trustedDeviceToken: z.string().trim().min(32).max(200).optional(),
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
@@ -104,6 +113,9 @@ export const twoFactorTokenSchema = z.object({ token: nonEmptyStringSchema });
 export type TwoFactorTokenInput = z.infer<typeof twoFactorTokenSchema>;
 
 export const verifyTwoFactorSchema = twoFactorTokenSchema.extend({
-  code: z.string().regex(/^\d{6}$/, 'Two-factor code must be six digits'),
+  /** The six digits from the authenticator app, or one of the person's backup codes. */
+  code: z.string().trim().refine((value) => /^\d{6}$/.test(value) || TWO_FACTOR_BACKUP_CODE_PATTERN.test(value), 'Enter the six-digit code or a backup code'),
+  /** Skip the authenticator step on this browser for TRUSTED_DEVICE_DAYS. */
+  trustDevice: z.boolean().optional(),
 });
 export type VerifyTwoFactorInput = z.infer<typeof verifyTwoFactorSchema>;

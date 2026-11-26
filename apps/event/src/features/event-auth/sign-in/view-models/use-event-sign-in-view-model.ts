@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { TWO_FACTOR_BACKUP_CODE_PATTERN } from "@prism/types";
 import {
   isSignInDraftValid,
   mapSignInError,
@@ -21,7 +22,13 @@ export function useEventSignInViewModel() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
-  const [phase, setPhase] = useState<"password" | "setup" | "verify">("password");
+  const [phase, setPhase] = useState<"password" | "setup" | "verify" | "backup-codes">("password");
+  /** Skip the authenticator step on this browser for 30 days. */
+  const [trustDevice, setTrustDevice] = useState(false);
+  /** Typing a backup code instead of the six digits, for a lost phone. */
+  const [usingBackupCode, setUsingBackupCode] = useState(false);
+  const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
+  const [pendingRedirect, setPendingRedirect] = useState<string | null>(null);
   const [twoFactorToken, setTwoFactorToken] = useState<string | null>(null);
   const [setupSecret, setSetupSecret] = useState<string | null>(null);
   const [otpauthUri, setOtpauthUri] = useState<string | null>(null);
@@ -46,15 +53,28 @@ export function useEventSignInViewModel() {
   }
 
   async function submitTwoFactor(next: string | null) {
-    if (!twoFactorToken || !/^\d{6}$/.test(code)) {
-      setStatus("error");
-      setError("Enter the six-digit code from your authenticator app.");
+    if (phase === "backup-codes") {
+      setStatus("ready");
+      router.replace(pendingRedirect ?? "/dashboard");
       return;
     }
-    const verified = await verifyEventTwoFactor({ token: twoFactorToken, code, nextPath: next });
+    const valid = usingBackupCode ? TWO_FACTOR_BACKUP_CODE_PATTERN.test(code.trim()) : /^\d{6}$/.test(code);
+    if (!twoFactorToken || !valid) {
+      setStatus("error");
+      setError(usingBackupCode ? "Enter one of your backup codes, like k7p2-9xqm." : "Enter the six-digit code from your authenticator app.");
+      return;
+    }
+    const verified = await verifyEventTwoFactor({ token: twoFactorToken, code, nextPath: next, email, trustDevice: phase === "verify" && trustDevice });
     if ("error" in verified) {
       setStatus("error");
       setError(verified.error ?? "Two-factor verification failed.");
+      return;
+    }
+    if (verified.backupCodes?.length) {
+      setBackupCodes(verified.backupCodes);
+      setPendingRedirect(verified.redirectTo);
+      setPhase("backup-codes");
+      setStatus("idle");
       return;
     }
     setStatus("ready");
@@ -118,6 +138,15 @@ export function useEventSignInViewModel() {
     setupSecret,
     otpauthUri,
     code,
+    trustDevice,
+    setTrustDevice,
+    usingBackupCode,
+    toggleBackupCode: () => {
+      setUsingBackupCode((current) => !current);
+      setCode("");
+      setError(null);
+    },
+    backupCodes,
     error,
     status,
     busy: status === "loading",

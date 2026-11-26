@@ -337,6 +337,9 @@ export {
 
 export {
   loginSchema,
+  TRUSTED_DEVICE_DAYS,
+  TWO_FACTOR_BACKUP_CODE_COUNT,
+  TWO_FACTOR_BACKUP_CODE_PATTERN,
   requestApprovalSchema,
   twoFactorTokenSchema,
   verifyTwoFactorSchema,

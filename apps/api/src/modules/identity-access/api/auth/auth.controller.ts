@@ -47,7 +47,7 @@ export class OpsAuthController {
   @PublicRateLimit('authentication')
   @HttpCode(HttpStatus.OK)
   login(@Body(zodBody(loginSchema)) dto: LoginInput, @Headers('user-agent') userAgent?: string) {
-    return this.authOperationsService.login(dto.email, dto.password, userAgent);
+    return this.authOperationsService.login(dto.email, dto.password, userAgent, dto.trustedDeviceToken);
   }
 
   @Post('password-reset/request')
@@ -135,7 +135,7 @@ export class OpsAuthController {
   @PublicRateLimit('authentication')
   @HttpCode(HttpStatus.OK)
   verifyTwoFactor(@Body(zodBody(verifyTwoFactorSchema)) dto: VerifyTwoFactorInput, @Headers('user-agent') userAgent?: string) {
-    return this.authOperationsService.verifyTwoFactor(dto.token, dto.code, userAgent);
+    return this.authOperationsService.verifyTwoFactor(dto.token, dto.code, userAgent, dto.trustDevice ?? false);
   }
 
   @Post('2fa/development-qr')
@@ -221,11 +221,20 @@ export class OpsAuthController {
   }
 
   /** Turns two-step sign-in on with a code from the authenticator just added. */
+  /** Returns the backup codes for a lost phone, shown once. */
   @Post('me/two-factor/enable')
   @UseGuards(EventSessionGuard)
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   enableMyTwoFactor(@Body(zodBody(enableOwnTwoFactorSchema)) dto: EnableOwnTwoFactorInput, @VerifiedEventActor() actor: PrismVerifiedEventActor) {
     return this.ownTwoFactor.enable(actor, dto.code);
+  }
+
+  /** A fresh set of backup codes with the current password; the old set stops working. */
+  @Post('me/two-factor/backup-codes')
+  @UseGuards(EventSessionGuard)
+  @HttpCode(HttpStatus.OK)
+  regenerateMyBackupCodes(@Body(zodBody(confirmOwnPasswordSchema)) dto: ConfirmOwnPasswordInput, @VerifiedEventActor() actor: PrismVerifiedEventActor) {
+    return this.ownTwoFactor.regenerateBackupCodes(actor, dto.password);
   }
 
   /** Turns two-step sign-in off; PMCM staff keep it. */

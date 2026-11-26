@@ -173,10 +173,23 @@ function createTwoFactorService(options: { purpose?: 'setup' | 'challenge'; vali
       return { count: 1 };
     }),
   };
+  const backupCodes: Array<{ userId: string; codeHash: string; usedAt: Date | null }> = [];
+  const opsTwoFactorBackupCode = {
+    deleteMany: vi.fn(async () => { backupCodes.length = 0; return { count: 0 }; }),
+    createMany: vi.fn(async ({ data }: { data: Array<{ userId: string; codeHash: string }> }) => { backupCodes.push(...data.map((row) => ({ ...row, usedAt: null }))); return { count: data.length }; }),
+    updateMany: vi.fn(async ({ where, data }: { where: { userId: string; codeHash: string }; data: { usedAt: Date } }) => {
+      const hit = backupCodes.find((row) => row.userId === where.userId && row.codeHash === where.codeHash && !row.usedAt);
+      if (hit) hit.usedAt = data.usedAt;
+      return { count: hit ? 1 : 0 };
+    }),
+  };
+  const opsTrustedDevice = { create: vi.fn(async () => ({})), findUnique: vi.fn(async () => null), updateMany: vi.fn(async () => ({ count: 0 })) };
   const prisma = {
     opsUserSession: sessionTable(),
     opsUser,
-    $transaction: vi.fn(async (callback: (tx: { opsUser: typeof opsUser; opsEmailChangeRequest: typeof opsEmailChangeRequest }) => Promise<unknown>) => callback({ opsUser, opsEmailChangeRequest })),
+    opsTwoFactorBackupCode,
+    opsTrustedDevice,
+    $transaction: vi.fn(async (callback: (tx: { opsUser: typeof opsUser; opsEmailChangeRequest: typeof opsEmailChangeRequest; opsTwoFactorBackupCode: typeof opsTwoFactorBackupCode; opsTrustedDevice: typeof opsTrustedDevice }) => Promise<unknown>) => callback({ opsUser, opsEmailChangeRequest, opsTwoFactorBackupCode, opsTrustedDevice })),
   };
   const authAudit = {
     write: vi.fn(async () => undefined),
@@ -388,6 +401,8 @@ describe('AuthOperationsService', () => {
     };
     const prisma = {
       opsUserSession: sessionTable(),
+      opsTwoFactorBackupCode: { deleteMany: vi.fn(async () => ({ count: 0 })), createMany: vi.fn(async () => ({ count: 10 })), updateMany: vi.fn(async () => ({ count: 0 })) },
+      opsTrustedDevice: { create: vi.fn(async () => ({})), findUnique: vi.fn(async () => null), updateMany: vi.fn(async () => ({ count: 0 })) },
       opsUser: {
         findUnique: vi.fn(async () => user),
         update: vi.fn(async () => user),
@@ -454,6 +469,8 @@ describe('AuthOperationsService', () => {
     };
     const prisma = {
       opsUserSession: sessionTable(),
+      opsTwoFactorBackupCode: { deleteMany: vi.fn(async () => ({ count: 0 })), createMany: vi.fn(async () => ({ count: 10 })), updateMany: vi.fn(async () => ({ count: 0 })) },
+      opsTrustedDevice: { create: vi.fn(async () => ({})), findUnique: vi.fn(async () => null), updateMany: vi.fn(async () => ({ count: 0 })) },
       opsUser: {
         findUnique: vi.fn(async () => user),
         update: vi.fn(async () => user),
@@ -562,8 +579,11 @@ describe('AuthOperationsService', () => {
     await expect(service.setupTwoFactor('setup-token')).resolves.toMatchObject({ secret: 'new-totp-secret' });
     expect(totpService.generateSecret).toHaveBeenCalledTimes(1);
 
-    await service.verifyTwoFactor('setup-token', '123456');
+    const signedIn = await service.verifyTwoFactor('setup-token', '123456');
     expect(user).toMatchObject({ twoFactorSecret: 'encrypted-new-secret', twoFactorPendingSecret: null, twoFactorLastStep: 1 });
+    // A new authenticator comes with ten one-time backup codes for a lost phone, shown once.
+    expect(signedIn.backupCodes).toHaveLength(10);
+    expect(signedIn.backupCodes?.every((code) => /^[a-z0-9]{4}-[a-z0-9]{4}$/.test(code))).toBe(true);
   });
 
   it('rejects setup-purpose misuse of a challenge token', async () => {
@@ -640,6 +660,8 @@ describe('AuthOperationsService', () => {
     };
     const prisma = {
       opsUserSession: sessionTable(),
+      opsTwoFactorBackupCode: { deleteMany: vi.fn(async () => ({ count: 0 })), createMany: vi.fn(async () => ({ count: 10 })), updateMany: vi.fn(async () => ({ count: 0 })) },
+      opsTrustedDevice: { create: vi.fn(async () => ({})), findUnique: vi.fn(async () => null), updateMany: vi.fn(async () => ({ count: 0 })) },
       opsUser: {
         findUnique: vi.fn(async () => user),
         update: vi.fn(async () => user),
@@ -928,6 +950,8 @@ describe('AuthOperationsService account recovery and sessions', () => {
     const transaction = { opsUser };
     const prisma = {
       opsUserSession: sessionTable(),
+      opsTwoFactorBackupCode: { deleteMany: vi.fn(async () => ({ count: 0 })), createMany: vi.fn(async () => ({ count: 10 })), updateMany: vi.fn(async () => ({ count: 0 })) },
+      opsTrustedDevice: { create: vi.fn(async () => ({})), findUnique: vi.fn(async () => null), updateMany: vi.fn(async () => ({ count: 0 })) },
       opsEmailChangeRequest: { findFirst: vi.fn(async () => null) },
       ...transaction,
       $transaction: vi.fn(async (callback: (tx: typeof transaction) => Promise<unknown>) => callback(transaction)),

@@ -51,7 +51,10 @@ export interface EventOpsAuthContract {
     /** Starts adding an authenticator app with the current password; two-step sign-in stays off until confirmed. */
     startMyTwoFactor(password: string): Promise<PrismOwnTwoFactorSetup>;
     /** Turns two-step sign-in on with a code from the app just added. */
-    enableMyTwoFactor(code: string): Promise<void>;
+    /** Turns two-step sign-in on; returns one-time backup codes, shown once. */
+    enableMyTwoFactor(code: string): Promise<{ backupCodes: string[] }>;
+    /** A fresh set of backup codes with the current password; the old set stops working. */
+    regenerateMyBackupCodes(password: string): Promise<{ backupCodes: string[] }>;
     /** Turns two-step sign-in off with the current password. */
     disableMyTwoFactor(password: string): Promise<void>;
     /** The browsers the signed-in person is signed in on now, this one first. */

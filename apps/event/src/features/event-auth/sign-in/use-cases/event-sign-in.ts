@@ -16,9 +16,11 @@ export async function signInToEventPortal(input: {
   password: string;
   nextPath?: string | null;
 }): Promise<EventSignInResult | { error: string }> {
+  const email = input.email.trim();
   const response = await eventAuthRepository.login({
-    email: input.email.trim(),
+    email,
     password: input.password,
+    trustedDeviceToken: eventAuthRepository.trustedDeviceToken(email),
   });
   if ("kind" in response) {
     return {
@@ -45,13 +47,19 @@ export async function getDevelopmentEventTwoFactorQr(token: string) {
   return eventAuthRepository.developmentTwoFactorQr(token);
 }
 
-export async function verifyEventTwoFactor(input: { token: string; code: string; nextPath?: string | null }) {
-  const session = await eventAuthRepository.verifyTwoFactor(input.token, input.code);
+export async function verifyEventTwoFactor(input: { token: string; code: string; nextPath?: string | null; email?: string; trustDevice?: boolean }) {
+  const session = await eventAuthRepository.verifyTwoFactor(input.token, input.code.trim(), input.trustDevice);
   if (!isEventPortalRole(session.role)) {
     void eventAuthRepository.endRejectedSession(session.accessToken);
     return { error: eventRoleRejectionMessage(session.role) } as const;
   }
   eventAuthRepository.persistSession(session);
+  if (session.trustedDeviceToken && input.email) eventAuthRepository.rememberTrustedDevice(input.email, session.trustedDeviceToken);
   const nextPath = resolveEventPostSignInPath(input.nextPath);
-  return { kind: "redirect", redirectTo: session.privacyNoticeRequired ? privacyNoticePath(nextPath) : nextPath } as const;
+  return {
+    kind: "redirect",
+    redirectTo: session.privacyNoticeRequired ? privacyNoticePath(nextPath) : nextPath,
+    /** Shown once after a new authenticator, before going on. */
+    backupCodes: session.backupCodes ?? null,
+  } as const;
 }

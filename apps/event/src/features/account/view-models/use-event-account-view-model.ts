@@ -2,7 +2,7 @@
 
 import { useInvalidate, useResource } from "@prism/portal-query";
 import { accountChange, type AccountActions } from "@prism/ui/account-page";
-import { twoStepStart } from "@prism/ui/account-two-step";
+import { twoStepStart, twoStepBackupCodes } from "@prism/ui/account-two-step";
 import { clearEventSession } from "@/app/lib/session";
 import { manilaDateKey } from "@prism/ui/format-date";
 import type { AccountIdentity, AccountLink, AccountSecuritySummary } from "@prism/ui/account-page";
@@ -35,6 +35,7 @@ export function useEventAccountViewModel() {
     twoStep: {
       start: twoStepStart(eventAccountRepository.startTwoStep),
       enable: accountChange(eventAccountRepository.enableTwoStep, () => invalidate(eventCurrentUserResource)),
+      makeBackupCodes: twoStepBackupCodes(eventAccountRepository.makeBackupCodes),
       disable: accountChange(eventAccountRepository.disableTwoStep, () => invalidate(eventCurrentUserResource)),
     },
     signOutSession: accountChange(eventAccountRepository.signOutSession, () => invalidate(eventOwnSessionsResource)),

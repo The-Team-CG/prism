@@ -35,7 +35,8 @@ export function createAuthClient(
       cancelEmailChange: () => prismRequest<void>("/auth/me/email", withBase(options, { method: "DELETE" })),
       confirmEmailChange: (token) => prismRequest("/auth/email-change/confirm", withBase(authOptions, { method: "POST", body: { token } })),
       startMyTwoFactor: (password) => prismRequest("/auth/me/two-factor/setup", withBase(options, { method: "POST", body: { password } })),
-      enableMyTwoFactor: (code) => prismRequest<void>("/auth/me/two-factor/enable", withBase(options, { method: "POST", body: { code } })),
+      enableMyTwoFactor: (code) => prismRequest<{ backupCodes: string[] }>("/auth/me/two-factor/enable", withBase(options, { method: "POST", body: { code } })),
+      regenerateMyBackupCodes: (password) => prismRequest<{ backupCodes: string[] }>("/auth/me/two-factor/backup-codes", withBase(options, { method: "POST", body: { password } })),
       disableMyTwoFactor: (password) => prismRequest<void>("/auth/me/two-factor/disable", withBase(options, { method: "POST", body: { password } })),
       mySessions: () => prismRequest("/auth/me/sessions", withBase(options, { method: "GET" })),
       signOutSession: (sessionId) =>

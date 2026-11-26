@@ -110,7 +110,7 @@ describe('OpsAuthController', () => {
     await expect(controller.me(actor)).resolves.toEqual({ id: 'u1' });
     await expect(controller.acknowledgePrivacyNotice({ version: PRISM_PRIVACY_NOTICE_VERSION }, actor)).resolves.toBeUndefined();
 
-    expect(authOperationsService.login).toHaveBeenCalledWith('maxine@pmcm.test', 'secret', 'Mozilla/5.0 (Windows NT 10.0) Chrome/131.0');
+    expect(authOperationsService.login).toHaveBeenCalledWith('maxine@pmcm.test', 'secret', 'Mozilla/5.0 (Windows NT 10.0) Chrome/131.0', undefined);
     expect(authOperationsService.requestApproval).toHaveBeenCalledWith({
       email: 'client@example.test',
       privacyConsentAccepted: true,

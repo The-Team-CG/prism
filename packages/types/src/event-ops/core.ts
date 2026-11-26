@@ -164,6 +164,10 @@ export interface PrismAuthenticatedSession extends PrismUser {
 export interface PrismSignInSession extends PrismAuthenticatedSession {
   /** True until the person acknowledges the current privacy notice version. */
   privacyNoticeRequired: boolean;
+  /** Returned once, when the person asked to trust this browser; the portal keeps it to skip the authenticator step. */
+  trustedDeviceToken?: string;
+  /** Returned once, when an authenticator was just set up: one-time codes for a lost phone. Shown, never stored. */
+  backupCodes?: string[];
 }
 
 export interface PrismTwoFactorSetupRequired {

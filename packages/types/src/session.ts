@@ -24,6 +24,8 @@ export const PRISM_SESSION_STORAGE_KEYS = {
   clientEventStageSeen: "prism:client-event-stage-seen",
   /** The newest supplier payout the signed-in supplier has seen, to mark new money on Payments. A per-browser convenience. */
   supplierPaymentsLastSeen: "prism:supplier-payments-last-seen",
+  /** Browsers trusted after an authenticator code, by sign-in email: the token that skips that step for 30 days. */
+  trustedDevices: "prism:trusted-devices",
   /** When PMCM last opened the finance desk, to mark work that arrived since. A per-browser convenience. */
   pmcmFinanceLastSeen: "prism:pmcm-finance-last-seen",
 } as const;
