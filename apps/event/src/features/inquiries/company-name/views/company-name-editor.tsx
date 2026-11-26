@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { formatPortalDateTime } from "@prism/ui/format-date";
 import { parseContract, updateInquiryCompanyNameSchema, type PrismCompanyNameChange } from "@prism/types";
 import { companyNameRepository } from "../data/company-name-repository";
@@ -14,8 +14,12 @@ export function CompanyNameEditor({ inquiryId, companyName }: { inquiryId: strin
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const load = useCallback(async () => {
-    try { setHistory(await companyNameRepository.history(inquiryId)); } catch { setHistory([]); }
+    let next: PrismCompanyNameChange[] = [];
+    try { next = await companyNameRepository.history(inquiryId); } catch { /* an unreadable history shows as empty */ }
+    if (mounted.current) setHistory(next);
   }, [inquiryId]);
   useEffect(() => { setName(companyName); setCurrent(companyName); void load(); }, [companyName, load]);
 
