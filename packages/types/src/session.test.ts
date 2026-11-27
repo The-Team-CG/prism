@@ -140,6 +140,8 @@ describe("Prism session navigation cookies", () => {
     expect(writes[writes.length - 1]).toMatch(/^prism_client_session=\S+; Path=\/; SameSite=Lax; Max-Age=(3599|3600); Secure$/);
     expect(writes[writes.length - 1]).toContain(`prism_client_session=${expiresAt};`);
     expect(writes[writes.length - 1]).not.toContain("bearer-secret");
+    // The token lives in the API's HttpOnly cookie; page storage never keeps it.
+    expect(JSON.stringify(storage.snapshot())).not.toContain("bearer-secret");
 
     clearPrismSession(PRISM_SESSION_STORAGE_KEYS.client, { storage });
     expect(writes[writes.length - 1]).toBe("prism_client_session=; Path=/; SameSite=Lax; Max-Age=0; Secure");
@@ -176,6 +178,21 @@ describe("Prism authenticated session validation", () => {
         signedInAt: "2026-07-03T04:00:00.000Z",
       }),
     ).toBe(true);
+  });
+
+  it("accepts a cookie-backed session that stores no token, and refuses a malformed one", () => {
+    const session = {
+      id: "user_client",
+      name: "Ana",
+      email: "ana@client.test",
+      role: "client",
+      organization: "Ayala",
+      approvalStatus: "approved",
+      expiresAt: "2099-07-03T12:00:00.000Z",
+      signedInAt: "2026-07-03T04:00:00.000Z",
+    };
+    expect(isPrismAuthenticatedSession(session)).toBe(true);
+    expect(isPrismAuthenticatedSession({ ...session, accessToken: 42 })).toBe(false);
   });
 
   it("treats expired or unreadable session expiry as signed out", () => {

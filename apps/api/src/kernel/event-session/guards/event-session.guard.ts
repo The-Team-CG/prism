@@ -6,6 +6,12 @@ import { PRISM_PRIVACY_NOTICE_REQUIRED_CODE, privacyNoticeRequired, type PrismVe
 import { PrismaService } from '../../database';
 import { AuthSessionService, DEVICE_SIGNED_OUT_MESSAGE } from '../services/auth-session.service';
 import { ALLOW_PENDING_PRIVACY_NOTICE_METADATA } from '../decorators/allow-pending-privacy-notice.decorator';
+import { sessionTokenFromCookie } from '../session-cookie';
+
+/** A portal without a stored token may still send "Bearer null"; that is no token, so the cookie is used instead. */
+function isPresentToken(token: string | undefined): token is string {
+  return Boolean(token) && token !== 'null' && token !== 'undefined';
+}
 
 export type EventSessionRequest = Request & {
   prismActor?: PrismVerifiedEventActor;
@@ -101,11 +107,15 @@ export class EventSessionGuard implements CanActivate {
     const authorization = request.headers.authorization;
     if (typeof authorization === 'string') {
       const [scheme, token] = authorization.split(' ');
-      if (scheme?.toLowerCase() === 'bearer' && token) return token;
+      if (scheme?.toLowerCase() === 'bearer' && isPresentToken(token)) return token;
     }
 
     const headerToken = request.headers['x-prism-session'];
-    if (typeof headerToken === 'string' && headerToken) return headerToken;
+    if (typeof headerToken === 'string' && isPresentToken(headerToken)) return headerToken;
+
+    // Portals keep the session in the API's HttpOnly cookie for their own origin (sign-in redesign, step 5).
+    const cookieToken = sessionTokenFromCookie(request);
+    if (cookieToken) return cookieToken;
 
     throw new UnauthorizedException('Missing session token');
   }

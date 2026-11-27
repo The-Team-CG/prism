@@ -9,7 +9,15 @@ import {
   type SignInDraft,
   type SignInStatus,
 } from "../model/sign-in-types";
-import { requestClientEmailCode, signInClient, signInClientWithEmailCode, verifyClientSignInCode, type SignInResult } from "../use-cases/sign-in";
+import {
+  finishFrontDoorSignIn,
+  requestClientEmailCode,
+  resumeClientCookieSession,
+  signInClient,
+  signInClientWithEmailCode,
+  verifyClientSignInCode,
+  type SignInResult,
+} from "../use-cases/sign-in";
 
 const nextFromLocation = () => (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("next") : null);
 
@@ -19,8 +27,10 @@ export const EMAIL_CODE_RESEND_SECONDS = 45;
 /** How the client proves it is them: an emailed code (the default) or their password. */
 export type ClientSignInMethod = "code" | "password";
 
-export function useSignInViewModel() {
+/** `frontDoor`: the shared "Sign in to P.R.I.S.M." page, which signs in anyone and sends them to their own portal. */
+export function useSignInViewModel({ frontDoor = false }: { frontDoor?: boolean } = {}) {
   const router = useRouter();
+  const finish = frontDoor ? finishFrontDoorSignIn : undefined;
   const [draft, setDraft] = useState<SignInDraft>(INITIAL_SIGN_IN_DRAFT);
   const [method, setMethod] = useState<ClientSignInMethod>("code");
   const [showPassword, setShowPassword] = useState(false);
@@ -42,6 +52,19 @@ export function useSignInViewModel() {
     setCodeSentTo(sentTo);
     setResendIn(EMAIL_CODE_RESEND_SECONDS);
   }, []);
+
+  // Signed in on the shared sign-in page: the API's cookie already holds this portal's session, so continue with it.
+  useEffect(() => {
+    if (frontDoor) return;
+    let active = true;
+    void resumeClientCookieSession(nextFromLocation()).then((result) => {
+      if (active && result?.kind === "signed_in") apply(result);
+    });
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on arrival
+  }, [frontDoor]);
 
   useEffect(() => {
     if (resendIn <= 0) return;
@@ -88,7 +111,9 @@ export function useSignInViewModel() {
     setSignedInUser(result.session);
     setStatus("signed_in");
     toast.success("Signed in", { description: `${result.session.name} is now signed in.` });
-    router.replace(result.redirectTo);
+    // The shared sign-in page sends suppliers and PMCM staff on to their own portal.
+    if (/^https?:\/\//.test(result.redirectTo)) window.location.assign(result.redirectTo);
+    else router.replace(result.redirectTo);
   }
 
   async function sendEmailCode() {
@@ -116,10 +141,10 @@ export function useSignInViewModel() {
   async function submit() {
     const nextPath = nextFromLocation();
     await run(async () => {
-      if (twoStepToken) return apply(await verifyClientSignInCode({ token: twoStepToken, code, nextPath }));
-      if (method === "password") return apply(await signInClient({ draft, nextPath }));
+      if (twoStepToken) return apply(await verifyClientSignInCode({ token: twoStepToken, code, nextPath, finish }));
+      if (method === "password") return apply(await signInClient({ draft, nextPath, finish }));
       if (!codeSentTo) return sendEmailCode();
-      return apply(await signInClientWithEmailCode({ email: codeSentTo, code: emailCode, nextPath }));
+      return apply(await signInClientWithEmailCode({ email: codeSentTo, code: emailCode, nextPath, finish }));
     });
   }
 

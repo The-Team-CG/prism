@@ -4,3 +4,5 @@ export * from './services/auth-session.service';
 export * from './session-config';
 export * from './decorators/verified-event-actor.decorator';
 export * from './decorators/allow-pending-privacy-notice.decorator';
+export * from './session-cookie';
+export * from './session-cookie.interceptor';

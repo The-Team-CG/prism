@@ -10,6 +10,8 @@ const useCases = vi.hoisted(() => ({
   signInClientWithEmailCode: vi.fn(async () => ({ kind: "signed_in" as const, session: { name: "Ana" }, redirectTo: "/dashboard" })),
   signInClient: vi.fn(async () => ({ kind: "signed_in" as const, session: { name: "Ana" }, redirectTo: "/dashboard" })),
   verifyClientSignInCode: vi.fn(),
+  resumeClientCookieSession: vi.fn(async () => null),
+  finishFrontDoorSignIn: vi.fn(),
 }));
 vi.mock("../use-cases/sign-in", () => useCases);
 
@@ -42,6 +44,33 @@ describe("client sign-in (sign-in redesign)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     await waitFor(() => expect(useCases.signInClientWithEmailCode).toHaveBeenCalledWith({ email: "ana@client.test", code: "123456", nextPath: null }));
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/dashboard"));
+  });
+
+  it("continues with a session the API's cookie already holds (signed in on the shared page)", async () => {
+    useCases.resumeClientCookieSession.mockResolvedValueOnce({ kind: "signed_in", session: { name: "Ana" }, redirectTo: "/dashboard" } as never);
+    render(<SignInView />);
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/dashboard"));
+  });
+
+  it("the shared \"Sign in to P.R.I.S.M.\" page sends a supplier on to the supplier portal", async () => {
+    vi.stubEnv("NEXT_PUBLIC_GUEST_PORTAL_URL", "http://guest.test");
+    const assign = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign, search: "" });
+    useCases.signInClientWithEmailCode.mockResolvedValueOnce({ kind: "signed_in", session: { name: "Sam" }, redirectTo: "http://supplier.test/sign-in" });
+    render(<SignInView frontDoor />);
+    expect(screen.getByRole("heading", { name: "Sign in to P.R.I.S.M." })).toBeTruthy();
+    expect(useCases.resumeClientCookieSession).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText("Email address"), { target: { value: "sam@supplier.test" } });
+    fireEvent.click(screen.getByRole("button", { name: "Email me a sign-in code" }));
+    await screen.findByText("Check your email");
+    typeCode("123456");
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("http://supplier.test/sign-in"));
+    expect(useCases.signInClientWithEmailCode).toHaveBeenCalledWith(expect.objectContaining({ finish: useCases.finishFrontDoorSignIn }));
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
   it("still signs in with a password for clients who prefer it", async () => {

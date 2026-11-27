@@ -45,6 +45,17 @@ export const PRISM_SESSION_COOKIE_NAMES = {
   guest: "prism_guest_session",
 } as const;
 
+/**
+ * Sign-in redesign: the API's own session cookies, one per portal. HttpOnly, so page scripts never read the token;
+ * the API picks the one matching the portal a request comes from.
+ */
+export const PRISM_API_SESSION_COOKIE_NAMES = {
+  client: "prism_api_client",
+  supplier: "prism_api_supplier",
+  event: "prism_api_event",
+} as const;
+export type PrismApiSessionPortal = keyof typeof PRISM_API_SESSION_COOKIE_NAMES;
+
 /** Guest access passes carry no expiry, so their cookie is a browser-session cookie with this value. */
 export const PRISM_OPEN_ENDED_SESSION_COOKIE_VALUE = "open-ended";
 
@@ -154,8 +165,17 @@ export function savePrismSession<TSession>(
 ) {
   const storage = sessionStorageFrom(options);
   if (!storage) return;
-  storage.setItem(key, JSON.stringify(session));
+  storage.setItem(key, JSON.stringify(withoutCookieSessionToken(key, session)));
   mirrorSessionCookie(key, session);
+}
+
+/** Client, supplier and PMCM portals sign in with the API's HttpOnly cookie, so their stored session drops the token. */
+const COOKIE_SESSION_KEYS = new Set<string>([PRISM_SESSION_STORAGE_KEYS.client, PRISM_SESSION_STORAGE_KEYS.supplier, PRISM_SESSION_STORAGE_KEYS.event]);
+
+function withoutCookieSessionToken<TSession>(key: string, session: TSession): TSession {
+  if (!COOKIE_SESSION_KEYS.has(key) || !isRecord(session) || !("accessToken" in session)) return session;
+  const { accessToken: _token, ...rest } = session as Record<string, unknown>;
+  return rest as TSession;
 }
 
 export function clearPrismSession(
@@ -177,7 +197,6 @@ const PRISM_AUTHENTICATED_SESSION_STRING_FIELDS = [
   "role",
   "organization",
   "approvalStatus",
-  "accessToken",
   "expiresAt",
   "signedInAt",
 ] as const;
@@ -191,10 +210,13 @@ function isUnexpired(expiresAt: string) {
   return !Number.isNaN(expiry) && expiry > Date.now();
 }
 
+/**
+ * A stored portal sign-in: who is signed in and until when. Since the sign-in redesign the token stays in the API's
+ * HttpOnly cookie, so a stored session has no accessToken; an older one that still carries it is accepted too.
+ */
 export function isPrismAuthenticatedSession(value: unknown): value is PrismAuthenticatedSession {
   if (!isRecord(value)) return false;
   if (!hasAuthenticatedSessionStrings(value)) return false;
-  const token = value.accessToken;
-  if (typeof token !== "string" || token.length === 0) return false;
+  if (value.accessToken !== undefined && typeof value.accessToken !== "string") return false;
   return isUnexpired(value.expiresAt as string);
 }

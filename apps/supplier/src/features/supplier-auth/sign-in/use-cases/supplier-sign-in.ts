@@ -35,6 +35,14 @@ export function finishSignIn(session: PrismSignInSession, nextPath: string | nul
   return { session, redirectTo: session.privacyNoticeRequired ? privacyNoticePath(next) : next };
 }
 
+/** A supplier already signed in by the API's cookie (from the shared sign-in page) continues without signing in again. */
+export async function resumeSupplierCookieSession(nextPath: string | null | undefined): Promise<{ session: PrismAuthenticatedSession; redirectTo: string } | null> {
+  if (supplierAuthRepository.hasSignedInSession()) return null;
+  const session = await supplierAuthRepository.cookieSession();
+  if (!session || !isSupplierRole(session.role)) return null;
+  return finishSignIn(session, nextPath);
+}
+
 export async function signInSupplier(input: {
   draft: SupplierSignInDraft;
   nextPath?: string | null;

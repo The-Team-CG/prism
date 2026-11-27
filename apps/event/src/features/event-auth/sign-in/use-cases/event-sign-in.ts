@@ -39,6 +39,16 @@ export async function signInToEventPortal(input: {
   return { kind: "redirect", redirectTo: response.privacyNoticeRequired ? privacyNoticePath(nextPath) : nextPath, session };
 }
 
+/** PMCM staff already signed in by the API's cookie (from the shared sign-in page) continue without signing in again. */
+export async function resumeEventCookieSession(nextPath: string | null | undefined): Promise<{ redirectTo: string } | null> {
+  if (eventAuthRepository.hasSignedInSession()) return null;
+  const session = await eventAuthRepository.cookieSession();
+  if (!session || !isEventPortalRole(session.role)) return null;
+  eventAuthRepository.persistSession(session);
+  const next = resolveEventPostSignInPath(nextPath, session.role);
+  return { redirectTo: session.privacyNoticeRequired ? privacyNoticePath(next) : next };
+}
+
 export async function beginEventTwoFactorSetup(token: string) {
   return eventAuthRepository.setupTwoFactor(token);
 }

@@ -13,6 +13,7 @@ import {
 import type { SupplierSignInDraft, SupplierSignInStatus } from "../model/supplier-sign-in-types";
 import {
   loadExistingSupplierSession,
+  resumeSupplierCookieSession,
   requestSupplierApproval,
   requestSupplierEmailCode,
   signInSupplier,
@@ -50,8 +51,21 @@ export function useSupplierSignInViewModel() {
 
   useEffect(() => {
     const current = loadExistingSupplierSession();
-    if (isExistingSupplierSession(current)) setExisting(current);
-  }, []);
+    if (isExistingSupplierSession(current)) {
+      setExisting(current);
+      return;
+    }
+    // Signed in on the shared sign-in page: the API's cookie already holds this portal's session, so continue with it.
+    let active = true;
+    void resumeSupplierCookieSession(nextFromLocation()).then((result) => {
+      if (!active || !result) return;
+      setStatus("ready");
+      router.replace(result.redirectTo);
+    });
+    return () => {
+      active = false;
+    };
+  }, [router]);
 
   useEffect(() => {
     const sentTo = new URLSearchParams(window.location.search).get("code-sent");

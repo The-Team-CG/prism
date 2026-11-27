@@ -149,10 +149,12 @@ async function parseResponseBody(response: Response): Promise<unknown> {
 function handleErrorResponse(
   status: number,
   responseBody: unknown,
-  { authToken, onUnauthorized, onPrivacyNoticeRequired }: Pick<PrismRequestInit, "authToken" | "onUnauthorized" | "onPrivacyNoticeRequired">,
+  { authToken, credentials, onUnauthorized, onPrivacyNoticeRequired }: Pick<PrismRequestInit, "authToken" | "credentials" | "onUnauthorized" | "onPrivacyNoticeRequired">,
 ): never {
-  if (status === 401 && authToken) onUnauthorized?.();
-  if (status === 403 && authToken && isPrivacyNoticeRequiredBody(responseBody)) onPrivacyNoticeRequired?.();
+  // A request signed in by a bearer token or by the portal's session cookie can find that session expired.
+  const signedIn = Boolean(authToken) || (credentials ?? sessionCookieCredentials) === "include";
+  if (status === 401 && signedIn) onUnauthorized?.();
+  if (status === 403 && signedIn && isPrivacyNoticeRequiredBody(responseBody)) onPrivacyNoticeRequired?.();
   throw new PrismApiError(status, responseBody);
 }
 
@@ -173,10 +175,20 @@ export class PrismApiOfflineError extends Error {
   }
 }
 
+let sessionCookieCredentials: RequestCredentials | undefined;
+
+/**
+ * Sign-in redesign: a portal that keeps its session in the API's HttpOnly cookie turns this on once, so every API call
+ * carries that cookie. The guest portal signs in with access codes and does not.
+ */
+export function enablePrismSessionCookies() {
+  sessionCookieCredentials = "include";
+}
+
 /** `fetch` rejects with a TypeError only when the request could not be sent; every portal shows the same message for that. */
 async function fetchApi(url: string, init: RequestInit): Promise<Response> {
   try {
-    return await fetch(url, init);
+    return await fetch(url, sessionCookieCredentials && !init.credentials ? { ...init, credentials: sessionCookieCredentials } : init);
   } catch (error) {
     if (error instanceof TypeError) throw new PrismApiOfflineError();
     throw error;
@@ -211,7 +223,7 @@ export async function prismRequest<T>(path: string, init: PrismRequestInit = {})
   const response = await fetchApi(`${resolvePrismApiBaseUrl(baseUrl)}${path}`, request);
   const responseBody = await parseResponseBody(response);
 
-  if (!response.ok) handleErrorResponse(response.status, responseBody, { authToken, onUnauthorized, onPrivacyNoticeRequired });
+  if (!response.ok) handleErrorResponse(response.status, responseBody, { authToken, credentials: requestInit.credentials, onUnauthorized, onPrivacyNoticeRequired });
   return unwrapData<T>(responseBody);
 }
 
@@ -233,7 +245,7 @@ export async function prismFile(path: string, init: PrismRequestInit = {}, fallb
     ...requestInit,
     headers: { ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}), ...(headers ?? {}) },
   });
-  if (!response.ok) handleErrorResponse(response.status, await parseResponseBody(response), { authToken, onUnauthorized, onPrivacyNoticeRequired });
+  if (!response.ok) handleErrorResponse(response.status, await parseResponseBody(response), { authToken, credentials: requestInit.credentials, onUnauthorized, onPrivacyNoticeRequired });
   return { blob: await response.blob(), fileName: fileNameFrom(response.headers.get("Content-Disposition"), fallbackName) };
 }
 

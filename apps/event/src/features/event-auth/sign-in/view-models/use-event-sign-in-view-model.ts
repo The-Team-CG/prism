@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TWO_FACTOR_BACKUP_CODE_PATTERN } from "@prism/types";
 import {
@@ -8,7 +8,7 @@ import {
   mapSignInError,
 } from "../model/event-sign-in-rules";
 import { nextPathFromSearch } from "../model/event-sign-in-copy";
-import { beginEventTwoFactorSetup, getDevelopmentEventTwoFactorQr, signInToEventPortal, verifyEventTwoFactor } from "../use-cases/event-sign-in";
+import { beginEventTwoFactorSetup, getDevelopmentEventTwoFactorQr, resumeEventCookieSession, signInToEventPortal, verifyEventTwoFactor } from "../use-cases/event-sign-in";
 
 function readNextPath() {
   if (typeof window === "undefined") return null;
@@ -33,6 +33,19 @@ export function useEventSignInViewModel() {
   const [setupSecret, setSetupSecret] = useState<string | null>(null);
   const [otpauthUri, setOtpauthUri] = useState<string | null>(null);
   const [code, setCode] = useState("");
+
+  // Signed in on the shared sign-in page: the API's cookie already holds this portal's session, so continue with it.
+  useEffect(() => {
+    let active = true;
+    void resumeEventCookieSession(readNextPath()).then((result) => {
+      if (!active || !result) return;
+      setStatus("ready");
+      router.replace(result.redirectTo);
+    });
+    return () => {
+      active = false;
+    };
+  }, [router]);
 
   async function toggleDevelopmentQr() {
     if (process.env.NODE_ENV !== "development" || phase !== "verify" || !twoFactorToken || status === "loading") return;

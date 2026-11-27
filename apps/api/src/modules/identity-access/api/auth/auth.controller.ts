@@ -1,7 +1,7 @@
-import { Body, Controller, Delete, Get, Header, Headers, HttpCode, HttpStatus, InternalServerErrorException, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Headers, HttpCode, HttpStatus, InternalServerErrorException, Param, Patch, Post, Req, UseGuards, UseInterceptors } from '@nestjs/common';
 import type { Request } from 'express';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
-import { AllowPendingPrivacyNotice, EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
+import { AllowPendingPrivacyNotice, ClearSessionCookieInterceptor, EventSessionGuard, SetSessionCookieInterceptor, VerifiedEventActor } from '@prism/kernel/event-session';
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { PublicRateLimit, zodBody } from '@prism/kernel/shared';
@@ -44,6 +44,7 @@ export class OpsAuthController {
   }
 
   @Post('login')
+  @UseInterceptors(SetSessionCookieInterceptor)
   @PublicRateLimit('authentication')
   @HttpCode(HttpStatus.OK)
   login(@Body(zodBody(loginSchema)) dto: LoginInput, @Headers('user-agent') userAgent?: string) {
@@ -73,6 +74,7 @@ export class OpsAuthController {
 
   /** Answers like a password sign-in: a session, or the authenticator step for an account that turned it on. */
   @Post('email-code/verify')
+  @UseInterceptors(SetSessionCookieInterceptor)
   @PublicRateLimit('authentication')
   @HttpCode(HttpStatus.OK)
   verifyEmailSignInCode(@Body(zodBody(verifyEmailSignInCodeSchema)) dto: VerifyEmailSignInCodeInput, @Headers('user-agent') userAgent?: string) {
@@ -103,6 +105,7 @@ export class OpsAuthController {
 
   /** A client or supplier confirms their invitation and is signed straight in, without setting a password. */
   @Post('activate/confirm')
+  @UseInterceptors(SetSessionCookieInterceptor)
   @PublicRateLimit('authentication')
   @HttpCode(HttpStatus.OK)
   async confirmInvitation(@Body(zodBody(invitationTokenSchema)) dto: InvitationTokenInput, @Headers('user-agent') userAgent?: string) {
@@ -132,6 +135,7 @@ export class OpsAuthController {
   }
 
   @Post('2fa/verify')
+  @UseInterceptors(SetSessionCookieInterceptor)
   @PublicRateLimit('authentication')
   @HttpCode(HttpStatus.OK)
   verifyTwoFactor(@Body(zodBody(verifyTwoFactorSchema)) dto: VerifyTwoFactorInput, @Headers('user-agent') userAgent?: string) {
@@ -160,6 +164,7 @@ export class OpsAuthController {
   }
 
   @Post('logout')
+  @UseInterceptors(ClearSessionCookieInterceptor)
   @UseGuards(EventSessionGuard)
   @AllowPendingPrivacyNotice()
   @HttpCode(HttpStatus.NO_CONTENT)

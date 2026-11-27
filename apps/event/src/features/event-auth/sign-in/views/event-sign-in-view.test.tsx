@@ -1,18 +1,22 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { beginEventTwoFactorSetup, getDevelopmentEventTwoFactorQr, signInToEventPortal, verifyEventTwoFactor } from "../use-cases/event-sign-in";
+import { beginEventTwoFactorSetup, getDevelopmentEventTwoFactorQr, resumeEventCookieSession, signInToEventPortal, verifyEventTwoFactor } from "../use-cases/event-sign-in";
 import { EventSignInView } from "./event-sign-in-view";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
+const router = vi.hoisted(() => ({ replace: (() => undefined) as (path: string) => void }));
+vi.mock("next/navigation", () => ({ useRouter: () => router }));
 vi.mock("../use-cases/event-sign-in", () => ({
   beginEventTwoFactorSetup: vi.fn(),
   getDevelopmentEventTwoFactorQr: vi.fn(),
+  resumeEventCookieSession: vi.fn(),
   signInToEventPortal: vi.fn(),
   verifyEventTwoFactor: vi.fn(),
 }));
 
 beforeEach(() => {
+  router.replace = vi.fn();
+  vi.mocked(resumeEventCookieSession).mockResolvedValue(null);
   vi.mocked(signInToEventPortal).mockResolvedValue({ kind: "two_factor", token: "challenge-fixture", setupRequired: false });
   vi.mocked(getDevelopmentEventTwoFactorQr).mockResolvedValue({ otpauthUri: "otpauth://totp/test" });
 });
@@ -29,6 +33,14 @@ async function passwordSignIn() {
   fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
   await screen.findByLabelText("Authenticator code");
 }
+
+describe("arriving from the shared sign-in page (sign-in redesign)", () => {
+  it("continues with the session the API's cookie already holds, without asking to sign in again", async () => {
+    vi.mocked(resumeEventCookieSession).mockResolvedValue({ redirectTo: "/dashboard" });
+    render(<EventSignInView />);
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/dashboard"));
+  });
+});
 
 describe("authenticator QR rescan", () => {
   it("fetches the QR only when requested in development, and lets it be hidden again", async () => {

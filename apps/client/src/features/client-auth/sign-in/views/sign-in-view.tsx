@@ -5,18 +5,36 @@ import { FormEvent } from "react";
 import { PrismAuthShell, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
 import { PrismAuthAlternative, PrismAuthEmailField, PrismAuthError, PrismAuthLinks, PrismAuthPasswordField, PrismAuthSubmit, PrismEmailCodeStep } from "@prism/ui/auth-form";
 import { Button } from "@prism/ui/components/button";
-import { EMAIL_SIGN_IN_CODE_TTL_MINUTES } from "@prism/types";
+import { EMAIL_SIGN_IN_CODE_TTL_MINUTES, portalUrlFor } from "@prism/types";
 import { SignInCodeStep } from "@prism/ui/sign-in-code-step";
-import { CLIENT_PORTAL_POINTS, CLIENT_PORTAL_STATEMENT } from "../model/client-portal-copy";
-import { pmcmSupportContactFromEnvironment } from "@/lib/portal-urls";
+import { CLIENT_PORTAL_POINTS, CLIENT_PORTAL_STATEMENT, FRONT_DOOR_POINTS, FRONT_DOOR_STATEMENT } from "../model/client-portal-copy";
+import { pmcmSupportContactFromEnvironment, portalUrlsFromEnvironment } from "@/lib/portal-urls";
 import { useSignInViewModel } from "../view-models/use-sign-in-view-model";
 
 type SignInVm = ReturnType<typeof useSignInViewModel>;
 
 const ERROR_ID = "sign-in-error";
 
-export function SignInView() {
-  const vm = useSignInViewModel();
+/** `frontDoor`: the shared "Sign in to P.R.I.S.M." page for clients, suppliers and PMCM staff alike. */
+export function SignInView({ frontDoor = false }: { frontDoor?: boolean } = {}) {
+  const vm = useSignInViewModel({ frontDoor });
+
+  if (frontDoor) {
+    return (
+      <PrismAuthShell
+        portal="client"
+        portalName="P.R.I.S.M. by PMCM"
+        statement={FRONT_DOOR_STATEMENT}
+        points={FRONT_DOOR_POINTS}
+        homeHref="/"
+        title="Sign in to P.R.I.S.M."
+        description="Use the email PMCM has on file for you."
+        footer={<PrismAccountHelp contact={pmcmSupportContactFromEnvironment()} topic="signing in" />}
+      >
+        {vm.twoStepToken ? <CodeForm vm={vm} /> : vm.codeSentTo ? <EmailCodeForm vm={vm} /> : <SignInForm vm={vm} frontDoor />}
+      </PrismAuthShell>
+    );
+  }
 
   return (
     <PrismAuthShell
@@ -94,7 +112,7 @@ function EmailCodeForm({ vm }: { vm: SignInVm }) {
   );
 }
 
-function SignInForm({ vm }: { vm: SignInVm }) {
+function SignInForm({ vm, frontDoor = false }: { vm: SignInVm; frontDoor?: boolean }) {
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void vm.submit();
@@ -122,7 +140,11 @@ function SignInForm({ vm }: { vm: SignInVm }) {
           {byCode ? "Sign in with password" : "Email me a code instead"}
         </Button>
       </PrismAuthAlternative>
-      <PrismAuthLinks primary={{ href: "/sign-up", label: "Need access? Request here" }} secondary={{ href: "/inquiry", label: "No inquiry yet?" }} />
+      {frontDoor ? (
+        <PrismAuthLinks primary={{ href: portalUrlFor("guest", portalUrlsFromEnvironment()), label: "Have an event code? Guest entry" }} secondary={{ href: "/inquiry", label: "No account? Start an inquiry" }} />
+      ) : (
+        <PrismAuthLinks primary={{ href: "/sign-up", label: "Need access? Request here" }} secondary={{ href: "/inquiry", label: "No inquiry yet?" }} />
+      )}
     </form>
   );
 }

@@ -27,6 +27,7 @@ export {
   PrismApiOfflineError,
   normalizePrismApiProblem,
   prismRequest,
+  enablePrismSessionCookies,
   prismSse,
   resolvePrismApiBaseUrl,
   resolvePrismApiOrigin,

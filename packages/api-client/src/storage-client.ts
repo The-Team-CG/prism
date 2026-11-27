@@ -71,6 +71,7 @@ async function uploadBytes(objectId: string, location: PrismStorageUploadLocatio
     : { "Content-Type": contentType };
   try {
     const result = await fetch(target, {
+      ...(localUpload ? { credentials: "include" as const } : {}),
       method: localUpload ? "POST" : "PUT",
       headers,
       body: file,
@@ -135,6 +136,7 @@ export async function getEventCoverImage(eventId: string, options: StorageClient
   const authorization = await prismRequest<{ downloadUrl: string; expiresAt: string }>(route, { authToken: options.authToken, baseUrl });
   if (!authorization.downloadUrl.startsWith("localfs://")) return { url: authorization.downloadUrl };
   const response = await fetch(`${baseUrl}${route}/content`, {
+    credentials: "include",
     headers: {
       "x-prism-storage-authorization": authorization.downloadUrl,
       ...(options.authToken ? { Authorization: `Bearer ${options.authToken}` } : {}),
@@ -160,6 +162,7 @@ export async function getStorageObjectDownload(
       ? `${baseUrl}/storage/objects/${encodeURIComponent(objectId)}/content`
       : authorization.downloadUrl,
     {
+      ...(localFileSystem ? { credentials: "include" as const } : {}),
       headers: {
         ...(localFileSystem ? { "x-prism-storage-authorization": authorization.downloadUrl } : {}),
         ...(localFileSystem && options.authToken ? { Authorization: `Bearer ${options.authToken}` } : {}),

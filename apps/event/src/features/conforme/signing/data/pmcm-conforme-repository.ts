@@ -15,7 +15,8 @@ export const pmcmConformeRepository = {
   /** PMCM-only printable copy of the latest conforme document, for physical signing. */
   async latestPdf(inquiryId: string): Promise<Blob> {
     const response = await fetch(apiUrl(`/api/inquiries/${encodeURIComponent(inquiryId)}/conforme-executions/latest/pdf`), {
-      headers: { Authorization: `Bearer ${storedEventAccessToken()}` },
+      credentials: "include",
+      headers: storedEventAccessToken() ? { Authorization: `Bearer ${storedEventAccessToken()}` } : {},
     });
     if (response.status === 404) throw new Error("Prepare the in-app conforme before downloading its PDF.");
     if (!response.ok) throw new Error("Unable to download the conforme PDF.");

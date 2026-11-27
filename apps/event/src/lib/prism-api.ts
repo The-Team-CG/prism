@@ -1,5 +1,6 @@
 import {
   createEventOpsClient,
+  enablePrismSessionCookies,
   createPmcmClient,
   resolvePrismApiOrigin,
   prismRequest,
@@ -7,6 +8,9 @@ import {
 } from "@prism/api-client";
 import { PRISM_SESSION_STORAGE_KEYS, clearPrismSession, isPrismAuthenticatedSession, privacyNoticePath } from "@prism/types";
 import { portalAppPath, portalHref } from "@prism/ui/portal-path";
+
+// The session token lives in the API's HttpOnly cookie for this portal; every API call sends it.
+enablePrismSessionCookies();
 
 /** The API rejected the stored session: sign out locally and return here after sign-in. */
 function expireEventSession() {

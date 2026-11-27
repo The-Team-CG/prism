@@ -43,6 +43,30 @@ export const clientAuthRepository = {
     return clientApi.auth.verifyTwoFactor({ token, code });
   },
 
+  /**
+   * The session the API's HttpOnly cookie holds for this portal, shaped like a sign-in, or null when there is none.
+   * The token itself stays in the cookie.
+   */
+  async cookieSession(): Promise<PrismSignInSession | null> {
+    try {
+      const me = await clientApi.auth.me();
+      return {
+        id: me.id,
+        name: me.name,
+        email: me.email,
+        role: me.role,
+        organization: me.organization,
+        approvalStatus: "approved",
+        accessToken: "",
+        expiresAt: me.expiresAt,
+        signedInAt: new Date().toISOString(),
+        privacyNoticeRequired: me.privacyNoticeRequired,
+      };
+    } catch {
+      return null;
+    }
+  },
+
   hasSignedInSession(): boolean {
     return isPrismAuthenticatedSession(readPrismSession(PRISM_SESSION_STORAGE_KEYS.client));
   },

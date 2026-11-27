@@ -30,6 +30,7 @@ export function withBase(
     ...init,
     authToken: init.authToken ?? options.getAuthToken?.() ?? null,
     baseUrl: init.baseUrl ?? options.baseUrl,
+    ...(options.credentials && !init.credentials ? { credentials: options.credentials } : {}),
     onUnauthorized: init.onUnauthorized ?? options.onUnauthorized,
     onPrivacyNoticeRequired: init.onPrivacyNoticeRequired ?? options.onPrivacyNoticeRequired,
   };

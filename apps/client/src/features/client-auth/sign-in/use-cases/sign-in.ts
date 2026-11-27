@@ -1,5 +1,6 @@
 import { clientAuthRepository } from "../data/client-auth-repository";
 import {
+  frontDoorPortalSignInUrl,
   isClientRole,
   mapSignInError,
   mapSignInFailure,
@@ -27,13 +28,40 @@ export function finishSignIn(session: PrismSignInSession, nextPath: string | nul
   return { kind: "signed_in", session, redirectTo: session.privacyNoticeRequired ? privacyNoticePath(next) : next };
 }
 
+/** How a finished sign-in is handled: the client portal keeps clients only; the shared front door sends anyone home. */
+export type FinishSignIn = (session: PrismSignInSession, nextPath: string | null | undefined) => SignInResult;
+
+/**
+ * The shared "Sign in to P.R.I.S.M." page: clients continue here, suppliers and PMCM staff go to their portal, whose
+ * sign-in page picks up the session cookie the API set for it. Nobody signs in twice.
+ */
+export function finishFrontDoorSignIn(session: PrismSignInSession, nextPath: string | null | undefined): SignInResult {
+  if (isClientRole(session.role)) return finishSignIn(session, nextPath);
+  const portalSignIn = frontDoorPortalSignInUrl(session.role);
+  if (!portalSignIn) {
+    void clientAuthRepository.endRejectedSession(session.accessToken);
+    return { kind: "error", error: portalMessage(session.role), restart: true };
+  }
+  return { kind: "signed_in", session, redirectTo: portalSignIn };
+}
+
+/** A client already signed in by the API's cookie (from the shared sign-in page) continues without signing in again. */
+export async function resumeClientCookieSession(nextPath: string | null | undefined): Promise<SignInResult | null> {
+  if (clientAuthRepository.hasSignedInSession()) return null;
+  const session = await clientAuthRepository.cookieSession();
+  if (!session || !isClientRole(session.role)) return null;
+  return finishSignIn(session, nextPath);
+}
+
 export async function signInClient(input: {
   draft: SignInDraft;
   nextPath?: string | null;
+  finish?: FinishSignIn;
 }): Promise<SignInResult> {
+  const finish = input.finish ?? finishSignIn;
   try {
     const response = await clientAuthRepository.login(input.draft);
-    if (!("kind" in response)) return finishSignIn(response, input.nextPath);
+    if (!("kind" in response)) return finish(response, input.nextPath);
     // Only PMCM admins are asked to set two-step sign-in up while signing in, and they belong in the event portal.
     if (response.kind === "two_factor_setup_required") return { kind: "error", error: portalMessage("pmcm-admin") };
     return { kind: "two_step", token: response.token };
@@ -55,10 +83,11 @@ export async function requestClientEmailCode(email: string): Promise<{ kind: "se
 }
 
 /** Signs in with the emailed code; an account with two-step sign-in on still gets its authenticator step. */
-export async function signInClientWithEmailCode(input: { email: string; code: string; nextPath?: string | null }): Promise<SignInResult> {
+export async function signInClientWithEmailCode(input: { email: string; code: string; nextPath?: string | null; finish?: FinishSignIn }): Promise<SignInResult> {
+  const finish = input.finish ?? finishSignIn;
   try {
     const response = await clientAuthRepository.verifyEmailCode(input.email, input.code);
-    if (!("kind" in response)) return finishSignIn(response, input.nextPath);
+    if (!("kind" in response)) return finish(response, input.nextPath);
     if (response.kind === "two_factor_setup_required") return { kind: "error", error: portalMessage("pmcm-admin") };
     return { kind: "two_step", token: response.token };
   } catch (err) {
@@ -70,9 +99,11 @@ export async function verifyClientSignInCode(input: {
   token: string;
   code: string;
   nextPath?: string | null;
+  finish?: FinishSignIn;
 }): Promise<SignInResult> {
+  const finish = input.finish ?? finishSignIn;
   try {
-    return finishSignIn(await clientAuthRepository.verifyTwoStep(input.token, input.code), input.nextPath);
+    return finish(await clientAuthRepository.verifyTwoStep(input.token, input.code), input.nextPath);
   } catch (err) {
     const problem = signInCodeProblem(mapSignInError(err));
     return { kind: "error", error: problem.text, restart: problem.restart };
