@@ -1,6 +1,6 @@
 -- prism-owner: event-lifecycle
 -- prism-kind: schema
--- prism-risk: low
+-- prism-risk: medium
 
 -- UAT 5.3: when the signed conforme activated the client portal. Commercial issues the billing statement from the
 -- approved proposal for events with this set and no billing source yet. Nullable: earlier events are not backfilled.

@@ -102,8 +102,12 @@ export function createContext() {
     return created;
   }
 
+  /** The event's issued proposal: the one the client already approved (events open that way now), or a new minimal one. */
   async function issueMinimalProposal(eventId) {
     const admin = await as("admin");
+    const existing = expectStatus(await http("GET", `/pmcm/events/${eventId}/workspace`, { token: admin }), 200)
+      .documents.find((item) => item.type === "proposal" && item.status === "issued");
+    if (existing) return { version: null, document: existing };
     const estimate = expectStatus(await http("POST", `/events/${eventId}/cost-estimates`, { token: admin, body: { budgetAmount: 100000, lines: [{ category: "Venue", description: "Event scope", quantity: 1, unitAmount: 100000 }], notes: "" } }), 201);
     const version = expectStatus(await http("POST", `/events/${eventId}/proposal/versions`, { token: admin, body: { costEstimateId: estimate.id, title: "Event scope proposal", summary: "Agreed event scope", revisionNote: "" } }), 201);
     const workspace = expectStatus(await http("GET", `/pmcm/events/${eventId}/workspace`, { token: admin }), 200);

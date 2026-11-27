@@ -10,15 +10,15 @@ BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '60s';
 
-UPDATE "event_lifecycle"."events" AS e
+UPDATE "event_lifecycle"."events"
 SET "client_portal_status" = 'limited',
-    "status" = CASE WHEN e."status" = 'inquiry' THEN 'briefing' ELSE e."status" END,
-    "readiness" = CASE WHEN e."status" = 'inquiry' THEN 'Client briefing open' ELSE e."readiness" END
-FROM "event_lifecycle"."inquiries" AS i
-WHERE e."inquiry_id" = i."id"
-  AND e."client_portal_status" = 'locked'
-  AND e."archived" = false
-  AND i."status" = 'accepted'
-  AND i."conforme_signed_at" IS NULL;
+    "readiness" = CASE WHEN "status" = 'inquiry' THEN 'Client briefing open' ELSE "readiness" END,
+    "status" = CASE WHEN "status" = 'inquiry' THEN 'briefing' ELSE "status" END
+WHERE "client_portal_status" = 'locked'
+  AND "archived" = false
+  AND "inquiry_id" IN (
+    SELECT "id" FROM "event_lifecycle"."inquiries"
+    WHERE "status" = 'accepted' AND "conforme_signed_at" IS NULL
+  );
 
 COMMIT;

@@ -19,7 +19,7 @@ function verifiedActor(id: string, role: OpsUserRole, name: string, email: strin
 }
 
 describe.skipIf(!live)('conforme dual acknowledgment activation against PostgreSQL', () => {
-  it('activates one event only after matching client and PMCM signatures and makes exact retries idempotent', async () => {
+  it('opens a limited portal on acceptance, waits for the approved proposal, and unlocks it only after matching client and PMCM signatures; exact retries are idempotent', async () => {
     const url = databaseUrl!;
     process.env.P0_TEST_DATABASE_URL = url;
     process.env.DATABASE_URL = url;
@@ -61,6 +61,10 @@ describe.skipIf(!live)('conforme dual acknowledgment activation against PostgreS
       expect(accepted.portalInvitationExpiresAt).toBeInstanceOf(Date);
       await inquiries.updateInquiryStatus(inquiryId, { status: 'accepted' }, acceptor);
       expect(provision).toHaveBeenCalledOnce();
+      // Acceptance opens the briefing-and-proposal portal; the conforme waits for the client's approved proposal.
+      expect(await prisma.opsEvent.findFirstOrThrow({ where: { inquiryId } })).toMatchObject({ clientPortalStatus: 'limited' });
+      await expect(signing.createExecution(inquiryId, { templateVersion: 1, templateContent: template }, pmcm)).rejects.toThrow('The conforme comes after the proposal');
+      await prisma.opsEvent.updateMany({ where: { inquiryId }, data: { proposalClientStatus: 'approved' } });
       const prepared = await signing.createExecution(inquiryId, { templateVersion: 1, templateContent: template }, pmcm);
       const signInput = {
         executionId: prepared.id,
@@ -72,11 +76,11 @@ describe.skipIf(!live)('conforme dual acknowledgment activation against PostgreS
       await expect(signing.signForPmcm(inquiryId, signInput, pmcm, {})).rejects.toThrow('The client must sign before PMCM countersigns');
       await expect(signing.signForClient(signInput, wrongClient, {})).rejects.toThrow('not linked to the verified client account');
       await expect(signing.signForClient({ ...signInput, documentSha256: '0'.repeat(64) }, client, {})).rejects.toThrow('displayed conforme version has changed');
-      expect(await prisma.opsEvent.count({ where: { inquiryId } })).toBe(0);
+      expect(await prisma.opsEvent.findFirstOrThrow({ where: { inquiryId } })).toMatchObject({ clientPortalStatus: 'limited' });
 
       const afterClient = await signing.signForClient(signInput, client, { ip: '127.0.0.1', userAgent: 'portal-integration-test' });
       expect(afterClient.status).toBe('awaiting_pmcm');
-      expect(await prisma.opsEvent.count({ where: { inquiryId } })).toBe(0);
+      expect(await prisma.opsEvent.findFirstOrThrow({ where: { inquiryId } })).toMatchObject({ clientPortalStatus: 'limited' });
       const stillPending = await prisma.opsInquiry.findUniqueOrThrow({ where: { id: inquiryId } });
       expect(stillPending.conformeSignedAt).toBeNull();
       expect(stillPending.portalActivatedAt).toBeNull();
@@ -86,7 +90,7 @@ describe.skipIf(!live)('conforme dual acknowledgment activation against PostgreS
       expect(completed.signatures.map((signature) => signature.actorRole)).toEqual(expect.arrayContaining(['client', 'pmcm']));
       expect(completed.signatures).toHaveLength(2);
       const event = await prisma.opsEvent.findFirstOrThrow({ where: { inquiryId } });
-      expect(event).toMatchObject({ status: 'briefing', clientPortalStatus: 'unlocked', archived: false });
+      expect(event).toMatchObject({ clientPortalStatus: 'unlocked', archived: false });
       expect(await prisma.opsEvent.count({ where: { inquiryId } })).toBe(1);
       expect(await prisma.opsPostEventDocument.count({ where: { eventId: event.id } })).toBe(2);
 

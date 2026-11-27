@@ -383,7 +383,7 @@ export async function run(ctx) {
     s.C = await ctx.newEvent({ label: "Archive comparison", eventDate: await ctx.reserveDate() });
     await ctx.prepareEventDay(s.C.eventId, await s.C.as());
     expectStatus(await http("POST", `/events/${s.C.eventId}/start-event-day`, { token: admin, body: {} }), 200);
-    expectStatus(await http("POST", `/events/${s.C.eventId}/actual-end`, { token: admin, body: { actualEndedAt: hoursAgo(24 * 8) } }), 200, 201);
+    expectStatus(await http("POST", `/events/${s.C.eventId}/actual-end`, { token: admin, body: { actualEndedAt: hoursAgo(24 * 8), correctionReason: "Recorded late: the event ended over a week ago" } }), 200, 201);
     const event = expectStatus(await http("GET", `/events/${s.C.eventId}`, { token: admin }), 200);
     expect(event.archived === false, "recording an end older than the wrap-up window silently archived the event");
     return "elapsed wrap-up alone leaves archive requiring explicit PMCM action";

@@ -742,9 +742,7 @@ export async function run(ctx) {
   await step("a third event is ready for postponement and cancellation", async () => {
     s.dc = await ctx.newEvent({ label: "FFC Decision" });
     s.dcClient = await s.dc.as();
-    // The cancellation fee is 10-15% of the issued proposal; a PHP 250,000 proposal makes the PHP 25,000 fee below valid.
-    const estimate = expectStatus(await http("POST", `/events/${s.dc.eventId}/cost-estimates`, { token: s.admin, body: { budgetAmount: 250000, lines: [{ category: "Venue", description: "Event scope", quantity: 1, unitAmount: 250000 }], notes: "" } }), 201);
-    expectStatus(await http("POST", `/events/${s.dc.eventId}/proposal/versions`, { token: s.admin, body: { costEstimateId: estimate.id, title: "Decision event proposal", summary: "Agreed scope", revisionNote: "" } }), 201);
+    // The cancellation fee is 10-15% of the approved proposal; newEvent's PHP 100,000 proposal makes the PHP 15,000 fee below valid.
   });
   const dc = () => `/events/${s.dc.eventId}`;
   await step("decisions validate impact review, dates and role", async () => {
@@ -773,18 +771,18 @@ export async function run(ctx) {
   });
   await step("PMCM cancels the event; supplier impact, deposit treatment and client state follow", async () => {
     if (!s.dc) blocked("no decision event");
-    const d = expectStatus(await http("POST", `${dc()}/decisions`, { token: s.admin, body: { decision: "cancelled", reason: "Client withdrew funding", supplierImpact: "release_obligations", depositTreatment: "retain", cancellationFeeAmount: 25000, impactReviewAcknowledged: true } }), 201);
+    const d = expectStatus(await http("POST", `${dc()}/decisions`, { token: s.admin, body: { decision: "cancelled", reason: "Client withdrew funding", supplierImpact: "release_obligations", depositTreatment: "retain", cancellationFeeAmount: 15000, impactReviewAcknowledged: true } }), 201);
     expect(d.decision === "cancelled" && d.supplierImpact === "release_obligations", `decision ${d.decision}/${d.supplierImpact}`);
     const ev = expectStatus(await http("GET", `${dc()}`, { token: s.dcClient }), 200);
     expect(ev.status === "cancelled", `client sees status "${ev.status}"`);
     const fee = d.financialImpact?.cancellationFeeAmount;
-    expect(fee === 25000, `cancellation fee recorded as ${fee}`);
+    expect(fee === 15000, `cancellation fee recorded as ${fee}`);
     const sourceId = d.financialImpact?.billingSourceId;
     expect(sourceId, "confirmed fee has no approved billing source");
     const statement = expectStatus(await http("POST", `${dc()}/billing-statements/generate`, { token: s.admin, body: { sourceId, idempotencyKey: `decision-fee-statement:${d.id}` } }), 201);
-    expect(statement.totalAmount === 25000, "cancellation invoice does not match the confirmed fee");
+    expect(statement.totalAmount === 15000, "cancellation invoice does not match the confirmed fee");
     const ws = expectStatus(await http("GET", `/pmcm/events/${s.dc.eventId}/workspace`, { token: s.admin }), 200);
-    expect(ws.paymentMilestones.some((m) => m.amount === 25000 && m.label === "Cancellation fee"), "fee payment milestone is missing");
+    expect(ws.paymentMilestones.some((m) => m.amount === 15000 && m.label === "Cancellation fee"), "fee payment milestone is missing");
     return "PMCM confirmation creates the approved fee source; PMCM issues its statement through the billing workflow.";
   });
   await step("cancelling or postponing is also reachable from a portal screen", async () => {
