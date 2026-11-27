@@ -458,19 +458,7 @@ export class InquiriesService {
           }
           await this.requireConformeReady(tx, lockedInquiry.id);
           const event = await this.ensureConformeEvent(tx, lockedInquiry, input.storageObjectId ? 'unlocked' : 'limited');
-          if (input.storageObjectId) {
-            const stored = await tx.opsStoredObject.findUnique({ where: { id: input.storageObjectId } });
-            if (!stored || stored.eventId !== event.id || stored.usage !== 'signed_conforme' || stored.lifecycleState !== 'stored') {
-              throw new BadRequestException('Conforme requires a confirmed stored W10 signed-conforme object');
-            }
-            await this.activateAfterConforme(tx, lockedInquiry.id, now);
-            // The scanned conforme is the signed record now; an in-app version still awaiting signatures would
-            // otherwise stay open on the client's conforme page and refuse every acknowledgment.
-            await tx.opsConformeExecution.updateMany({
-              where: { inquiryId: lockedInquiry.id, status: { in: ['awaiting_client', 'awaiting_pmcm'] } },
-              data: { status: 'superseded' },
-            });
-          }
+          if (input.storageObjectId) await this.confirmStoredConforme(tx, lockedInquiry.id, event.id, input.storageObjectId, now);
 
           const document = await tx.opsDocument.create({
             data: {
@@ -505,6 +493,21 @@ export class InquiriesService {
         await Promise.all(sideEffects);
       },
       project: ({ document }) => document,
+    });
+  }
+
+  /** A scanned, stored signed conforme activates the event and supersedes any in-app version still awaiting signatures. */
+  private async confirmStoredConforme(tx: Prisma.TransactionClient, inquiryId: string, eventId: string, storageObjectId: string, signedAt: Date) {
+    const stored = await tx.opsStoredObject.findUnique({ where: { id: storageObjectId } });
+    if (!stored || stored.eventId !== eventId || stored.usage !== 'signed_conforme' || stored.lifecycleState !== 'stored') {
+      throw new BadRequestException('Conforme requires a confirmed stored W10 signed-conforme object');
+    }
+    await this.activateAfterConforme(tx, inquiryId, signedAt);
+    // The scanned conforme is the signed record now; an in-app version still awaiting signatures would
+    // otherwise stay open on the client's conforme page and refuse every acknowledgment.
+    await tx.opsConformeExecution.updateMany({
+      where: { inquiryId, status: { in: ['awaiting_client', 'awaiting_pmcm'] } },
+      data: { status: 'superseded' },
     });
   }
 
