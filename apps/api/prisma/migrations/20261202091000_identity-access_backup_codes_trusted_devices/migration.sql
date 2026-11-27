@@ -1,6 +1,6 @@
 -- prism-owner: identity-access
 -- prism-kind: schema
--- prism-risk: low
+-- prism-risk: medium
 
 -- CreateTable: one-time backup codes for authenticator sign-in. Only hashes are stored; a code works once.
 CREATE TABLE "identity_access"."two_factor_backup_codes" (

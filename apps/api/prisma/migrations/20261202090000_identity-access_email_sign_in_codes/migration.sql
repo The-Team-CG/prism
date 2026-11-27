@@ -1,6 +1,6 @@
 -- prism-owner: identity-access
 -- prism-kind: schema
--- prism-risk: low
+-- prism-risk: medium
 
 -- CreateTable: six-digit sign-in codes emailed to clients and suppliers instead of a password. Only the code's hash is
 -- stored; a code is single use, a newer code consumes the open ones, and too many wrong tries end it.
