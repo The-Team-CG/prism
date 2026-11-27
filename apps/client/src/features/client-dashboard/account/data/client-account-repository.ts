@@ -25,6 +25,7 @@ export const clientAccountRepository = {
   cancelEmailChange: () => clientApi.auth.cancelEmailChange(),
   startTwoStep: (password: string) => clientApi.auth.startMyTwoFactor(password),
   enableTwoStep: (code: string) => clientApi.auth.enableMyTwoFactor(code),
+  makeBackupCodes: (password: string) => clientApi.auth.regenerateMyBackupCodes(password),
   disableTwoStep: (password: string) => clientApi.auth.disableMyTwoFactor(password),
   signOutSession: (sessionId: string) => clientApi.auth.signOutSession(sessionId),
   signOutOtherSessions: () => clientApi.auth.signOutOtherSessions(),

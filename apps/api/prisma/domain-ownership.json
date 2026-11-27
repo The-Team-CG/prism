@@ -1,10 +1,10 @@
 {
   "summary": {
-    "totalTables": 159,
+    "totalTables": 162,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 51,
-    "targetSameDomainFks": 132,
+    "targetSameDomainFks": 135,
     "crossDomainFksToDrop": 45,
     "crossDomainPairsToDrop": {
       "platform-ops → event-lifecycle": 8,
@@ -50,8 +50,8 @@
       {
         "domain": "identity-access",
         "schema": "identity_access",
-        "tables": 7,
-        "columns": 68
+        "tables": 10,
+        "columns": 88
       },
       {
         "domain": "platform-ops",
@@ -1406,6 +1406,33 @@
       "targetSchema": "event_lifecycle",
       "introducedAfterCutover": true,
       "columnCount": 17
+    },
+    {
+      "model": "OpsEmailSignInCode",
+      "currentSchema": "identity_access",
+      "table": "email_sign_in_codes",
+      "domain": "identity-access",
+      "targetSchema": "identity_access",
+      "introducedAfterCutover": true,
+      "columnCount": 7
+    },
+    {
+      "model": "OpsTwoFactorBackupCode",
+      "currentSchema": "identity_access",
+      "table": "two_factor_backup_codes",
+      "domain": "identity-access",
+      "targetSchema": "identity_access",
+      "introducedAfterCutover": true,
+      "columnCount": 5
+    },
+    {
+      "model": "OpsTrustedDevice",
+      "currentSchema": "identity_access",
+      "table": "trusted_devices",
+      "domain": "identity-access",
+      "targetSchema": "identity_access",
+      "introducedAfterCutover": true,
+      "columnCount": 8
     }
   ],
   "foreignKeys": [
@@ -4095,6 +4122,51 @@
       "targetDomain": "event-lifecycle",
       "targetCurrentSchema": "event_lifecycle",
       "targetTable": "planning_templates",
+      "sameDomain": true
+    },
+    {
+      "schema": "identity_access",
+      "table": "email_sign_in_codes",
+      "name": "email_sign_in_codes_user_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES identity_access.users(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "user_id"
+      ],
+      "sourceDomain": "identity-access",
+      "targetDomain": "identity-access",
+      "targetCurrentSchema": "identity_access",
+      "targetTable": "users",
+      "sameDomain": true
+    },
+    {
+      "schema": "identity_access",
+      "table": "two_factor_backup_codes",
+      "name": "two_factor_backup_codes_user_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES identity_access.users(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "user_id"
+      ],
+      "sourceDomain": "identity-access",
+      "targetDomain": "identity-access",
+      "targetCurrentSchema": "identity_access",
+      "targetTable": "users",
+      "sameDomain": true
+    },
+    {
+      "schema": "identity_access",
+      "table": "trusted_devices",
+      "name": "trusted_devices_user_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES identity_access.users(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "user_id"
+      ],
+      "sourceDomain": "identity-access",
+      "targetDomain": "identity-access",
+      "targetCurrentSchema": "identity_access",
+      "targetTable": "users",
       "sameDomain": true
     }
   ],

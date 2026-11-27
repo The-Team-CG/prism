@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PrismAuthenticatedSession } from "@prism/types";
 import { supplierAuthRepository } from "../data/supplier-auth-repository";
-import { signInSupplier, verifySupplierSignInCode } from "./supplier-sign-in";
+import { resumeSupplierCookieSession, signInSupplier, verifySupplierSignInCode } from "./supplier-sign-in";
 
 const supplierSession: PrismAuthenticatedSession = {
   id: "supplier_1",
@@ -62,5 +62,24 @@ describe("signInSupplier", () => {
     expect(saveSession).not.toHaveBeenCalled();
     // The session the API opened for the turned-away account is ended, so it does not stay live on the server.
     expect(endRejectedSession).toHaveBeenCalledWith("verified-supplier-token");
+  });
+});
+
+describe("resumeSupplierCookieSession (signed in on the shared sign-in page)", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("continues with the supplier session the API's cookie holds, and ignores anyone else's", async () => {
+    vi.spyOn(supplierAuthRepository, "hasSignedInSession").mockReturnValue(false);
+    const cookieSession = vi.spyOn(supplierAuthRepository, "cookieSession").mockResolvedValue({ ...supplierSession, accessToken: "", privacyNoticeRequired: true });
+    const saveSession = vi.spyOn(supplierAuthRepository, "saveSession").mockImplementation(() => undefined);
+
+    await expect(resumeSupplierCookieSession("/dashboard/quotes")).resolves.toMatchObject({ redirectTo: expect.stringContaining("/privacy") });
+    expect(saveSession).toHaveBeenCalledTimes(1);
+
+    cookieSession.mockResolvedValue({ ...supplierSession, role: "client", accessToken: "", privacyNoticeRequired: false });
+    await expect(resumeSupplierCookieSession(null)).resolves.toBeNull();
+    cookieSession.mockResolvedValue(null);
+    await expect(resumeSupplierCookieSession(null)).resolves.toBeNull();
+    expect(saveSession).toHaveBeenCalledTimes(1);
   });
 });

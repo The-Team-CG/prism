@@ -25,6 +25,7 @@ export const eventAccountRepository = {
   cancelEmailChange: () => eventApi.auth.cancelEmailChange(),
   startTwoStep: (password: string) => eventApi.auth.startMyTwoFactor(password),
   enableTwoStep: (code: string) => eventApi.auth.enableMyTwoFactor(code),
+  makeBackupCodes: (password: string) => eventApi.auth.regenerateMyBackupCodes(password),
   disableTwoStep: (password: string) => eventApi.auth.disableMyTwoFactor(password),
   signOutSession: (sessionId: string) => eventApi.auth.signOutSession(sessionId),
   signOutOtherSessions: () => eventApi.auth.signOutOtherSessions(),

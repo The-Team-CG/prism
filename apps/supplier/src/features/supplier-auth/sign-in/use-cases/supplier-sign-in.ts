@@ -2,6 +2,8 @@ import { supplierAuthRepository } from "../data/supplier-auth-repository";
 import {
   loginSchema,
   parseContract,
+  requestEmailSignInCodeSchema,
+  verifyEmailSignInCodeSchema,
   privacyNoticePath,
   type PrismAuthenticatedSession,
   type PrismSignInSession,
@@ -23,7 +25,7 @@ export type SupplierSignInResult =
   /** The password was right and the account has two-step sign-in on: the code comes next. */
   | { twoStepToken: string };
 
-function finishSignIn(session: PrismSignInSession, nextPath: string | null | undefined) {
+export function finishSignIn(session: PrismSignInSession, nextPath: string | null | undefined) {
   if (!isSupplierRole(session.role)) {
     void supplierAuthRepository.endRejectedSession(session.accessToken);
     throw new Error(mapWrongPortalMessage(session.role));
@@ -31,6 +33,14 @@ function finishSignIn(session: PrismSignInSession, nextPath: string | null | und
   supplierAuthRepository.saveSession(session);
   const next = resolvePostSignInPath(nextPath);
   return { session, redirectTo: session.privacyNoticeRequired ? privacyNoticePath(next) : next };
+}
+
+/** A supplier already signed in by the API's cookie (from the shared sign-in page) continues without signing in again. */
+export async function resumeSupplierCookieSession(nextPath: string | null | undefined): Promise<{ session: PrismAuthenticatedSession; redirectTo: string } | null> {
+  if (supplierAuthRepository.hasSignedInSession()) return null;
+  const session = await supplierAuthRepository.cookieSession();
+  if (!session || !isSupplierRole(session.role)) return null;
+  return finishSignIn(session, nextPath);
 }
 
 export async function signInSupplier(input: {
@@ -41,6 +51,21 @@ export async function signInSupplier(input: {
   const authResponse = await supplierAuthRepository.login(credentials);
   if (!("kind" in authResponse)) return finishSignIn(authResponse, input.nextPath);
   // Only PMCM admins are asked to set two-step sign-in up while signing in, and they belong in the event portal.
+  if (authResponse.kind === "two_factor_setup_required") throw new Error(mapWrongPortalMessage("pmcm-admin"));
+  return { twoStepToken: authResponse.token };
+}
+
+/** Emails a sign-in code; unknown emails look sent, so only a refused request is an error. */
+export async function requestSupplierEmailCode(email: string): Promise<void> {
+  const input = parseContract(requestEmailSignInCodeSchema, { email }, "Sign-in code request");
+  await supplierAuthRepository.requestEmailCode(input.email);
+}
+
+/** Signs in with the emailed code; an account with two-step sign-in on still gets its authenticator step. */
+export async function signInSupplierWithEmailCode(input: { email: string; code: string; nextPath?: string | null }): Promise<SupplierSignInResult> {
+  const parsed = parseContract(verifyEmailSignInCodeSchema, { email: input.email, code: input.code }, "Sign-in code");
+  const authResponse = await supplierAuthRepository.verifyEmailCode(parsed.email, parsed.code);
+  if (!("kind" in authResponse)) return finishSignIn(authResponse, input.nextPath);
   if (authResponse.kind === "two_factor_setup_required") throw new Error(mapWrongPortalMessage("pmcm-admin"));
   return { twoStepToken: authResponse.token };
 }

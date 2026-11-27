@@ -102,6 +102,18 @@ export async function freshEvent(label, options) {
  * Types into a field and confirms the value stuck. Text typed before React hydrates a controlled input is reset to the
  * initial state on hydration, so the fill is retried until the page keeps it.
  */
+/** Client and supplier invitations open on "Confirm and continue"; scripted activations set a password instead. */
+export async function usePasswordActivation(page) {
+  const toggle = page.getByRole('button', { name: 'set a password instead', exact: true });
+  if (await toggle.isVisible({ timeout: 5_000 }).catch(() => false)) await toggle.click();
+}
+
+/** Client and supplier sign-in open on the emailed-code method; scripted sign-ins switch to the password form. */
+export async function usePasswordSignIn(page) {
+  const toggle = page.getByRole('button', { name: 'Sign in with password', exact: true });
+  if (await toggle.isVisible().catch(() => false)) await toggle.click();
+}
+
 export async function fillStable(locator, value) {
   await expect(async () => {
     await locator.fill(value);
@@ -117,6 +129,7 @@ export async function privacyIfNeeded(page) {
 export async function signInPmcm(page, email = 'approver@pmcm.test') {
   await page.goto(`${origins.event}/sign-in`);
   await fillStable(page.getByLabel('Email address'), email);
+  await usePasswordSignIn(page);
   await fillStable(page.getByLabel('Password', { exact: true }), email === 'marco@pmcm.test' ? process.env.PRISM_SEED_PASSWORD_COORDINATOR : process.env.PRISM_SEED_PASSWORD_ADMIN);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   const code = page.getByLabel('Authenticator code');
@@ -154,6 +167,7 @@ export async function persona(browser, role, device = {}) {
     else {
       await page.goto(`${origins[role]}/sign-in`);
       await fillStable(page.getByLabel('Email address'), role === 'client' ? 'ana@ayala.test' : 'ops@xperto.test');
+      await usePasswordSignIn(page);
       await fillStable(page.getByLabel('Password', { exact: true }), role === 'client' ? password : process.env.PRISM_SEED_PASSWORD_SUPPLIER);
       await page.getByRole('button', { name: 'Sign in', exact: true }).click();
       await privacyIfNeeded(page);

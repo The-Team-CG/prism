@@ -13,6 +13,7 @@ import {
   requestPasswordResetSchema,
   savePrismSession,
   type ActivateAccountInput,
+  type PrismInvitationPreview,
   type ConsumePasswordResetInput,
   type LoginInput,
   type PrismApprovalRequestReceipt,
@@ -64,6 +65,30 @@ export const supplierAuthRepository = {
     return readPrismSession<PrismAuthenticatedSession>(SESSION_KEY);
   },
 
+  /**
+   * The session the API's HttpOnly cookie holds for this portal (set by the shared "Sign in to P.R.I.S.M." page),
+   * shaped like a sign-in, or null when there is none. The token itself stays in the cookie.
+   */
+  async cookieSession(): Promise<PrismSignInSession | null> {
+    try {
+      const me = await signedInSupplierClient.auth.me();
+      return {
+        id: me.id,
+        name: me.name,
+        email: me.email,
+        role: me.role,
+        organization: me.organization,
+        approvalStatus: "approved",
+        accessToken: "",
+        expiresAt: me.expiresAt,
+        signedInAt: new Date().toISOString(),
+        privacyNoticeRequired: me.privacyNoticeRequired,
+      };
+    } catch {
+      return null;
+    }
+  },
+
   hasSignedInSession(): boolean {
     return isPrismAuthenticatedSession(readPrismSession(SESSION_KEY));
   },
@@ -81,6 +106,16 @@ export const supplierAuthRepository = {
       () => supplierAuthClient.auth.login(input),
       "Supplier sign in failed",
     );
+  },
+
+  /** Emails a six-digit sign-in code; the answer is the same whether or not the email has an account. */
+  requestEmailCode(email: string): Promise<{ message: string }> {
+    return runSupplierAuthRequest(() => supplierAuthClient.auth.requestEmailSignInCode(email), "Could not send a sign-in code");
+  },
+
+  /** A session from an emailed code, or the authenticator step when the account has two-step sign-in on. */
+  verifyEmailCode(email: string, code: string): Promise<PrismAuthResponse> {
+    return runSupplierAuthRequest(() => supplierAuthClient.auth.verifyEmailSignInCode({ email, code }), "Supplier sign in failed");
   },
 
   /** Finishes a two-step sign-in with the code from the authenticator app. */
@@ -112,6 +147,19 @@ export const supplierAuthRepository = {
       () => supplierAuthClient.auth.consumePasswordReset(contract.token, contract.password),
       "Unable to consume password reset",
     );
+  },
+
+  /** Who an invitation link is for, or null when it has expired or was already used. */
+  previewInvitation(token: string): Promise<PrismInvitationPreview | null> {
+    return supplierAuthClient.auth.previewInvitation(token).catch((error: unknown) => {
+      if (error instanceof PrismApiError && error.status === 400) return null;
+      throw error;
+    });
+  },
+
+  /** Uses the invitation and signs the supplier in, without a password. */
+  confirmInvitation(token: string): Promise<PrismAuthResponse> {
+    return runSupplierAuthRequest(() => supplierAuthClient.auth.confirmInvitation(token), "Could not open your account");
   },
 
   async activateAccount(input: ActivateAccountInput): Promise<void> {

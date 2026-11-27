@@ -7,6 +7,7 @@ import { writeAudit } from '@prism/kernel/access-control';
 import { AUTH_AUDIT, type AuthAuditPort } from '../../contracts/auth-audit.port';
 import { ACCOUNT_PASSWORD_CONFIRMATION, type AccountPasswordConfirmation } from '../../contracts/account-password-confirmation.port';
 import { TotpService } from './totp.service';
+import { clearTwoFactorRecovery, issueBackupCodes } from './two-factor-recovery';
 
 const SESSION_REVOKED = 'Session has been revoked or account access is no longer eligible';
 
@@ -44,8 +45,8 @@ export class OwnTwoFactorService {
     return { secret, otpauthUri: this.totp.otpauthUri(secret, user.email) };
   }
 
-  /** Turns two-step sign-in on once a code from the authenticator just added matches. */
-  async enable(actor: PrismVerifiedEventActor, code: string): Promise<void> {
+  /** Turns two-step sign-in on once a code from the authenticator just added matches; returns backup codes, shown once. */
+  async enable(actor: PrismVerifiedEventActor, code: string): Promise<{ backupCodes: string[] }> {
     const user = await this.prisma.opsUser.findUnique({ where: { id: actor.id }, select: { twoFactorSecret: true, twoFactorPendingSecret: true } });
     if (!user) throw new UnauthorizedException(SESSION_REVOKED);
     if (user.twoFactorSecret) throw new ConflictException('Two-step sign-in is already on.');
@@ -64,6 +65,21 @@ export class OwnTwoFactorService {
       if (saved.count !== 1) throw new ConflictException('Two-step sign-in changed meanwhile. Start again.');
       await this.audit(tx, actor, 'Turned on two-step sign-in');
     });
+    return { backupCodes: await issueBackupCodes(this.prisma, actor.id) };
+  }
+
+  /** A fresh set of backup codes with the current password; the old set stops working. */
+  async regenerateBackupCodes(actor: PrismVerifiedEventActor, password: string): Promise<{ backupCodes: string[] }> {
+    await this.passwords.confirmPassword(actor.id, password);
+    const user = await this.prisma.opsUser.findUnique({ where: { id: actor.id }, select: { twoFactorSecret: true } });
+    if (!user) throw new UnauthorizedException(SESSION_REVOKED);
+    if (!user.twoFactorSecret) throw new ConflictException('Turn on two-step sign-in first.');
+    const backupCodes = await this.prisma.$transaction(async (tx) => {
+      const codes = await issueBackupCodes(tx, actor.id);
+      await this.audit(tx, actor, 'Made new two-step backup codes');
+      return codes;
+    });
+    return { backupCodes };
   }
 
   /** Turns two-step sign-in off with the current password. PMCM staff keep it. */
@@ -76,6 +92,7 @@ export class OwnTwoFactorService {
         data: { twoFactorSecret: null, twoFactorPendingSecret: null },
       });
       if (saved.count !== 1) throw new UnauthorizedException(SESSION_REVOKED);
+      await clearTwoFactorRecovery(tx, actor.id);
       await this.audit(tx, actor, 'Turned off two-step sign-in');
     });
   }

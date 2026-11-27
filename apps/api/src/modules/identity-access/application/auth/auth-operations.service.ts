@@ -32,6 +32,7 @@ import { AuthSessionService, type VerifiedTwoFactorToken } from '@prism/kernel/e
 import type { AuthenticationFailureDetails } from '@prism/contexts/platform-ops';
 import { AuthSecurityService } from './auth-security.service';
 import { TotpService } from './totp.service';
+import { clearTwoFactorRecovery, consumeBackupCode, isBackupCodeAttempt, issueBackupCodes, issueTrustedDevice, isTrustedDevice } from './two-factor-recovery';
 import { LOGIN_LOCKOUT_THRESHOLD, loginFailureUpdate, nextLoginFailureState } from './login-lockout.policy';
 import { canonicalAccountEmail } from './account-email';
 import { cancelOpenEmailChanges } from './open-email-change';
@@ -81,7 +82,7 @@ export class AuthOperationsService {
   ) {}
 
   /** `device` is the browser's user agent, summarised into "Chrome on Windows" for the person's own sign-in list. */
-  async login(email: string, password: string, device?: string) {
+  async login(email: string, password: string, device?: string, trustedDeviceToken?: string) {
     const normalizedEmail = canonicalAccountEmail(email);
     const user = await this.prisma.opsUser.findUnique({ where: { email: normalizedEmail } });
 
@@ -94,7 +95,34 @@ export class AuthOperationsService {
 
     await this.assertLoginAllowed(user, normalizedEmail, password);
     const browser = deviceName(device);
-    const updated = await this.recordAcceptedSignIn(user, normalizedEmail, password, browser);
+    // A browser trusted after an authenticator code skips that step; first-time setup is never skipped.
+    const trusted = Boolean(user.twoFactorSecret) && await isTrustedDevice(this.prisma, user, trustedDeviceToken);
+    const updated = await this.recordAcceptedSignIn(user, normalizedEmail, password, browser, trusted);
+    return this.issueLoginSession(updated, browser, trusted);
+  }
+
+  /**
+   * Signs in an account whose emailed code was just verified (clients and suppliers). The same lock, approval, audit
+   * and second-step rules apply as for a password; only the proof of identity differs.
+   */
+  async signInWithVerifiedEmail(userId: string, device?: string) {
+    const user = await this.prisma.opsUser.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException(INVALID_CREDENTIALS);
+    const now = new Date();
+    if (user.permanentLockout) {
+      await this.authAudit.handleForbiddenAccess(user, user.email, 'Permanent lockout');
+      throw new ForbiddenException('This account is permanently locked and requires PMCM Admin intervention');
+    }
+    if (user.lockedUntil && user.lockedUntil > now) {
+      await this.authAudit.handleForbiddenAccess(user, user.email, 'Temporary lockout');
+      throw new ForbiddenException('This account is temporarily locked after repeated failed login attempts');
+    }
+    if (user.approvalStatus !== 'approved') {
+      await this.authAudit.handleForbiddenAccess(user, user.email, 'Account waiting for approval');
+      throw new ForbiddenException('This account is waiting for admin approval');
+    }
+    const browser = deviceName(device);
+    const updated = await this.recordAcceptedSignIn(user, user.email, null, browser);
     return this.issueLoginSession(updated, browser);
   }
 
@@ -140,14 +168,15 @@ export class AuthOperationsService {
     }
   }
 
-  private async recordAcceptedSignIn(user: OpsUser, normalizedEmail: string, password: string, device?: string) {
+  /** `password` is null for an emailed-code sign-in, which has no password to rehash. */
+  private async recordAcceptedSignIn(user: OpsUser, normalizedEmail: string, password: string | null, device?: string, trustedDevice = false) {
     // Anyone with a second step still to pass has their lock counters reset only when a session is issued
     // (see verifyTwoFactor). Everyone else's counters reset here.
-    const requiresTwoFactor = needsSecondStep(user);
+    const requiresTwoFactor = needsSecondStep(user) && !trustedDevice;
     const updated = await this.prisma.opsUser.update({
       where: { id: user.id },
       data: {
-        ...(AuthSecurityService.needsRehash(user.password)
+        ...(password !== null && AuthSecurityService.needsRehash(user.password)
           ? { password: await AuthSecurityService.hashPassword(password) }
           : {}),
         ...(requiresTwoFactor
@@ -176,12 +205,12 @@ export class AuthOperationsService {
     return updated;
   }
 
-  private async issueLoginSession(updated: OpsUser, device: string) {
+  private async issueLoginSession(updated: OpsUser, device: string, trustedDevice = false) {
     if (updated.role === OpsUserRole.Client) {
       await this.inquiryCommands.markPortalInvitationOpenedByEmail(updated.email);
     }
 
-    if (needsSecondStep(updated)) {
+    if (needsSecondStep(updated) && !trustedDevice) {
       const challengeId = randomBytes(32).toString('base64url');
       const issuedAt = new Date();
       const expiresAt = this.authSessionService.twoFactorTokenExpiresAt(issuedAt);
@@ -285,15 +314,19 @@ export class AuthOperationsService {
     return { otpauthUri: this.totpService.otpauthUri(secret, user.email) };
   }
 
-  async verifyTwoFactor(token: string, code: string, device?: string) {
+  async verifyTwoFactor(token: string, code: string, device?: string, trustDevice = false) {
     const verifiedToken = this.authSessionService.verifyTwoFactorToken(token);
     const user = await this.findTwoFactorUser(verifiedToken);
     const { enrolling, storedSecret } = this.twoFactorSecretFor(user, verifiedToken);
-    const step = this.totpService.acceptedStep(this.readTwoFactorSecret(storedSecret), code, user.twoFactorLastStep);
-    if (step === null) {
+    // A backup code stands in for the authenticator once it is set up; setting it up always needs the app's code.
+    const usingBackupCode = isBackupCodeAttempt(code);
+    if (usingBackupCode && enrolling) throw new UnauthorizedException('Enter the six-digit code from your authenticator app to finish setting it up');
+    const step = usingBackupCode ? null : this.totpService.acceptedStep(this.readTwoFactorSecret(storedSecret), code, user.twoFactorLastStep);
+    if (!usingBackupCode && step === null) {
       await this.recordFailedLoginAttempt(user.id, 'Invalid two-factor code', verifiedToken);
       throw new UnauthorizedException('Invalid two-factor code');
     }
+    let backupCodeRejected = false;
 
     let updated: OpsUser | undefined;
     for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -306,16 +339,20 @@ export class AuthOperationsService {
             now,
           );
           if (!this.twoFactorSecretUnchanged(current, enrolling, storedSecret)) throw new UnauthorizedException('Two-factor challenge is no longer valid');
+          if (usingBackupCode && !(await consumeBackupCode(tx, user.id, code, now))) {
+            backupCodeRejected = true;
+            throw new UnauthorizedException('Invalid two-factor code');
+          }
           const consumed = await tx.opsUser.updateMany({
             where: {
               ...this.twoFactorChallengeWhere(verifiedToken, now),
               ...(enrolling ? { twoFactorSecret: null, twoFactorPendingSecret: storedSecret } : { twoFactorSecret: storedSecret }),
               // The code's step must still be newer than the last one accepted, so one code never signs in twice.
-              AND: [{ OR: [{ twoFactorLastStep: null }, { twoFactorLastStep: { lt: step } }] }],
+              ...(step === null ? {} : { AND: [{ OR: [{ twoFactorLastStep: null }, { twoFactorLastStep: { lt: step } }] }] }),
             },
             data: {
               ...(enrolling ? { twoFactorSecret: storedSecret, twoFactorPendingSecret: null } : {}),
-              twoFactorLastStep: step,
+              ...(step === null ? {} : { twoFactorLastStep: step }),
               twoFactorChallengeConsumedAt: now,
               failedLoginCount: 0,
               lockoutCount: 0,
@@ -328,6 +365,10 @@ export class AuthOperationsService {
         }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
         break;
       } catch (error) {
+        if (backupCodeRejected) {
+          await this.recordFailedLoginAttempt(user.id, 'Invalid backup code', verifiedToken);
+          throw error;
+        }
         if (!isPrismaSerializationFailure(error)) throw error;
         if (attempt === 2) throw new ConflictException('Two-factor challenge changed concurrently; sign in again');
       }
@@ -348,7 +389,12 @@ export class AuthOperationsService {
         affectedLabel: updated.email,
       }),
     ]);
-    return this.issueUserSession(updated, browser);
+    const session = await this.issueUserSession(updated, browser);
+    const extras: { backupCodes?: string[]; trustedDeviceToken?: string } = {};
+    // A newly set-up authenticator comes with backup codes for a lost phone, shown once.
+    if (enrolling) extras.backupCodes = await issueBackupCodes(this.prisma, updated.id);
+    if (trustDevice) extras.trustedDeviceToken = await issueTrustedDevice(this.prisma, updated, browser);
+    return { ...session, ...extras };
   }
 
   /** A first-time setup checks the code against the pending secret and enrols it only when the code is right. */
@@ -687,6 +733,7 @@ export class AuthOperationsService {
         },
       });
       await cancelOpenEmailChanges(tx, user.id);
+      await clearTwoFactorRecovery(tx, user.id);
       await this.writeIdentityAdminAudit(tx, admin, saved, 'Reset two-factor enrolment and revoked open sessions', { previousSessionVersion: user.sessionVersion });
       return this.mapAccountSummary(saved);
     });

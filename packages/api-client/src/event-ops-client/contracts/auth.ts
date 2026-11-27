@@ -25,6 +25,8 @@ import type {
   PrismTwoFactorQr,
   RequestApprovalInput,
   VerifyTwoFactorInput,
+  VerifyEmailSignInCodeInput,
+  PrismInvitationPreview,
 } from "@prism/types";
 
 export interface EventOpsAuthContract {
@@ -49,7 +51,10 @@ export interface EventOpsAuthContract {
     /** Starts adding an authenticator app with the current password; two-step sign-in stays off until confirmed. */
     startMyTwoFactor(password: string): Promise<PrismOwnTwoFactorSetup>;
     /** Turns two-step sign-in on with a code from the app just added. */
-    enableMyTwoFactor(code: string): Promise<void>;
+    /** Turns two-step sign-in on; returns one-time backup codes, shown once. */
+    enableMyTwoFactor(code: string): Promise<{ backupCodes: string[] }>;
+    /** A fresh set of backup codes with the current password; the old set stops working. */
+    regenerateMyBackupCodes(password: string): Promise<{ backupCodes: string[] }>;
     /** Turns two-step sign-in off with the current password. */
     disableMyTwoFactor(password: string): Promise<void>;
     /** The browsers the signed-in person is signed in on now, this one first. */
@@ -69,6 +74,14 @@ export interface EventOpsAuthContract {
     requestPasswordReset(
       email: string,
     ): Promise<{ message: string }>;
+    /** Emails a client or supplier a six-digit sign-in code; answers the same whether or not the email exists. */
+    requestEmailSignInCode(email: string): Promise<{ message: string }>;
+    /** Who an invitation link is for; does not use the link up. */
+    previewInvitation(token: string): Promise<PrismInvitationPreview>;
+    /** A client or supplier confirms their invitation and is signed in, without a password. */
+    confirmInvitation(token: string): Promise<PrismAuthResponse>;
+    /** A session, or the authenticator step for an account that turned two-step sign-in on. */
+    verifyEmailSignInCode(input: VerifyEmailSignInCodeInput): Promise<PrismAuthResponse>;
     consumePasswordReset(
       token: string,
       password: string,

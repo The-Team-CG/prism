@@ -2,14 +2,12 @@
 
 import { PrismAccountHelp } from "@prism/ui/account-help";
 import { portalHref } from "@prism/ui/portal-path";
-import { PRISM_AUTH_INPUT_CLASS_NAME, PrismAuthShell, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
-import { ArrowRight, ChevronDown, Eye, EyeOff, ShieldCheck } from "lucide-react";
-import { Alert, AlertDescription } from "@prism/ui/components/alert";
+import { PrismAuthShell } from "@prism/ui/auth-shell";
+import { PrismAuthAlternative, PrismAuthEmailField, PrismAuthError, PrismAuthLinks, PrismAuthPasswordField, PrismAuthSubmit, PrismEmailCodeStep } from "@prism/ui/auth-form";
+import { EMAIL_SIGN_IN_CODE_TTL_MINUTES } from "@prism/types";
+import { ArrowRight, ChevronDown, ShieldCheck } from "lucide-react";
 import { Button } from "@prism/ui/components/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@prism/ui/components/collapsible";
-import { Field } from "@prism/ui/components/field";
-import { Input } from "@prism/ui/components/input";
-import { Label } from "@prism/ui/components/label";
 import { SignInCodeStep } from "@prism/ui/sign-in-code-step";
 import { SUPPLIER_PORTAL_POINTS, SUPPLIER_PORTAL_STATEMENT } from "../model/supplier-portal-copy";
 import { pmcmSupportContactFromEnvironment } from "@/lib/portal-urls";
@@ -89,14 +87,8 @@ function CodeForm({ vm }: { vm: SupplierSignInVm }) {
   return (
     <form className="flex flex-col gap-5" onSubmit={vm.submit} noValidate>
       <SignInCodeStep code={vm.code} onCodeChange={vm.setCode} busy={vm.busy} invalid={Boolean(vm.error)} errorId="supplier-sign-in-error" onBack={vm.backToPassword} />
-      {vm.error ? (
-        <Alert variant="destructive" id="supplier-sign-in-error" role="alert">
-          <AlertDescription>{vm.error}</AlertDescription>
-        </Alert>
-      ) : null}
-      <Button type="submit" disabled={vm.busy || vm.code.length !== 6} className={prismAuthSubmitClassName("supplier")}>
-        {vm.busy ? "Checking..." : "Verify code"}
-      </Button>
+      <PrismAuthError id="supplier-sign-in-error" message={vm.error} />
+      <PrismAuthSubmit portal="supplier" busy={vm.busy} disabled={vm.code.length !== 6} label="Verify code" busyLabel="Checking..." />
     </form>
   );
 }
@@ -125,73 +117,58 @@ export function SupplierSignInView() {
         </div>
       ) : null}
 
-      {vm.twoStepToken ? <CodeForm vm={vm} /> : (
+      {vm.twoStepToken ? <CodeForm vm={vm} /> : vm.codeSentTo ? (
+      <form className="flex flex-col gap-5" onSubmit={vm.submit} noValidate>
+        <PrismEmailCodeStep
+          email={vm.codeSentTo}
+          code={vm.emailCode}
+          onCodeChange={vm.setEmailCode}
+          busy={vm.busy}
+          invalid={Boolean(vm.error)}
+          errorId="supplier-sign-in-error"
+          resendIn={vm.resendIn}
+          onResend={vm.resendEmailCode}
+          onChangeEmail={vm.changeEmail}
+          ttlMinutes={EMAIL_SIGN_IN_CODE_TTL_MINUTES}
+        />
+        <PrismAuthError id="supplier-sign-in-error" message={vm.error} />
+        <PrismAuthSubmit portal="supplier" busy={vm.busy} disabled={vm.emailCode.length !== 6} label="Continue" busyLabel="Checking..." />
+      </form>
+      ) : (
       <form className="flex flex-col gap-5" onSubmit={vm.submit}>
-        <Field>
-          <Label htmlFor="email">Email address</Label>
-          <Input
-            id="email"
-            type="email"
-            autoComplete="username"
-            value={vm.draft.email}
-            onChange={(e) => vm.updateEmail(e.target.value)}
-            placeholder="supplier@example.com"
-            required
-            className={`h-12 rounded-lg bg-card text-base ${PRISM_AUTH_INPUT_CLASS_NAME}`}
+        <PrismAuthEmailField value={vm.draft.email} onChange={vm.updateEmail} placeholder="supplier@example.com" errorId={vm.error ? "supplier-sign-in-error" : undefined} />
+        {vm.method === "password" ? (
+          <PrismAuthPasswordField
+            value={vm.draft.password}
+            onChange={vm.updatePassword}
+            shown={vm.showPassword}
+            onToggleShown={() => vm.setShowPassword((shown) => !shown)}
+            forgotHref={portalHref("/password-reset")}
+            errorId={vm.error ? "supplier-sign-in-error" : undefined}
           />
-        </Field>
-
-        <Field>
-          <Label htmlFor="password">Password</Label>
-          <div className="relative">
-            <Input
-              id="password"
-              type={vm.showPassword ? "text" : "password"}
-              autoComplete="current-password"
-              value={vm.draft.password}
-              onChange={(e) => vm.updatePassword(e.target.value)}
-              placeholder="Enter your password"
-              required
-              className={`h-12 rounded-lg bg-card pr-12 text-base ${PRISM_AUTH_INPUT_CLASS_NAME}`}
-            />
-            <button
-              type="button"
-              onClick={() => vm.setShowPassword((v) => !v)}
-              className="absolute right-1 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-              aria-label={vm.showPassword ? "Hide password" : "Show password"}
-            >
-              {vm.showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
-            </button>
-          </div>
-          <a href={portalHref("/password-reset")} className="self-end text-sm text-primary transition-colors hover:text-primary/80">
-            Forgot password?
-          </a>
-        </Field>
-
-        {vm.error ? (
-          <Alert variant="destructive" role="alert">
-            <AlertDescription>{vm.error}</AlertDescription>
-          </Alert>
         ) : null}
+        <PrismAuthError id="supplier-sign-in-error" message={vm.error} />
         {vm.notice ? (
           <p role="status" className="text-sm text-foreground">
             {vm.notice}
           </p>
         ) : null}
-
-        <Button type="submit" disabled={vm.busy} className={prismAuthSubmitClassName("supplier")}>
-          {vm.busy ? "Signing in..." : "Sign in"}
-        </Button>
+        <PrismAuthSubmit
+          portal="supplier"
+          busy={vm.busy}
+          label={vm.method === "code" ? "Email me a sign-in code" : "Sign in"}
+          busyLabel={vm.method === "code" ? "Sending..." : "Signing in..."}
+        />
+        <PrismAuthAlternative>
+          <Button type="button" variant="outline" className="h-12 w-full rounded-lg text-sm font-semibold" onClick={() => vm.chooseMethod(vm.method === "code" ? "password" : "code")}>
+            {vm.method === "code" ? "Sign in with password" : "Email me a code instead"}
+          </Button>
+        </PrismAuthAlternative>
       </form>
       )}
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm">
-        <a href={portalHref("/apply")} className="text-primary transition-colors hover:text-primary/80">
-          Apply to become a PMCM supplier
-        </a>
-        <a href={portalHref("/status")} className="text-muted-foreground transition-colors hover:text-foreground">
-          Check an application
-        </a>
+      <div className="mt-6">
+        <PrismAuthLinks primary={{ href: portalHref("/apply"), label: "Apply to become a PMCM supplier" }} secondary={{ href: portalHref("/status"), label: "Check an application" }} />
       </div>
 
       <div className="mt-8">

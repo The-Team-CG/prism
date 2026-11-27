@@ -8,6 +8,7 @@ import {
   type ActivateAccountInput,
   type PrismAuthenticatedSession,
   type PrismAuthResponse,
+  type PrismInvitationPreview,
   type PrismSignInSession,
   type PrivacyConsentInput,
 } from "@prism/types";
@@ -27,9 +28,43 @@ export const clientAuthRepository = {
     return clientApi.auth.login(input);
   },
 
+  /** Emails a six-digit sign-in code; the answer is the same whether or not the email has an account. */
+  requestEmailCode(email: string): Promise<{ message: string }> {
+    return clientApi.auth.requestEmailSignInCode(email);
+  },
+
+  /** A session from an emailed code, or the authenticator step when the account has two-step sign-in on. */
+  verifyEmailCode(email: string, code: string): Promise<PrismAuthResponse> {
+    return clientApi.auth.verifyEmailSignInCode({ email, code });
+  },
+
   /** Finishes a two-step sign-in with the code from the authenticator app. */
   verifyTwoStep(token: string, code: string): Promise<PrismSignInSession> {
     return clientApi.auth.verifyTwoFactor({ token, code });
+  },
+
+  /**
+   * The session the API's HttpOnly cookie holds for this portal, shaped like a sign-in, or null when there is none.
+   * The token itself stays in the cookie.
+   */
+  async cookieSession(): Promise<PrismSignInSession | null> {
+    try {
+      const me = await clientApi.auth.me();
+      return {
+        id: me.id,
+        name: me.name,
+        email: me.email,
+        role: me.role,
+        organization: me.organization,
+        approvalStatus: "approved",
+        accessToken: "",
+        expiresAt: me.expiresAt,
+        signedInAt: new Date().toISOString(),
+        privacyNoticeRequired: me.privacyNoticeRequired,
+      };
+    } catch {
+      return null;
+    }
   },
 
   hasSignedInSession(): boolean {
@@ -59,6 +94,19 @@ export const clientAuthRepository = {
 
   consumePasswordReset(input: { token: string; password: string }) {
     return clientApi.auth.consumePasswordReset(input.token, input.password);
+  },
+
+  /** Who an invitation link is for, or null when it has expired or was already used. */
+  previewInvitation(token: string): Promise<PrismInvitationPreview | null> {
+    return clientApi.auth.previewInvitation(token).catch((error: unknown) => {
+      if (error instanceof PrismApiError && error.status === 400) return null;
+      throw error;
+    });
+  },
+
+  /** Uses the invitation and signs the client in, without a password. */
+  confirmInvitation(token: string): Promise<PrismAuthResponse> {
+    return clientApi.auth.confirmInvitation(token);
   },
 
   activateAccount(input: ActivateAccountInput): Promise<ClientAccountActivationOutcome> {

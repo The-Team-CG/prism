@@ -1,7 +1,7 @@
-import { Body, Controller, Delete, Get, Header, Headers, HttpCode, HttpStatus, InternalServerErrorException, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Headers, HttpCode, HttpStatus, InternalServerErrorException, Param, Patch, Post, Req, UseGuards, UseInterceptors } from '@nestjs/common';
 import type { Request } from 'express';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
-import { AllowPendingPrivacyNotice, EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
+import { AllowPendingPrivacyNotice, ClearSessionCookieInterceptor, EventSessionGuard, SetSessionCookieInterceptor, VerifiedEventActor } from '@prism/kernel/event-session';
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { PublicRateLimit, zodBody } from '@prism/kernel/shared';
@@ -14,6 +14,8 @@ import { AccountInvitationService } from '../../application/auth/account-invitat
 import { OwnSessionsService } from '../../application/auth/own-sessions.service';
 import { OwnTwoFactorService } from '../../application/auth/own-two-factor.service';
 import { EmailChangeService } from '../../application/auth/email-change.service';
+import { EmailSignInService } from '../../application/auth/email-sign-in.service';
+import { invitationTokenSchema, requestEmailSignInCodeSchema, verifyEmailSignInCodeSchema, type InvitationTokenInput, type RequestEmailSignInCodeInput, type VerifyEmailSignInCodeInput } from '@prism/types';
 
 @Controller('auth')
 export class OpsAuthController {
@@ -26,6 +28,7 @@ export class OpsAuthController {
     private readonly ownSessions: OwnSessionsService,
     private readonly ownTwoFactor: OwnTwoFactorService,
     private readonly emailChange: EmailChangeService,
+    private readonly emailSignIn: EmailSignInService,
   ) {}
 
   private async requireAdmin(actor: PrismVerifiedEventActor): Promise<ResolvedEventOpsActor> {
@@ -41,10 +44,11 @@ export class OpsAuthController {
   }
 
   @Post('login')
+  @UseInterceptors(SetSessionCookieInterceptor)
   @PublicRateLimit('authentication')
   @HttpCode(HttpStatus.OK)
   login(@Body(zodBody(loginSchema)) dto: LoginInput, @Headers('user-agent') userAgent?: string) {
-    return this.authOperationsService.login(dto.email, dto.password, userAgent);
+    return this.authOperationsService.login(dto.email, dto.password, userAgent, dto.trustedDeviceToken);
   }
 
   @Post('password-reset/request')
@@ -56,6 +60,25 @@ export class OpsAuthController {
     const clientIp = request.ip;
     if (!clientIp) throw new InternalServerErrorException('Client address is unavailable for password reset rate limiting');
     return this.passwordResetService.request(dto.email, clientIp);
+  }
+
+  /** Sign-in redesign: a client or supplier asks for a six-digit code by email instead of typing a password. */
+  @Post('email-code/request')
+  @PublicRateLimit('accountRequest')
+  @HttpCode(HttpStatus.ACCEPTED)
+  requestEmailSignInCode(@Req() request: Request, @Body(zodBody(requestEmailSignInCodeSchema)) dto: RequestEmailSignInCodeInput) {
+    const clientIp = request.ip;
+    if (!clientIp) throw new InternalServerErrorException('Client address is unavailable for sign-in code rate limiting');
+    return this.emailSignIn.request(dto.email, clientIp);
+  }
+
+  /** Answers like a password sign-in: a session, or the authenticator step for an account that turned it on. */
+  @Post('email-code/verify')
+  @UseInterceptors(SetSessionCookieInterceptor)
+  @PublicRateLimit('authentication')
+  @HttpCode(HttpStatus.OK)
+  verifyEmailSignInCode(@Body(zodBody(verifyEmailSignInCodeSchema)) dto: VerifyEmailSignInCodeInput, @Headers('user-agent') userAgent?: string) {
+    return this.emailSignIn.verify(dto.email, dto.code, userAgent);
   }
 
   @Post('password-reset/consume')
@@ -70,6 +93,24 @@ export class OpsAuthController {
   @HttpCode(HttpStatus.OK)
   activateAccount(@Body(zodBody(activateAccountSchema)) dto: ActivateAccountInput) {
     return this.accountActivationService.activate(dto.token, dto.password);
+  }
+
+  /** Who an invitation link is for, so the first-visit page can greet them; does not use the link up. */
+  @Post('activate/preview')
+  @PublicRateLimit('authentication')
+  @HttpCode(HttpStatus.OK)
+  previewInvitation(@Body(zodBody(invitationTokenSchema)) dto: InvitationTokenInput) {
+    return this.accountActivationService.preview(dto.token);
+  }
+
+  /** A client or supplier confirms their invitation and is signed straight in, without setting a password. */
+  @Post('activate/confirm')
+  @UseInterceptors(SetSessionCookieInterceptor)
+  @PublicRateLimit('authentication')
+  @HttpCode(HttpStatus.OK)
+  async confirmInvitation(@Body(zodBody(invitationTokenSchema)) dto: InvitationTokenInput, @Headers('user-agent') userAgent?: string) {
+    const { userId } = await this.accountActivationService.confirm(dto.token);
+    return this.authOperationsService.signInWithVerifiedEmail(userId, userAgent);
   }
 
   @Post('invitations')
@@ -94,10 +135,11 @@ export class OpsAuthController {
   }
 
   @Post('2fa/verify')
+  @UseInterceptors(SetSessionCookieInterceptor)
   @PublicRateLimit('authentication')
   @HttpCode(HttpStatus.OK)
   verifyTwoFactor(@Body(zodBody(verifyTwoFactorSchema)) dto: VerifyTwoFactorInput, @Headers('user-agent') userAgent?: string) {
-    return this.authOperationsService.verifyTwoFactor(dto.token, dto.code, userAgent);
+    return this.authOperationsService.verifyTwoFactor(dto.token, dto.code, userAgent, dto.trustDevice ?? false);
   }
 
   @Post('2fa/development-qr')
@@ -122,6 +164,7 @@ export class OpsAuthController {
   }
 
   @Post('logout')
+  @UseInterceptors(ClearSessionCookieInterceptor)
   @UseGuards(EventSessionGuard)
   @AllowPendingPrivacyNotice()
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -183,11 +226,20 @@ export class OpsAuthController {
   }
 
   /** Turns two-step sign-in on with a code from the authenticator just added. */
+  /** Returns the backup codes for a lost phone, shown once. */
   @Post('me/two-factor/enable')
   @UseGuards(EventSessionGuard)
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   enableMyTwoFactor(@Body(zodBody(enableOwnTwoFactorSchema)) dto: EnableOwnTwoFactorInput, @VerifiedEventActor() actor: PrismVerifiedEventActor) {
     return this.ownTwoFactor.enable(actor, dto.code);
+  }
+
+  /** A fresh set of backup codes with the current password; the old set stops working. */
+  @Post('me/two-factor/backup-codes')
+  @UseGuards(EventSessionGuard)
+  @HttpCode(HttpStatus.OK)
+  regenerateMyBackupCodes(@Body(zodBody(confirmOwnPasswordSchema)) dto: ConfirmOwnPasswordInput, @VerifiedEventActor() actor: PrismVerifiedEventActor) {
+    return this.ownTwoFactor.regenerateBackupCodes(actor, dto.password);
   }
 
   /** Turns two-step sign-in off; PMCM staff keep it. */

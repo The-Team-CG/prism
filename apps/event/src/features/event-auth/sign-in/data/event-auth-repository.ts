@@ -1,7 +1,19 @@
 import { createEventOpsClient } from "@prism/api-client";
 import { eventApi } from "@/lib/prism-api";
 import { readStoredEventSession, saveEventSession, type EventSession } from "@/app/lib/session";
-import { PRISM_PRIVACY_NOTICE_VERSION } from "@prism/types";
+import { PRISM_PRIVACY_NOTICE_VERSION, PRISM_SESSION_STORAGE_KEYS } from "@prism/types";
+
+type TrustedDevices = Record<string, string>;
+
+function readTrustedDevices(): TrustedDevices {
+  if (typeof window === "undefined") return {};
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(PRISM_SESSION_STORAGE_KEYS.trustedDevices) ?? "{}");
+    return parsed && typeof parsed === "object" ? (parsed as TrustedDevices) : {};
+  } catch {
+    return {};
+  }
+}
 import type {
   ActivateAccountInput,
   PrismSignInSession,
@@ -15,8 +27,18 @@ export const eventAuthRepository = {
   endRejectedSession(accessToken: string): Promise<void> {
     return createEventOpsClient({ getAuthToken: () => accessToken }).auth.logout().catch(() => undefined);
   },
-  login(input: { email: string; password: string }): Promise<PrismAuthResponse> {
+  login(input: { email: string; password: string; trustedDeviceToken?: string }): Promise<PrismAuthResponse> {
     return eventApi.auth.login(input);
+  },
+
+  /** The token that lets this browser skip the authenticator step for this email, if it was trusted. */
+  trustedDeviceToken(email: string): string | undefined {
+    return readTrustedDevices()[email.trim().toLowerCase()];
+  },
+
+  rememberTrustedDevice(email: string, token: string): void {
+    const devices = { ...readTrustedDevices(), [email.trim().toLowerCase()]: token };
+    window.localStorage.setItem(PRISM_SESSION_STORAGE_KEYS.trustedDevices, JSON.stringify(devices));
   },
 
   setupTwoFactor(token: string): Promise<PrismTwoFactorSetup> {
@@ -27,8 +49,8 @@ export const eventAuthRepository = {
     return eventApi.auth.developmentTwoFactorQr(token);
   },
 
-  verifyTwoFactor(token: string, code: string): Promise<PrismSignInSession> {
-    return eventApi.auth.verifyTwoFactor({ token, code });
+  verifyTwoFactor(token: string, code: string, trustDevice = false): Promise<PrismSignInSession> {
+    return eventApi.auth.verifyTwoFactor({ token, code, trustDevice });
   },
 
   requestPasswordReset(email: string) {
@@ -41,6 +63,30 @@ export const eventAuthRepository = {
 
   activateAccount(input: ActivateAccountInput) {
     return eventApi.auth.activateAccount(input);
+  },
+
+  /**
+   * The session the API's HttpOnly cookie holds for this portal (set by the shared "Sign in to P.R.I.S.M." page),
+   * shaped like a sign-in, or null when there is none. The token itself stays in the cookie.
+   */
+  async cookieSession(): Promise<PrismSignInSession | null> {
+    try {
+      const me = await eventApi.auth.me();
+      return {
+        id: me.id,
+        name: me.name,
+        email: me.email,
+        role: me.role,
+        organization: me.organization,
+        approvalStatus: "approved",
+        accessToken: "",
+        expiresAt: me.expiresAt,
+        signedInAt: new Date().toISOString(),
+        privacyNoticeRequired: me.privacyNoticeRequired,
+      };
+    } catch {
+      return null;
+    }
   },
 
   hasSignedInSession(): boolean {

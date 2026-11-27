@@ -164,6 +164,10 @@ export interface PrismAuthenticatedSession extends PrismUser {
 export interface PrismSignInSession extends PrismAuthenticatedSession {
   /** True until the person acknowledges the current privacy notice version. */
   privacyNoticeRequired: boolean;
+  /** Returned once, when the person asked to trust this browser; the portal keeps it to skip the authenticator step. */
+  trustedDeviceToken?: string;
+  /** Returned once, when an authenticator was just set up: one-time codes for a lost phone. Shown, never stored. */
+  backupCodes?: string[];
 }
 
 export interface PrismTwoFactorSetupRequired {
@@ -206,6 +210,16 @@ export interface PrismApprovalRequestReceipt {
 /** Same body whether or not the token matched, so an activation response never reveals token state. */
 export interface PrismAccountActivationReceipt {
   message: string;
+}
+
+/** Who an open invitation link is for, so the first-visit page can greet them before they confirm. */
+export interface PrismInvitationPreview {
+  name: string;
+  email: string;
+  organization: string;
+  role: string;
+  /** Clients and suppliers confirm and continue; PMCM staff set a password. */
+  passwordRequired: boolean;
 }
 
 /** Result of provisioning an account login. `invited` means the activation email was accepted by the mail provider. */

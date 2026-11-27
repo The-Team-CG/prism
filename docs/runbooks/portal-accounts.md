@@ -45,6 +45,17 @@ Accounts exist after the explicit fixture seed runs against an empty local dispo
 | Event command | `apps/event` | http://localhost:3004/sign-in | PMCM admin + coordinator |
 | API | `apps/api` | http://localhost:4000 | Shared backend for all portals |
 
+Anyone with an account can also start at http://localhost:3001/start ("Sign in to P.R.I.S.M."): clients stay on the
+client portal, and suppliers and PMCM staff land in their own portal already signed in. Clients and suppliers sign in
+with a six-digit emailed code by default (the password is the other choice); with `PRISM_MAIL_TRANSPORT=log` the code is
+written to the API log. PMCM staff and coordinators use their password and authenticator, with backup codes for a lost
+phone and an optional 30-day trusted device.
+
+Sessions live in HttpOnly cookies the API sets, one per portal (`prism_api_client`, `prism_api_supplier`,
+`prism_api_event`). The browser sends them only when the portals and the API share a site, and the API picks the
+cookie by the request's origin, so `PRISM_*_PORTAL_URL` must match the portal's origin exactly (`localhost` and
+`127.0.0.1` are different). Set `PRISM_SESSION_COOKIE_DOMAIN` when the API and portals are on different subdomains.
+
 These are the primary checkout's ports; a linked worktree prints its own with
 `npm run ports` (see [parallel worktrees](parallel-worktrees.md)).
 

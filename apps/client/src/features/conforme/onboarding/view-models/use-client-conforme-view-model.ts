@@ -3,7 +3,7 @@
 import { useEffect, useReducer, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PrismConformeExecution } from "@prism/types";
-import { storedClientAccessToken } from "@/lib/prism-api";
+import { hasStoredClientSession } from "@/lib/prism-api";
 import { clientConformeRepository } from "../data/client-conforme-repository";
 import { initialClientConformeReviewState, reduceClientConformeReviewState } from "../model/client-conforme-review-state";
 
@@ -16,7 +16,7 @@ export function useClientConformeViewModel() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!storedClientAccessToken()) {
+    if (!hasStoredClientSession()) {
       router.replace("/sign-in?next=/conforme");
       return;
     }

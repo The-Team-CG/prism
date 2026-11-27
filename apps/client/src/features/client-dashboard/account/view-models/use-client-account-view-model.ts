@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useInvalidate, useResource } from "@prism/portal-query";
 import { accountChange, type AccountActions } from "@prism/ui/account-page";
-import { twoStepStart } from "@prism/ui/account-two-step";
+import { twoStepStart, twoStepBackupCodes } from "@prism/ui/account-two-step";
 import { signOutClientSession } from "../../workspace/use-cases/client-dashboard-actions";
 import { manilaDateKey } from "@prism/ui/format-date";
 import type { AccountContact, AccountIdentity, AccountPrivacySummary, AccountSecuritySummary } from "@prism/ui/account-page";
@@ -32,6 +32,7 @@ export function useClientAccountViewModel() {
     twoStep: {
       start: twoStepStart(clientAccountRepository.startTwoStep),
       enable: accountChange(clientAccountRepository.enableTwoStep, () => invalidate(clientCurrentUserResource)),
+      makeBackupCodes: twoStepBackupCodes(clientAccountRepository.makeBackupCodes),
       disable: accountChange(clientAccountRepository.disableTwoStep, () => invalidate(clientCurrentUserResource)),
     },
     signOutSession: accountChange(clientAccountRepository.signOutSession, () => invalidate(clientOwnSessionsResource)),

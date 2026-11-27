@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { projectDevice } from './browser-devices.mjs';
-import { api, origins, password, inbox, mailLink, persona, privacyIfNeeded, fillStable } from './helpers.mjs';
+import { api, origins, password, inbox, mailLink, persona, privacyIfNeeded, fillStable, usePasswordSignIn, usePasswordActivation } from './helpers.mjs';
 import { submitPublicInquiry } from './inquiry-actions.mjs';
 import { oneTableScene } from '../floorplan-fixture.mjs';
 import { openBooking } from './journey-fixtures.mjs';
@@ -27,6 +27,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await expect(pmcm.page.getByText('Inquiry accepted', { exact: true })).toBeVisible();
       const mail = await inbox(inquiry.email, '/activate');
       await client.goto(mailLink(mail, '/activate', origins.client));
+      await usePasswordActivation(client);
       await client.getByLabel('New password', { exact: true }).fill(password);
       await client.getByLabel('Confirm new password', { exact: true }).fill(password);
       await client.getByRole('button', { name: 'Set password', exact: true }).click();
@@ -35,6 +36,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await client.waitForLoadState('networkidle');
       await expect(async () => {
         await fillStable(client.getByLabel('Email address'), inquiry.email);
+        await usePasswordSignIn(client);
         await fillStable(client.getByLabel('Password', { exact: true }), password);
         await expect(client.getByLabel('Email address')).toHaveValue(inquiry.email, { timeout: 1_000 });
       }).toPass({ timeout: 20_000 });
@@ -167,6 +169,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
 
       const invitation = await inbox(supplierEmail, '/activate');
       await applicant.goto(mailLink(invitation, '/activate', origins.supplier));
+      await usePasswordActivation(applicant);
       await applicant.getByLabel('New password', { exact: true }).fill(password);
       await applicant.getByLabel('Confirm new password', { exact: true }).fill(password);
       await applicant.getByRole('button', { name: 'Activate account', exact: true }).click();
@@ -175,6 +178,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await expect(applicant).toHaveURL(/\/sign-in$/);
       await applicant.waitForLoadState('networkidle');
       await fillStable(applicant.getByLabel('Email address', { exact: true }), supplierEmail);
+      await usePasswordSignIn(applicant);
       await fillStable(applicant.getByLabel('Password', { exact: true }), password);
       await applicant.getByRole('button', { name: 'Sign in', exact: true }).click();
       await privacyIfNeeded(applicant);

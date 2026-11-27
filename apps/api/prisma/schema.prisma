@@ -84,6 +84,9 @@ model OpsUser {
   approvalRequests    OpsApprovalRequest[]
   sessions            OpsUserSession[]
   emailChangeRequests OpsEmailChangeRequest[]
+  emailSignInCodes    OpsEmailSignInCode[]
+  backupCodes         OpsTwoFactorBackupCode[]
+  trustedDevices      OpsTrustedDevice[]
 
   @@map("users")
   @@schema("identity_access")
@@ -102,6 +105,59 @@ model OpsPasswordResetToken {
   @@index([userId, expiresAt], map: "password_reset_tokens_user_id_expires_at_idx")
   @@index([expiresAt], map: "password_reset_tokens_expires_at_idx")
   @@map("password_reset_tokens")
+  @@schema("identity_access")
+}
+
+/// A six-digit sign-in code emailed to a client or supplier instead of a password. Only a hash of the code is stored;
+/// a code is single use, a newer code consumes the open ones, and too many wrong tries end it.
+model OpsEmailSignInCode {
+  id         String    @id
+  userId     String    @map("user_id")
+  codeHash   String    @map("code_hash")
+  expiresAt  DateTime  @map("expires_at")
+  attempts   Int       @default(0)
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user OpsUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt], map: "email_sign_in_codes_user_id_created_at_idx")
+  @@index([expiresAt], map: "email_sign_in_codes_expires_at_idx")
+  @@map("email_sign_in_codes")
+  @@schema("identity_access")
+}
+
+/// One-time backup code for authenticator sign-in, for a lost phone. Only its hash is stored; a code works once.
+model OpsTwoFactorBackupCode {
+  id        String    @id
+  userId    String    @map("user_id")
+  codeHash  String    @unique(map: "two_factor_backup_codes_code_hash_key") @map("code_hash")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user OpsUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "two_factor_backup_codes_user_id_idx")
+  @@map("two_factor_backup_codes")
+  @@schema("identity_access")
+}
+
+/// A browser the person chose to trust after an authenticator code; it skips that step for 30 days. Only the token's
+/// hash is stored, and a password change or sign-out everywhere (a new session version) ends every trusted device.
+model OpsTrustedDevice {
+  id             String    @id
+  userId         String    @map("user_id")
+  tokenHash      String    @unique(map: "trusted_devices_token_hash_key") @map("token_hash")
+  device         String
+  sessionVersion Int       @map("session_version")
+  expiresAt      DateTime  @map("expires_at")
+  revokedAt      DateTime? @map("revoked_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  user OpsUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt], map: "trusted_devices_user_id_expires_at_idx")
+  @@map("trusted_devices")
   @@schema("identity_access")
 }
 

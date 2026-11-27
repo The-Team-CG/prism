@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test, expect } from '@playwright/test';
-import { api, origins, password, persona, freshEvent, privacyIfNeeded, fillStable, fitsViewport, pageWidths } from './helpers.mjs';
+import { api, origins, password, persona, freshEvent, privacyIfNeeded, fillStable, usePasswordSignIn, fitsViewport, pageWidths } from './helpers.mjs';
 import { pageCoverageCases } from './page-coverage-cases.mjs';
 import { assertPageCoverageComplete, pageCoverageApps } from './page-coverage-report.mjs';
 import { phoneNavigationGaps, phoneOverflowReport, phoneViewport } from './phone-coverage.mjs';
@@ -175,6 +175,7 @@ for (const app of pageCoverageApps) test(`all registered pages render: ${app}`, 
     if (app === 'client') {
       await page.goto(`${origins.client}/sign-in`);
       await fillStable(page.getByLabel('Email address'), fixture.email);
+      await usePasswordSignIn(page);
       await fillStable(page.getByLabel('Password', { exact: true }), password);
       await page.getByRole('button', { name: 'Sign in', exact: true }).click();
       await privacyIfNeeded(page);

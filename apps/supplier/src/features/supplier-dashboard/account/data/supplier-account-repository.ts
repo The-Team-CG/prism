@@ -25,6 +25,7 @@ export const supplierAccountRepository = {
   cancelEmailChange: () => supplierApi.auth.cancelEmailChange(),
   startTwoStep: (password: string) => supplierApi.auth.startMyTwoFactor(password),
   enableTwoStep: (code: string) => supplierApi.auth.enableMyTwoFactor(code),
+  makeBackupCodes: (password: string) => supplierApi.auth.regenerateMyBackupCodes(password),
   disableTwoStep: (password: string) => supplierApi.auth.disableMyTwoFactor(password),
   signOutSession: (sessionId: string) => supplierApi.auth.signOutSession(sessionId),
   signOutOtherSessions: () => supplierApi.auth.signOutOtherSessions(),

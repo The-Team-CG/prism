@@ -2,15 +2,14 @@
 
 import { PrismAccountHelp } from "@prism/ui/account-help";
 import { portalHref } from "@prism/ui/portal-path";
-import { PRISM_AUTH_INPUT_CLASS_NAME, PrismAuthShell, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
+import { PrismAuthShell, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
+import { PrismAuthEmailField, PrismAuthError, PrismAuthPasswordField } from "@prism/ui/auth-form";
 import { FormEvent, useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { Alert, AlertDescription } from "@prism/ui/components/alert";
 import { Button } from "@prism/ui/components/button";
 import { Field } from "@prism/ui/components/field";
-import { Input } from "@prism/ui/components/input";
 import { Label } from "@prism/ui/components/label";
+import { Input } from "@prism/ui/components/input";
 import { EVENT_PORTAL_POINTS, EVENT_PORTAL_STATEMENT } from "../model/event-portal-copy";
 import { signInSubmitLabel, twoFactorCopy } from "../model/event-sign-in-copy";
 import { eventSignInProgress } from "../model/event-sign-in-steps";
@@ -71,48 +70,19 @@ function SetupSecretBox({ secret, otpauthUri }: { secret: string; otpauthUri: st
 type SignInVm = ReturnType<typeof useEventSignInViewModel>;
 
 function PasswordFields({ vm, active }: { vm: SignInVm; active: boolean }) {
+  const errorId = vm.error ? "event-sign-in-error" : undefined;
   return (
     <div hidden={!active} className="flex flex-col gap-5">
-      <Field>
-        <Label htmlFor="email">Email address</Label>
-        <Input
-          id="email"
-          type="email"
-          autoComplete="username"
-          required={active}
-          value={vm.email}
-          onChange={(e) => vm.setEmail(e.target.value)}
-          placeholder="name@company.com"
-          className={`h-12 rounded-lg bg-card text-base ${PRISM_AUTH_INPUT_CLASS_NAME}`}
-        />
-      </Field>
-
-      <Field>
-        <Label htmlFor="password">Password</Label>
-        <div className="relative">
-          <Input
-            id="password"
-            type={vm.showPassword ? "text" : "password"}
-            autoComplete="current-password"
-            required={active}
-            value={vm.password}
-            onChange={(e) => vm.setPassword(e.target.value)}
-            placeholder="Enter your password"
-            className={`h-12 rounded-lg bg-card pr-12 text-base ${PRISM_AUTH_INPUT_CLASS_NAME}`}
-          />
-          <button
-            type="button"
-            onClick={() => vm.setShowPassword(!vm.showPassword)}
-            className="absolute right-1 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-            aria-label={vm.showPassword ? "Hide password" : "Show password"}
-          >
-            {vm.showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
-          </button>
-        </div>
-        <a href={portalHref("/password-reset")} className="self-end text-sm text-primary transition-colors hover:text-primary/80">
-          Forgot password?
-        </a>
-      </Field>
+      <PrismAuthEmailField value={vm.email} onChange={vm.setEmail} required={active} errorId={errorId} />
+      <PrismAuthPasswordField
+        value={vm.password}
+        onChange={vm.setPassword}
+        shown={vm.showPassword}
+        onToggleShown={() => vm.setShowPassword(!vm.showPassword)}
+        forgotHref={portalHref("/password-reset")}
+        required={active}
+        errorId={errorId}
+      />
     </div>
   );
 }
@@ -134,16 +104,75 @@ function TwoFactorStep({ vm, title }: { vm: SignInVm; title: string }) {
           ) : null}
         </div>
       ) : null}
-      <Field>
-        <Label htmlFor="two-factor-code" className="sr-only">Authenticator code</Label>
-        <AuthenticatorCodeInput
-          value={vm.code}
-          onChange={vm.setCode}
-          disabled={vm.busy}
-          invalid={Boolean(vm.error)}
-          errorId="event-sign-in-error"
-        />
-      </Field>
+      {vm.usingBackupCode ? (
+        <Field>
+          <Label htmlFor="backup-code">Backup code</Label>
+          <Input
+            id="backup-code"
+            autoComplete="one-time-code"
+            autoCapitalize="none"
+            spellCheck={false}
+            value={vm.code}
+            onChange={(event) => vm.setCode(event.target.value)}
+            placeholder="k7p2-9xqm"
+            aria-invalid={vm.error ? true : undefined}
+            aria-describedby={vm.error ? "event-sign-in-error" : undefined}
+            className="h-12 rounded-lg bg-card font-mono text-base"
+          />
+        </Field>
+      ) : (
+        <Field>
+          <Label htmlFor="two-factor-code" className="sr-only">Authenticator code</Label>
+          <AuthenticatorCodeInput
+            value={vm.code}
+            onChange={vm.setCode}
+            disabled={vm.busy}
+            invalid={Boolean(vm.error)}
+            errorId="event-sign-in-error"
+          />
+        </Field>
+      )}
+      {vm.phase === "verify" ? (
+        <>
+          <label className="flex items-center gap-2 text-sm text-foreground">
+            <input type="checkbox" checked={vm.trustDevice} onChange={(event) => vm.setTrustDevice(event.target.checked)} className="size-4 accent-foreground" />
+            Trust this device for 30 days
+          </label>
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm">
+            <button type="button" onClick={vm.toggleBackupCode} className="font-medium text-foreground hover:text-primary">
+              {vm.usingBackupCode ? "Use the authenticator app" : "Use a backup code"}
+            </button>
+            <span className="text-muted-foreground">Lost your phone and codes? Ask a PMCM admin.</span>
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+/** Shown once after a new authenticator: the backup codes, to copy or download before going on. */
+function BackupCodesStep({ codes }: { codes: string[] }) {
+  const [copied, setCopied] = useState(false);
+  const text = codes.join("\n");
+  function download() {
+    const url = URL.createObjectURL(new Blob([`P.R.I.S.M backup codes\nEach code works once.\n\n${text}\n`], { type: "text/plain" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "prism-backup-codes.txt";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+  return (
+    <div className="flex flex-col gap-4">
+      <ul aria-label="Backup codes" className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-4 font-mono text-sm text-foreground">
+        {codes.map((code) => <li key={code}>{code}</li>)}
+      </ul>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="outline" size="sm" onClick={() => void navigator.clipboard.writeText(text).then(() => setCopied(true), () => setCopied(false))}>
+          {copied ? "Copied" : "Copy codes"}
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={download}>Download</Button>
+      </div>
     </div>
   );
 }
@@ -179,15 +208,16 @@ export function EventSignInView() {
       <form className="flex flex-col gap-5" onSubmit={onSubmit} noValidate={!passwordPhase}>
         <PasswordFields vm={vm} active={passwordPhase} />
 
-        {passwordPhase ? null : <TwoFactorStep vm={vm} title={copy.title} />}
+        {passwordPhase ? null : vm.phase === "backup-codes" && vm.backupCodes ? (
+          <div className="flex flex-col gap-4">
+            <p className="text-base font-semibold text-foreground">{copy.title}</p>
+            <BackupCodesStep codes={vm.backupCodes} />
+          </div>
+        ) : <TwoFactorStep vm={vm} title={copy.title} />}
 
-        {vm.error ? (
-          <Alert id="event-sign-in-error" variant="destructive" role="alert">
-            <AlertDescription>{vm.error}</AlertDescription>
-          </Alert>
-        ) : null}
+        <PrismAuthError id="event-sign-in-error" message={vm.error} />
 
-        <Button type="submit" disabled={vm.busy || (!passwordPhase && vm.code.length !== 6)} className={prismAuthSubmitClassName("event")}>
+        <Button type="submit" disabled={vm.busy || (!passwordPhase && vm.phase !== "backup-codes" && (vm.usingBackupCode ? vm.code.trim().length < 8 : vm.code.length !== 6))} className={prismAuthSubmitClassName("event")}>
           {signInSubmitLabel(vm.busy, vm.phase)}
         </Button>
       </form>

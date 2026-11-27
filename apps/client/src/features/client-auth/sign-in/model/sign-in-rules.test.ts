@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  frontDoorPortalSignInUrl,
   isClientRole,
   isSignInDraftValid,
   mapSignInFailure,
@@ -29,6 +30,11 @@ describe("sign-in-rules", () => {
     expect(portalMessage("supplier", env)).toContain("http://localhost:3152");
     expect(portalMessage("pmcm-admin", env)).toContain("http://localhost:3154");
     expect(portalMessage("guest", env)).toContain("approved client");
+    // The shared sign-in page sends each account to its own portal's sign-in, which picks up the session cookie.
+    expect(frontDoorPortalSignInUrl("supplier", env)).toBe("http://localhost:3152/sign-in");
+    expect(frontDoorPortalSignInUrl("coordinator", env)).toBe("http://localhost:3154/sign-in");
+    expect(frontDoorPortalSignInUrl("client", env)).toBeNull();
+    expect(frontDoorPortalSignInUrl("guest", env)).toBeNull();
     expect(() => portalMessage("pmcm-admin", { ...env, NEXT_PUBLIC_EVENT_PORTAL_URL: undefined })).toThrow(
       "NEXT_PUBLIC_EVENT_PORTAL_URL is required",
     );

@@ -1,7 +1,7 @@
 import {submitPublicInquiry} from './inquiry-actions.mjs';
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
-import { origins, api, password, inbox, mailLink, createInquiry, acceptedClient, freshEvent, signInPmcm, privacyIfNeeded, fillStable } from './helpers.mjs';
+import { origins, api, password, inbox, mailLink, createInquiry, acceptedClient, freshEvent, signInPmcm, privacyIfNeeded, fillStable, usePasswordSignIn, usePasswordActivation } from './helpers.mjs';
 
 test('public inquiry uses the calendar and persists the submitted brief',async ({page}) => {
   await submitPublicInquiry(page);
@@ -23,6 +23,7 @@ test('PMCM completes MFA and accepts an inquiry through the portal', async ({ pa
 test('client activates and resets a password using locally captured email links', async ({ page }) => {
   const client = await acceptedClient();
   await page.goto(client.activation);
+  await usePasswordActivation(page);
   await page.getByLabel('New password', { exact: true }).fill(password);
   await page.getByLabel('Confirm new password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Set password', exact: true }).click();
@@ -31,6 +32,7 @@ test('client activates and resets a password using locally captured email links'
   await expect(page).toHaveURL(/\/sign-in$/);
   await page.waitForLoadState('networkidle');
   await fillStable(page.getByLabel('Email address'), client.inquiry.email);
+  await usePasswordSignIn(page);
   await fillStable(page.getByLabel('Password', { exact: true }), password);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await privacyIfNeeded(page);
@@ -49,6 +51,7 @@ test('client activates and resets a password using locally captured email links'
   await expect(page).toHaveURL(/\/sign-in$/);
   await page.waitForLoadState('networkidle');
   await fillStable(page.getByLabel('Email address'), client.inquiry.email);
+  await usePasswordSignIn(page);
   await fillStable(page.getByLabel('Password', { exact: true }), replacement);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard/);
@@ -101,6 +104,7 @@ test('client credentials do not open PMCM or supplier workspaces', async ({ page
   for (const role of ['event', 'supplier']) {
     await page.goto(`${origins[role]}/sign-in`);
     await fillStable(page.getByLabel('Email address'), 'ana@ayala.test');
+    await usePasswordSignIn(page);
     await fillStable(page.getByLabel('Password', { exact: true }), password);
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     await expect(page.getByRole('alert').filter({ hasText: /client/i })).toBeVisible();

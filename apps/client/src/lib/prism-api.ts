@@ -1,5 +1,6 @@
 import {
   createEventOpsClient,
+  enablePrismSessionCookies,
   resolvePrismApiOrigin,
   prismRequest,
   type PrismRequestInit,
@@ -11,6 +12,9 @@ import {
   privacyNoticePath,
 } from "@prism/types";
 import { portalAppPath, portalHref } from "@prism/ui/portal-path";
+
+// The session token lives in the API's HttpOnly cookie for this portal; every API call sends it.
+enablePrismSessionCookies();
 
 /** The API rejected the stored session: sign out locally and return here after sign-in. */
 function expireClientSession() {
@@ -29,6 +33,17 @@ function showClientPrivacyNotice() {
   window.location.assign(portalHref(privacyNoticePath(`${appPath}${window.location.search}`)));
 }
 
+/** Whether this browser has a live client sign-in; the token itself is in the API's HttpOnly cookie. */
+export function hasStoredClientSession() {
+  if (typeof window === "undefined") return false;
+  try {
+    return isPrismAuthenticatedSession(JSON.parse(window.localStorage.getItem(PRISM_SESSION_STORAGE_KEYS.client) ?? "null"));
+  } catch {
+    return false;
+  }
+}
+
+/** A token from a sign-in stored before cookie sessions; new sign-ins store none and send the cookie instead. */
 export function storedClientAccessToken() {
   if (typeof window === "undefined") return null;
   const raw = window.localStorage.getItem(PRISM_SESSION_STORAGE_KEYS.client);

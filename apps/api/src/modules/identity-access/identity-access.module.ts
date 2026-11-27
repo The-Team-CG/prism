@@ -27,6 +27,9 @@ import { IDENTITY_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
 import { ACCOUNT_PASSWORD_CONFIRMATION } from './contracts/account-password-confirmation.port';
 import { PASSWORD_RESET_DELIVERY } from './contracts/password-reset-delivery.port';
 import { PasswordResetMailAdapter } from './infrastructure/auth/password-reset-mail.adapter';
+import { EmailSignInCodeMailAdapter } from './infrastructure/auth/email-sign-in-code-mail.adapter';
+import { EMAIL_SIGN_IN_CODE_DELIVERY } from './contracts/email-sign-in-code-delivery.port';
+import { EmailSignInService } from './application/auth/email-sign-in.service';
 
 @Module({
   imports: [DatabaseModule, AccessControlModule, PlatformOpsModule, EventLifecycleModule, EventSessionModule, ParticipantFactsModule, MailModule, PortalUrlsModule, AccountInvitationReferenceModule],
@@ -37,6 +40,7 @@ import { PasswordResetMailAdapter } from './infrastructure/auth/password-reset-m
     OwnTwoFactorService,
     EmailChangeService,
     PasswordResetService,
+    EmailSignInService,
     AccountActivationService,
     TotpService,
     AuthAuditAdapter,
@@ -44,6 +48,7 @@ import { PasswordResetMailAdapter } from './infrastructure/auth/password-reset-m
     IdentityPrivacyRedactorService,
     { provide: AUTH_AUDIT, useExisting: AuthAuditAdapter },
     { provide: PASSWORD_RESET_DELIVERY, useClass: PasswordResetMailAdapter },
+    { provide: EMAIL_SIGN_IN_CODE_DELIVERY, useClass: EmailSignInCodeMailAdapter },
     { provide: EMAIL_CHANGE_DELIVERY, useClass: EmailChangeMailAdapter },
     { provide: ACCOUNT_EMAIL_CHANGE_CLAIM, useExisting: EmailChangeService },
     { provide: PARTICIPANT_READER, useExisting: ParticipantReaderService },

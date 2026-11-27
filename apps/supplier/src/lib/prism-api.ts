@@ -10,9 +10,10 @@ export type {
   SubmitSupplierQuoteInput as SubmitQuoteInput,
 } from "@prism/types";
 
-import { createEventOpsClient, prismRequest } from "@prism/api-client";
+import { createEventOpsClient, enablePrismSessionCookies, prismRequest } from "@prism/api-client";
 import { PRISM_SESSION_STORAGE_KEYS, clearPrismSession, isPrismAuthenticatedSession, privacyNoticePath } from "@prism/types";
 import { portalAppPath, portalHref } from "@prism/ui/portal-path";
+
 import type {
   CommunicationInboxQuery,
   PrismAuthenticatedSession,
@@ -24,6 +25,9 @@ import type {
   SupplierApplicationStatusQuery,
   SubmitSupplierQuoteInput,
 } from "@prism/types";
+
+// The session token lives in the API's HttpOnly cookie for this portal; every API call sends it.
+enablePrismSessionCookies();
 
 export type { CreateSupplierApplicationInput, SupplierApplicationStatusQuery } from "@prism/types";
 

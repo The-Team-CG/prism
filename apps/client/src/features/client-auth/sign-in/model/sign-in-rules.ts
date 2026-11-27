@@ -20,6 +20,16 @@ export function portalMessage(role: string, env: Record<string, string | undefin
   return "This portal only accepts approved client accounts.";
 }
 
+/**
+ * Where the shared "Sign in to P.R.I.S.M." page sends an account: its own portal's sign-in page, which picks up the
+ * session cookie the API set for that portal. Null for clients (they stay here) and for roles with no portal.
+ */
+export function frontDoorPortalSignInUrl(role: string, env: Record<string, string | undefined> = portalUrlsFromEnvironment()): string | null {
+  if (role === "supplier") return `${portalUrlFor("supplier", env)}/sign-in`;
+  if (role === "pmcm-admin" || role === "coordinator") return `${portalUrlFor("event", env)}/sign-in`;
+  return null;
+}
+
 export function resolvePostSignInPath(nextParam: string | null | undefined): string {
   return safeNextPath(nextParam, "/dashboard");
 }
