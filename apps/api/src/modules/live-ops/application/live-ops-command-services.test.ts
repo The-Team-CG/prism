@@ -296,7 +296,7 @@ describe('LiveOpsTaskIssueCommandService - blocked event-day tasks', () => {
     expect(prisma.opsEventDayLog.create).toHaveBeenCalledWith({ data: expect.objectContaining({ actionType: 'task_blocked', relatedId: 'task_1' }) });
     expect(auditWriter.write).toHaveBeenCalledWith(expect.objectContaining({
       eventId: 'evt_001',
-      action: 'Blocked event-day task: Confirm venue power',
+      action: 'Blocked onsite task: Confirm venue power',
       affectedId: 'task_1',
       metadata: { status: 'blocked', reason: 'Power map missing' },
     }), undefined);

@@ -9,7 +9,7 @@ type RosterRow = ImportGuestRosterInput["rows"][number];
 const rowSchema = importGuestRosterSchema.shape.rows.element;
 
 /** Template column order; the first four are the ones operators normally fill. */
-export const ROSTER_TEMPLATE_COLUMNS = ["guestName", "category", "table", "sourceKey", "email", "phone", "eligibility", "rsvp", "dietary"] as const;
+export const ROSTER_TEMPLATE_COLUMNS = ["guestName", "category", "table", "sourceKey", "email", "phone", "company", "eligibility", "rsvp", "dietary"] as const;
 export type RosterColumn = (typeof ROSTER_TEMPLATE_COLUMNS)[number];
 
 export const ROSTER_COLUMN_LABELS: Record<RosterColumn, string> = {
@@ -18,7 +18,8 @@ export const ROSTER_COLUMN_LABELS: Record<RosterColumn, string> = {
   table: "Table",
   sourceKey: "Guest ID",
   email: "Email",
-  phone: "Phone",
+  phone: "Mobile number",
+  company: "Company name",
   eligibility: "Eligibility",
   rsvp: "RSVP",
   dietary: "Dietary needs",
@@ -33,7 +34,8 @@ const HEADER_ALIASES: Record<RosterColumn, string[]> = {
   table: ["table", "tableno", "tablenumber", "seat"],
   sourceKey: ["sourcekey", "guestid", "id", "key", "registrationid", "ticketid"],
   email: ["email", "emailaddress"],
-  phone: ["phone", "mobile", "phonenumber", "contactnumber"],
+  phone: ["phone", "mobile", "mobilenumber", "phonenumber", "contactnumber"],
+  company: ["company", "companyname", "organization", "organisation"],
   eligibility: ["eligibility", "eligible"],
   rsvp: ["rsvp", "rsvpstatus", "attending", "response"],
   dietary: ["dietary", "dietaryneeds", "dietaryrequirements", "diet", "allergies", "foodrestrictions"],
@@ -42,8 +44,8 @@ const HEADER_ALIASES: Record<RosterColumn, string[]> = {
 export function buildRosterTemplateCsv(): string {
   return [
     ROSTER_TEMPLATE_COLUMNS.map((column) => ROSTER_COLUMN_LABELS[column]).join(","),
-    "Ada Lovelace,VIP,T1,A-001,ada@example.com,,eligible,confirmed,Vegetarian",
-    "Grace Hopper,Speaker,T2,A-002,,,eligible,pending,",
+    "Ada Lovelace,VIP,T1,A-001,ada@example.com,09171234567,Analytical Engines Inc.,eligible,confirmed,Vegetarian",
+    "Grace Hopper,Speaker,T2,A-002,,,,eligible,pending,",
   ].join("\r\n") + "\r\n";
 }
 

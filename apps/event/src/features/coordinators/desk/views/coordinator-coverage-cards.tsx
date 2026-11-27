@@ -12,6 +12,7 @@ import {
   type PrismCoordinatorCoverage,
   type PrismCoordinatorPoolAvailability,
   type PrismCoordinatorRoleRequirement,
+  coordinatorRoleLabel,
 } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
@@ -49,7 +50,7 @@ export function EmergencyWithdrawalsNotice({ assignments }: { assignments: Prism
       <ul className="mt-1.5 space-y-1 text-xs text-foreground">
         {emergencies.map((assignment) => (
           <li key={assignment.id}>
-            {assignment.coordinatorName} withdrew from {assignment.role}
+            {assignment.coordinatorName} withdrew from {coordinatorRoleLabel(assignment.role)}
             {assignment.withdrawalReason ? `: ${assignment.withdrawalReason}` : ""}. Assign a replacement below.
           </li>
         ))}
@@ -122,7 +123,7 @@ function RequirementTile({ requirement, assignedFallback, eventEnded, onEdit }: 
   return (
     <div className="rounded-lg border border-border bg-muted/30 p-3.5">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-foreground">{requirement.role}</p>
+        <p className="text-sm font-semibold text-foreground">{coordinatorRoleLabel(requirement.role)}</p>
         <span className={"rounded-full px-2 py-0.5 text-xs font-semibold " + (complete ? "bg-success/10 text-success" : "bg-attention/10 text-attention")}>
           {assigned} of {requirement.required} assigned{"acknowledged" in requirement ? ` · ${acknowledged} acknowledged` : ""}
         </span>
@@ -161,7 +162,7 @@ export function CoverageTargetCard({ busy, roleOptions, editing, onSave, onClear
       const saved = await onSave(input);
       setMessage(saved
         ? input.mapFromRole
-          ? `Coverage target mapped from ${input.mapFromRole} to ${input.role}.`
+          ? `Coverage target mapped from ${coordinatorRoleLabel(input.mapFromRole)} to ${coordinatorRoleLabel(input.role)}.`
           : "Coverage target saved for " + input.role + "."
         : "Coverage target was not saved. Check the PMCM status message.");
     } catch (error) {
@@ -186,13 +187,13 @@ export function CoverageTargetCard({ busy, roleOptions, editing, onSave, onClear
                 <SelectValue placeholder="Choose a coordinator role" />
               </SelectTrigger>
               <SelectContent>
-                {roleOptions.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}
+                {roleOptions.map((option) => <SelectItem key={option} value={option}>{coordinatorRoleLabel(option)}</SelectItem>)}
               </SelectContent>
             </Select>
           </label>
           {editing && !canonicalCoordinatorRole(editing.role) && (
             <p role="status" className="text-xs text-muted-foreground">
-              “{editing.role}” is a historical role. Choose a catalog role to map this coverage target before saving.
+              “{coordinatorRoleLabel(editing.role)}” is a historical role. Choose a catalog role to map this coverage target before saving.
             </p>
           )}
           <label className={LABEL_CLASS}>

@@ -1,7 +1,7 @@
 import { Inject, Injectable, BadRequestException, ConflictException, ForbiddenException, Logger, NotFoundException } from '@nestjs/common';
 import type { OpsDocument, OpsEvent, OpsInquiry, OpsInquiryMerge, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
-import { INQUIRY_EDIT_WINDOW_HOURS, prismCalendarDateKey, type ClientLanguage, type SetClientLanguageInput, type EditPublicInquiryInput, type MergeInquiryInput, type PrismAccountInvitationOutcome, type PrismCompanyNameChange, type PrismPublicInquiryEdit, type SetInquiryIntakePathInput, type UpdateInquiryCompanyNameInput } from '@prism/types';
+import { INQUIRY_EDIT_WINDOW_HOURS, prismCalendarDateKey, type ClientLanguage, type PrismClientPortalStatus, type SetClientLanguageInput, type EditPublicInquiryInput, type MergeInquiryInput, type PrismAccountInvitationOutcome, type PrismCompanyNameChange, type PrismPublicInquiryEdit, type SetInquiryIntakePathInput, type UpdateInquiryCompanyNameInput } from '@prism/types';
 import {
   ACCOUNT_PROVISIONING,
   type AccountInvitationActor,
@@ -118,6 +118,9 @@ function upcomingEventDate(value: string): Date {
   return eventDate;
 }
 
+/** How far a client portal is open; an event record only ever moves up this order. */
+const PORTAL_ACCESS_RANK: Record<PrismClientPortalStatus, number> = { locked: 0, limited: 1, unlocked: 2 };
+
 @Injectable()
 export class InquiriesService {
   private readonly logger = new Logger(InquiriesService.name);
@@ -224,7 +227,6 @@ export class InquiriesService {
             ? {
                 status: 'accepted',
                 acceptedAt: current.acceptedAt ?? now,
-                conformeSentAt: current.conformeSentAt ?? now,
                 declineReason: null,
               }
             : input.status === 'pending'
@@ -258,6 +260,9 @@ export class InquiriesService {
         movedToAccepted = input.status === 'accepted';
         movedToDeclined = input.status === 'declined' && locked.status !== 'declined';
         const updated = await tx.opsInquiry.update({ where: { id: inquiryId }, data });
+        // UAT 4.1: acceptance opens briefing & proposal. The client answers the briefing and reviews the proposal in a
+        // limited portal; the conforme follows the approved proposal and opens the rest.
+        if (movedToAccepted) await this.ensureConformeEvent(tx, updated, 'limited');
         if (tx.opsInquiryStatusHistory?.create) {
           await tx.opsInquiryStatusHistory.create({
             data: {
@@ -278,14 +283,14 @@ export class InquiriesService {
       sideEffects: async (inquiry) => {
         if (input.status === 'accepted' && movedToAccepted) {
           await Promise.all([
-          this.audit(undefined, verifiedActor.name, `Accepted inquiry for ${inquiry.clientName}; conforme sent`, {
+          this.audit(undefined, verifiedActor.name, `Accepted inquiry for ${inquiry.clientName}; briefing and proposal opened`, {
             actorRole: verifiedActor.role,
             actorEmail: verifiedActor.email,
             metadata: { actorId: verifiedActor.id },
           }),
-            this.notify(undefined, inquiry.email, 'Conforme sent by PMCM', 'viber'),
+            this.notify(undefined, inquiry.email, 'PMCM accepted your inquiry; your event briefing is open', 'viber'),
           ]);
-          // The client needs the account to read and sign the conforme, so the invitation goes out with the acceptance.
+          // The client needs the account to answer the briefing and review the proposal, so the invitation goes out with the acceptance.
           const invitation = await this.sendClientPortalInvitationAfterCommit(inquiry.id, this.invitationActorFor(verifiedActor));
           // Sent after the invitation so it can point the client at the right next step for that outcome.
           await this.notify(undefined, inquiry.email, inquiryAcceptedMessage(inquiry.eventName, invitation, clientLanguageOf(inquiry)));
@@ -451,20 +456,9 @@ export class InquiriesService {
           if (!lockedInquiry || lockedInquiry.status !== 'accepted' || lockedInquiry.conformeSignedAt) {
             throw new ConflictException('Inquiry state changed; refresh before confirming the conforme');
           }
-          const event = await this.ensureConformeEvent(tx, lockedInquiry, Boolean(input.storageObjectId));
-          if (input.storageObjectId) {
-            const stored = await tx.opsStoredObject.findUnique({ where: { id: input.storageObjectId } });
-            if (!stored || stored.eventId !== event.id || stored.usage !== 'signed_conforme' || stored.lifecycleState !== 'stored') {
-              throw new BadRequestException('Conforme requires a confirmed stored W10 signed-conforme object');
-            }
-            await this.activateAfterConforme(tx, lockedInquiry.id, now);
-            // The scanned conforme is the signed record now; an in-app version still awaiting signatures would
-            // otherwise stay open on the client's conforme page and refuse every acknowledgment.
-            await tx.opsConformeExecution.updateMany({
-              where: { inquiryId: lockedInquiry.id, status: { in: ['awaiting_client', 'awaiting_pmcm'] } },
-              data: { status: 'superseded' },
-            });
-          }
+          await this.requireConformeReady(tx, lockedInquiry.id);
+          const event = await this.ensureConformeEvent(tx, lockedInquiry, input.storageObjectId ? 'unlocked' : 'limited');
+          if (input.storageObjectId) await this.confirmStoredConforme(tx, lockedInquiry.id, event.id, input.storageObjectId, now);
 
           const document = await tx.opsDocument.create({
             data: {
@@ -502,11 +496,44 @@ export class InquiriesService {
     });
   }
 
+  /** A scanned, stored signed conforme activates the event and supersedes any in-app version still awaiting signatures. */
+  private async confirmStoredConforme(tx: Prisma.TransactionClient, inquiryId: string, eventId: string, storageObjectId: string, signedAt: Date) {
+    const stored = await tx.opsStoredObject.findUnique({ where: { id: storageObjectId } });
+    if (!stored || stored.eventId !== eventId || stored.usage !== 'signed_conforme' || stored.lifecycleState !== 'stored') {
+      throw new BadRequestException('Conforme requires a confirmed stored W10 signed-conforme object');
+    }
+    await this.activateAfterConforme(tx, inquiryId, signedAt);
+    // The scanned conforme is the signed record now; an in-app version still awaiting signatures would
+    // otherwise stay open on the client's conforme page and refuse every acknowledgment.
+    await tx.opsConformeExecution.updateMany({
+      where: { inquiryId, status: { in: ['awaiting_client', 'awaiting_pmcm'] } },
+      data: { status: 'superseded' },
+    });
+  }
+
+  /**
+   * UAT 5.2: the conforme follows the proposal. It can be prepared, signed or uploaded only once the client has
+   * approved the proposal on the event workspace that inquiry acceptance opened. Returns the latest briefing so the
+   * conforme can be filled in from it (UAT 5.1).
+   */
+  async requireConformeReady(tx: Prisma.TransactionClient, inquiryId: string) {
+    const event = await tx.opsEvent.findFirst({ where: { inquiryId }, select: { id: true, proposalClientStatus: true } });
+    if (event?.proposalClientStatus !== 'approved') {
+      throw new ConflictException('The conforme comes after the proposal. The client must approve the proposal before the conforme can be prepared, signed or uploaded');
+    }
+    const briefing = await tx.opsBriefing.findFirst({
+      where: { eventId: event.id },
+      orderBy: { submittedAt: 'desc' },
+      select: { venue: true, guestCount: true, confirmedDate: true, confirmedStartTime: true, confirmedEndTime: true, moodAndStyling: true },
+    });
+    return { eventId: event.id, briefing };
+  }
+
   /** Shared transaction seam for verified client+PMCM in-app conforme completion. */
   async activateAfterConforme(tx: Prisma.TransactionClient, inquiryId: string, signedAt: Date) {
     const inquiry = await tx.opsInquiry.findUnique({ where: { id: inquiryId } });
     if (!inquiry || inquiry.status !== 'accepted') throw new ConflictException('Only accepted inquiries can activate an event');
-    const event = await this.ensureConformeEvent(tx, inquiry, true);
+    const event = await this.ensureConformeEvent(tx, inquiry, 'unlocked');
     await tx.opsInquiry.update({ where: { id: inquiryId }, data: { conformeSignedAt: signedAt, portalActivatedAt: signedAt } });
     return { event, inquiry };
   }
@@ -522,7 +549,7 @@ export class InquiriesService {
       const inquiry = await tx.opsInquiry.findUnique({ where: { id: inquiryId } });
       if (!inquiry) throw new NotFoundException('Inquiry not found');
       if (inquiry.status === 'declined' || inquiry.conformeSignedAt) throw new BadRequestException('Pre-conforme documents are for open inquiries before the conforme is signed');
-      const event = await this.ensureConformeEvent(tx, inquiry, false);
+      const event = await this.ensureConformeEvent(tx, inquiry, inquiry.status === 'accepted' ? 'limited' : 'locked');
       return { eventId: event.id };
     });
   }
@@ -535,9 +562,14 @@ export class InquiriesService {
     return { eventId: event?.id ?? null };
   }
 
-  private async ensureConformeEvent(tx: Prisma.TransactionClient, inquiry: OpsInquiry, unlocked: boolean) {
+  /**
+   * The event record behind an inquiry, created on first need and only ever opened further: `locked` before
+   * acceptance, `limited` (briefing and proposal) once PMCM accepts, `unlocked` once the conforme is signed.
+   */
+  private async ensureConformeEvent(tx: Prisma.TransactionClient, inquiry: OpsInquiry, access: PrismClientPortalStatus) {
     let event = await tx.opsEvent.findFirst({ where: { inquiryId: inquiry.id } });
     if (event?.archived) throw new ConflictException('Archived event workspaces cannot be activated');
+    const open = access !== 'locked';
     if (!event) {
       event = await tx.opsEvent.create({
         data: {
@@ -547,9 +579,10 @@ export class InquiriesService {
           eventName: inquiry.eventName,
           eventDate: inquiry.eventDate,
           eventType: inquiry.eventType,
-          status: unlocked ? 'briefing' : 'inquiry',
-          clientPortalStatus: unlocked ? 'unlocked' : 'locked',
-          readiness: unlocked ? 'Client briefing open' : 'Conforme storage confirmation required',
+          status: open ? 'briefing' : 'inquiry',
+          clientPortalStatus: access,
+          ...(access === 'unlocked' ? { billingRequestedAt: new Date() } : {}),
+          readiness: open ? 'Client briefing open' : 'Awaiting inquiry acceptance',
         },
       });
       await tx.opsPostEventDocument.createMany({
@@ -558,11 +591,13 @@ export class InquiriesService {
           { id: `ped_${randomUUID()}`, eventId: event.id, title: 'Photo and video turnover', status: 'pending' },
         ],
       });
-    } else if (unlocked && event.clientPortalStatus !== 'unlocked') {
+    } else if (PORTAL_ACCESS_RANK[access] > (PORTAL_ACCESS_RANK[event.clientPortalStatus as PrismClientPortalStatus] ?? 0)) {
       event = await tx.opsEvent.update({
         where: { id: event.id },
         data: {
-          clientPortalStatus: 'unlocked',
+          clientPortalStatus: access,
+          // UAT 5.3: the signed conforme asks commercial to issue the billing statement from the approved proposal.
+          ...(access === 'unlocked' && !event.billingRequestedAt ? { billingRequestedAt: new Date() } : {}),
           ...(event.status === 'inquiry' ? { status: 'briefing', readiness: 'Client briefing open' } : {}),
         },
       });

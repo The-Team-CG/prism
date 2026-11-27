@@ -25,7 +25,7 @@ export class Phase4SectionBoundary extends Component<Phase4SectionBoundaryProps,
     return (
       <section role="alert" className="rounded-lg border border-border bg-card p-5">
         <h3 className="text-lg font-semibold text-foreground">{this.props.title}</h3>
-        <p className="mt-1 text-sm text-muted-foreground">This section couldn’t load. The rest of the closure workspace is still available.</p>
+        <p className="mt-1 text-sm text-muted-foreground">This section couldn’t load. The rest of the post-event workspace is still available.</p>
         <button
           type="button"
           onClick={() => this.setState({ failed: false })}

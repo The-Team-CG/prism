@@ -9,7 +9,8 @@ import { Menu, menuItem } from "./menu";
 import { ToolGroup } from "./tool-group";
 import { ViewSwitch } from "./view-switch";
 import { buildSeatingList, seatingListHtml } from "./seating-list";
-import { planHtml, printHtml, pullSheetHtml } from "./print-documents";
+import { planHtml, planSvg, printHtml, pullSheetHtml } from "./print-documents";
+import { downloadPlan } from "./plan-export";
 
 export type EditorHeaderProps = {
   onBack(): void;
@@ -190,6 +191,13 @@ function PlanMenu({ onBack, saver, ...name }: PlanMenuProps) {
   );
 }
 
+/** UAT 6.4: the plan as a picture or a PDF, for sharing outside P.R.I.S.M. */
+const PLAN_DOWNLOADS = [
+  { label: "Download PNG", format: "png" },
+  { label: "Download JPEG", format: "jpg" },
+  { label: "Download PDF", format: "pdf" },
+] as const;
+
 /**
  * Prints the plan as it is now: the floor plan drawing in colour, the same plan as line work for the setup crew, the pull
  * sheet suppliers pack from, and, where guests can be seated, who sits where. The seating list is never offered to a client.
@@ -207,27 +215,46 @@ function PrintMenu({ currentDocument, title }: { currentDocument(): FloorplanSce
     <div className="relative">
       <Menu
         trigger={({ open, toggle }) => (
-          <button type="button" aria-haspopup="menu" aria-expanded={open} aria-label="Print" title="Print" onClick={toggle} className={iconButton}>
+          <button type="button" aria-haspopup="menu" aria-expanded={open} aria-label="Print or download" title="Print or download" onClick={toggle} className={iconButton}>
             <Printer className="size-4" aria-hidden />
           </button>
         )}
       >
-        {(close) =>
-          documents.map(({ label, html }) => (
-            <button
-              key={label}
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                close();
-                setRefusal(printHtml(html()) ? null : "Allow pop-ups for this site to print.");
-              }}
-              className={menuItem}
-            >
-              {label}
-            </button>
-          ))
-        }
+        {(close) => (
+          <>
+            {documents.map(({ label, html }) => (
+              <button
+                key={label}
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  close();
+                  setRefusal(printHtml(html()) ? null : "Allow pop-ups for this site to print.");
+                }}
+                className={menuItem}
+              >
+                {label}
+              </button>
+            ))}
+            {PLAN_DOWNLOADS.map(({ label, format }) => (
+              <button
+                key={label}
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  close();
+                  setRefusal(null);
+                  downloadPlan(planSvg(currentDocument()), title, format).catch((error: unknown) => {
+                    setRefusal(error instanceof Error ? error.message : "The floor plan could not be downloaded.");
+                  });
+                }}
+                className={menuItem}
+              >
+                {label}
+              </button>
+            ))}
+          </>
+        )}
       </Menu>
       {refusal ? (
         <span role="alert" title={refusal} className="absolute right-0 top-full mt-1 max-w-56 truncate text-xs text-destructive">

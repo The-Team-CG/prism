@@ -262,7 +262,7 @@ export function mapOnboardingEvent(event: EventWithDrafts) {
     eventType: event.eventType,
     coverObjectId: event.coverObjectId,
     status: event.status,
-    clientPortalStatus: event.clientPortalStatus as 'locked' | 'unlocked',
+    clientPortalStatus: event.clientPortalStatus as 'locked' | 'limited' | 'unlocked',
     readiness: event.readiness,
     archived: event.archived,
     floorPlanStatus: event.floorPlanStatus,

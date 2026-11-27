@@ -2,6 +2,7 @@
 
 import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
 import type { PrismCoordinator, PrismCoordinatorAssignment, PrismEvent } from "@prism/types";
+import { coordinatorRoleLabel } from "@prism/types";
 import { Search, UsersRound } from "lucide-react";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { StatusBadge } from "@prism/ui/components/status-badge";
@@ -132,7 +133,7 @@ function BookingSummary({ state, onOpenEvent }: { state: CoordinatorAvailability
         <>
           <BookingLink booking={state.next} onOpenEvent={onOpenEvent} />
           <p className="truncate text-xs text-muted-foreground">
-            {formatPortalDate(state.next.event.eventDate)} · {state.next.assignment.role}
+            {formatPortalDate(state.next.event.eventDate)} · {coordinatorRoleLabel(state.next.assignment.role)}
             {state.more > 0 ? ` · +${state.more} more` : ""}
           </p>
         </>
@@ -142,7 +143,7 @@ function BookingSummary({ state, onOpenEvent }: { state: CoordinatorAvailability
         <>
           <p className="text-muted-foreground">No upcoming bookings</p>
           <p className="truncate text-xs text-muted-foreground">
-            Last: {state.last.event.eventName} · {formatPortalDate(state.last.event.eventDate)} · {state.last.assignment.role}
+            Last: {state.last.event.eventName} · {formatPortalDate(state.last.event.eventDate)} · {coordinatorRoleLabel(state.last.assignment.role)}
           </p>
         </>
       );
@@ -164,7 +165,7 @@ function AssignmentHistory({ bookings, onOpenEvent }: { bookings: CoordinatorBoo
   const row = (booking: CoordinatorBooking) => (
     <li key={booking.assignment.id} className="flex flex-wrap items-baseline gap-x-2 text-muted-foreground">
       <BookingLink booking={booking} onOpenEvent={onOpenEvent} />
-      <span>{formatPortalDate(booking.event.eventDate)} · {booking.assignment.role}</span>
+      <span>{formatPortalDate(booking.event.eventDate)} · {coordinatorRoleLabel(booking.assignment.role)}</span>
     </li>
   );
   return (

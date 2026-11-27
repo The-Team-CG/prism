@@ -1,4 +1,4 @@
-import type { PrismEvent, PrismDocument, ProposalRevisionArea, ReviewEventProposalInput } from "@prism/types";
+import { isClientPortalOpen, type PrismEvent, type PrismDocument, type ProposalRevisionArea, type ReviewEventProposalInput } from "@prism/types";
 
 export const CLIENT_PROPOSAL_REVISION_CAP = 3;
 
@@ -55,7 +55,7 @@ export function remainingProposalRevisions(event: PrismEvent) {
 
 /** Only the inquiry's primary contact decides; anyone else on the account can read and comment. */
 export function canApproveProposal(event: PrismEvent, packageReady: boolean, isDecider: boolean) {
-  return isDecider && packageReady && !event.archived && event.clientPortalStatus === "unlocked" && proposalClientStatus(event) === "pending";
+  return isDecider && packageReady && !event.archived && isClientPortalOpen(event.clientPortalStatus) && proposalClientStatus(event) === "pending";
 }
 
 export function canRequestProposalRevision(event: PrismEvent, packageReady: boolean, isDecider: boolean) {

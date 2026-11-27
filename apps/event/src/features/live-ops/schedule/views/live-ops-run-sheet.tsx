@@ -1,4 +1,5 @@
 "use client";
+import { coordinatorRoleLabel } from "@prism/types";
 
 import Link from "next/link";
 import type { PrismEventRunSheet, PrismRunSheetGuestOperations } from "@prism/types";
@@ -200,7 +201,7 @@ function GuestOperationsPanel({ guestOperations }: { guestOperations: PrismRunSh
           <ul className="mt-1 space-y-0.5">
             {registrationStaff.map((staff) => (
               <li key={`${staff.coordinatorName}:${staff.role}`} className="text-foreground">
-                {[staff.coordinatorName, staff.role, words(staff.status)].join(" · ")}
+                {[staff.coordinatorName, coordinatorRoleLabel(staff.role), words(staff.status)].join(" · ")}
               </li>
             ))}
           </ul>

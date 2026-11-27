@@ -2,6 +2,7 @@ export {
   COORDINATOR_EMERGENCY_WINDOW_HOURS,
   COORDINATOR_ROLES,
   canonicalCoordinatorRole,
+  coordinatorRoleLabel,
   coordinatorRoleSchema,
   upsertCoordinatorRoleBriefSchema,
   type UpsertCoordinatorRoleBriefInput,
@@ -426,7 +427,7 @@ export {
   type PrismAssignEventGameAwardInput,
   type PrismEventGameResponseHistoryQuery,
 } from "./event-games-inputs.js";
-export { supplierWithdrawalSchema, type SupplierWithdrawalInput, createEventFromTemplateSchema, type CreateEventFromTemplateInput, createTemplateSchema, type CreateTemplateInput, updateTemplateSchema, type UpdateTemplateInput, updatePlanSchema, type UpdatePlanInput } from "./session-spatial-inputs.js";
+export { supplierWithdrawalSchema, type SupplierWithdrawalInput, supplierReplacementReferralSchema, type SupplierReplacementReferral, createEventFromTemplateSchema, type CreateEventFromTemplateInput, createTemplateSchema, type CreateTemplateInput, updateTemplateSchema, type UpdateTemplateInput, updatePlanSchema, type UpdatePlanInput } from "./session-spatial-inputs.js";
 export {
   storageUsageSchema,
   requestStorageUploadSchema,

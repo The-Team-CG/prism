@@ -83,7 +83,7 @@ describe('compliance rule registry', () => {
     expect(passed.status).toBe('not_satisfied');
     expect(passed.evidence.join(' ')).toContain('before evaluation time');
     expect(rule.remediation).toBe(
-      'The event date has passed. Start closure if the event took place, or record a postponement with the new date.',
+      'The event date has passed. Move to post-event if the event took place, or record a postponement with the new date.',
     );
   });
 });

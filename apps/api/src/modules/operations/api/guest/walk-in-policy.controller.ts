@@ -50,7 +50,7 @@ export class WalkInPolicyController {
     const event = await this.eventReferences.findOperationsEvent(eventId);
     if (!event || event.archived) throw new NotFoundException('Event not found');
     if (event.eventDate.getTime() <= Date.now() || event.status === 'event_day') {
-      throw new ForbiddenException('The walk-in policy is set by PMCM once event day begins');
+      throw new ForbiddenException('The walk-in policy is set by PMCM once onsite begins');
     }
   }
 }

@@ -546,7 +546,7 @@ const VERIFICATION_TONE: Record<string, string> = {
 };
 
 function rosterDetails(row: PrismGuestRosterEntry) {
-  return [row.category, row.table ? `Table ${row.table}` : null, row.sourceKey ? `ID ${row.sourceKey}` : null].filter(Boolean).join(" · ") || row.email || row.phone || "No details";
+  return [row.company, row.category, row.table ? `Table ${row.table}` : null, row.sourceKey ? `ID ${row.sourceKey}` : null, row.email, row.phone].filter(Boolean).join(" · ") || "No details";
 }
 
 function GuestRosterSection({ eventId, busy, onSearch, onImport, onCheckIn, onVerify }: { eventId: string; busy: boolean; onSearch: (filters?: GuestRosterSearchInput) => Promise<PrismGuestRosterEntry[]>; onImport: (input: ImportGuestRosterInput) => Promise<PrismGuestRosterEntry[]>; onCheckIn: (id: string) => Promise<unknown>; onVerify: (id: string, status: UpdateGuestVerificationInput["status"]) => Promise<unknown> }) {

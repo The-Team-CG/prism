@@ -50,7 +50,7 @@ export function pmcmMobileBar(inEventWorkspace: boolean): PrismMobileBar {
 }
 
 const PREPARE = "Prepare";
-const EVENT_DAY = "Event day & after";
+const EVENT_DAY = "Onsite & post-event";
 
 /**
  * Event tabs in the order the work happens. Preparation comes first; event-day and closure tabs are grouped
@@ -80,7 +80,7 @@ function eventWorkspaceNavItems(
     { id: "event-messages", icon: MessageSquareText, label: "Messages", section: PREPARE, ...unreadNavBadge(counts.unreadMessages) },
     { id: "event-games", icon: Gamepad2, label: "Registration & games", section: EVENT_DAY },
     { id: "event-timeline", icon: Radio, label: "Live operations", shortLabel: "Live", section: EVENT_DAY },
-    { id: "event-report", icon: Archive, label: "Closure", section: EVENT_DAY, badge: preEvent ? undefined : optionalNavBadge(counts.closeoutCount) },
+    { id: "event-report", icon: Archive, label: "Post-event", section: EVENT_DAY, badge: preEvent ? undefined : optionalNavBadge(counts.closeoutCount) },
   ];
 }
 

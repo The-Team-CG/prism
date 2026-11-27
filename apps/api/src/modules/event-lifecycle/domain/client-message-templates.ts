@@ -18,13 +18,13 @@ const EDIT_LINK: Record<ClientLanguage, (hours: number, link: string) => string>
 
 const ACCEPTED: Record<ClientLanguage, { base: (eventName: string) => string; invited: string; existing: string; pending: string }> = {
   en: {
-    base: (eventName) => `PMCM accepted your inquiry for ${eventName}. The next step is to review and sign your conforme in the P.R.I.S.M client portal.`,
+    base: (eventName) => `PMCM accepted your inquiry for ${eventName}. The next step is to answer your event briefing in the P.R.I.S.M client portal, so PMCM can prepare your proposal.`,
     invited: 'We sent you a separate email, "Set up your P.R.I.S.M account", with a link to set your password. If it isn\'t in your inbox, check Spam or Promotions.',
     existing: 'Sign in with your existing P.R.I.S.M account to continue.',
     pending: 'PMCM will send you a link to set up your account shortly.',
   },
   fil: {
-    base: (eventName) => `Tinanggap ng PMCM ang inyong inquiry para sa ${eventName}. Ang susunod na hakbang ay suriin at pirmahan ang inyong conforme sa P.R.I.S.M client portal.`,
+    base: (eventName) => `Tinanggap ng PMCM ang inyong inquiry para sa ${eventName}. Ang susunod na hakbang ay sagutan ang inyong event briefing sa P.R.I.S.M client portal, para maihanda ng PMCM ang inyong proposal.`,
     invited: 'Nagpadala kami ng hiwalay na email, "Set up your P.R.I.S.M account", na may link para itakda ang inyong password. Kung wala ito sa inbox, tingnan ang Spam o Promotions.',
     existing: 'Mag-sign in gamit ang inyong kasalukuyang P.R.I.S.M account para magpatuloy.',
     pending: 'Magpapadala ang PMCM ng link para ma-set up ang inyong account sa lalong madaling panahon.',

@@ -3,7 +3,7 @@ import type { PrismComplianceRule } from "@prism/types";
 export const COMPLIANCE_RULE_PHASES = [
   ["planning", "Planning"],
   ["pre_event", "Pre-event"],
-  ["event_day", "Event day"],
+  ["event_day", "Onsite"],
 ] as const;
 
 export const COMPLIANCE_RULE_SEVERITIES = [

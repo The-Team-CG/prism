@@ -126,20 +126,22 @@ describe("the floor plan editor shell", () => {
     expect(screen.getByText("0 seats for 120 guests")).toBeTruthy();
   });
 
-  it("prints the floor plan and pull sheet, and the seating list only where guests can be seated", async () => {
+  it("prints the floor plan and pull sheet, the seating list only where guests can be seated, and downloads the plan (UAT 6.4)", async () => {
     screenWidth(false);
+    const downloads = ["Download PNG", "Download JPEG", "Download PDF"];
     const printable = () => {
       fireEvent.click(screen.getByRole("button", { name: /Print/ }));
       return screen.getAllByRole("menuitem").map((item) => item.textContent);
     };
     await openEditor();
-    expect(printable()).toEqual(["Floor plan", "Setup drawing", "Pull sheet", "Seating list"]);
+    expect(printable()).toEqual(["Floor plan", "Setup drawing", "Pull sheet", "Seating list", ...downloads]);
     cleanup();
     await openEditor({ seatingAllowed: false });
-    expect(printable()).toEqual(["Floor plan", "Setup drawing", "Pull sheet"]);
+    expect(printable()).toEqual(["Floor plan", "Setup drawing", "Pull sheet", ...downloads]);
     cleanup();
+    // A client viewing the plan read-only can download it too.
     await openEditor({ readOnly: true });
-    expect(printable()).toEqual(["Floor plan", "Setup drawing", "Pull sheet", "Seating list"]);
+    expect(printable()).toEqual(["Floor plan", "Setup drawing", "Pull sheet", "Seating list", ...downloads]);
   });
 
   it("names the plan in the middle of the bar, and its menu saves the plan as a venue template", async () => {

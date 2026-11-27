@@ -20,7 +20,7 @@ const plural = (count: number, singular: string, many: string) => `${count} ${co
 
 /**
  * The client's one list of milestones, in the order an event moves through them. The persisted timeline gives the
- * dated milestones (conforme, proposal, floor plan, balance, event day); the briefing and suppliers fill the gaps.
+ * dated milestones (proposal, conforme, floor plan, balance, event day); the briefing and suppliers fill the gaps.
  * The first unfinished milestone is "next", and an unfinished one whose date has passed is "late".
  */
 export function deriveMilestones(event: PrismEvent, workspace: PrismClientWorkspace, todayKey: string): ProgressMilestone[] {
@@ -33,12 +33,12 @@ export function deriveMilestones(event: PrismEvent, workspace: PrismClientWorksp
   const suppliers = timeline?.confirmedSupplierCount ?? 0;
 
   const drafts: Draft[] = [
-    { kind: "conforme", title: "Conforme signed", ...timed("conforme_signed") },
     {
       kind: "briefing", title: "Briefing sent", done: Boolean(briefing), date: briefing?.submittedAt ?? null, dated: false, route: "briefing",
       detail: briefing ? undefined : "Tell PMCM about your venue, guests and budget",
     },
     { kind: "proposal", title: "Proposal approved", ...timed("proposal_accepted"), route: "proposal" },
+    { kind: "conforme", title: "Conforme signed", ...timed("conforme_signed") },
     { kind: "floorplan", title: "Floor plan approved", ...timed("floor_plan_approved"), route: "floorplan" },
     {
       kind: "suppliers", title: "Suppliers confirmed", done: suppliers > 0, date: null, dated: false,
@@ -63,7 +63,7 @@ export function computeEventProgress(event: PrismEvent, workspace: PrismClientWo
     lifecycleIndex,
     milestones: deriveMilestones(event, workspace, todayKey),
     clientEventDayStatus: event.clientEventDayViewEnabled === true && event.status === "event_day"
-      ? "Event day is in progress."
+      ? "Onsite is in progress."
       : null,
   };
 }

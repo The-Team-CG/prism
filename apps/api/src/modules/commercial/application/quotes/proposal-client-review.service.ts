@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@prism/kernel/database';
-import type { PrismDocumentReference, ReviewEventProposalInput } from '@prism/types';
+import { isClientPortalOpen, type PrismDocumentReference, type ReviewEventProposalInput } from '@prism/types';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import type { Prisma } from '@prisma/client';
@@ -90,7 +90,7 @@ export class ProposalClientReviewService {
       const replay = await this.replayIfPresent(tx, eventId, reviewKey, input, actor, issuedProposal.id);
       if (replay) return replay;
 
-      if (currentEvent.clientPortalStatus !== 'unlocked') throw new BadRequestException('Client proposal review is locked');
+      if (!isClientPortalOpen(currentEvent.clientPortalStatus)) throw new BadRequestException('Client proposal review is locked');
       if (currentEvent.archived) throw new BadRequestException('Archived events cannot receive proposal decisions');
 
       const priorReviews = await this.commercialFacts.listProposalReviewAudits(eventId, tx);

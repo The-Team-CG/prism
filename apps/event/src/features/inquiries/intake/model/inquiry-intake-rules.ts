@@ -264,7 +264,8 @@ export function inquiryNextStep(
 ): InquiryNextStep {
   if (inquiry.status === "declined") return { label: "Declined", tone: "done" };
   if (inquiry.status !== "accepted") return { label: "Review inquiry", tone: "action" };
-  if (!inquiry.conformeSentAt && !inquiry.conformeSignedAt) return { label: "Send conforme", tone: "action" };
+  // Briefing and proposal come first; PMCM sends the conforme once the client approves the proposal.
+  if (!inquiry.conformeSentAt && !inquiry.conformeSignedAt) return { label: "Briefing & proposal in Events", tone: "waiting" };
   if (!inquiry.conformeSignedAt) return { label: "Waiting for signed conforme", tone: "waiting" };
   if (inquiry.portalActivatedAt) return { label: "Planning in Events", tone: "done" };
   if (inquiry.portalInvitationStatus === "expired") return { label: "Re-send client invitation", tone: "action" };

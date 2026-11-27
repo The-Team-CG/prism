@@ -72,10 +72,10 @@ export class EventClosureService {
     return this.prisma.$transaction(async (tx) => {
       const current = await this.requireEvent(eventId, tx);
       if (!['event_day', 'closure_archive', 'archived'].includes(current.status)) {
-        throw new BadRequestException('Actual event end can only be recorded during event day or closure');
+        throw new BadRequestException('Actual event end can only be recorded during onsite or post-event');
       }
       if (!input.correctionReason?.trim() && endsBeforeEventCouldHaveRun(current, actualEndedAt)) {
-        throw new BadRequestException('Actual event end cannot be before event day started; correct it with a reason if the record is right');
+        throw new BadRequestException('Actual event end cannot be before onsite started; correct it with a reason if the record is right');
       }
       const isChanged = !current.actualEndedAt || current.actualEndedAt.getTime() !== actualEndedAt.getTime();
       if (current.actualEndedAt && current.actualEndedAt.getTime() !== actualEndedAt.getTime() && !input.correctionReason?.trim()) {

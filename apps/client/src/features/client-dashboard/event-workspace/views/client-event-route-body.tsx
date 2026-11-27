@@ -10,6 +10,8 @@ import { manilaDateKey } from "@prism/ui/format-date";
 import { ClientActionLists } from "../../shared/client-action-lists";
 import { ClientChangeDeadlineNotice } from "../../shared/client-change-deadline-notice";
 import { dashboardHref, useClientWorkspace, type ClientWorkspaceValue } from "../../workspace/shared";
+import { isClientRouteOpen } from "../../workspace/model/client-dashboard-navigation";
+import { PrismEmptyLine, PrismSection } from "@prism/ui/page-blocks";
 import { ClientRouteTabs } from "../../shared/client-route-tabs";
 import { ClientOverviewTab } from "./client-overview-tab";
 import { ClientOcularVisitPanel } from "./client-ocular-visit-panel";
@@ -28,7 +30,8 @@ function renderOverview(ctx: ClientWorkspaceValue) {
   if (!selectedEvent) return null;
   // The site visit comes before the official floorplan: the request form leads until it is asked for, then the
   // visit is a Coming up line until it is done.
-  const visitOpen = !ctx.ocularVisit || !OCULAR_VISIT_DONE.has(ctx.ocularVisit.status);
+  // A limited portal (before the conforme) asks for no venue visit yet.
+  const visitOpen = selectedEvent.clientPortalStatus !== "limited" && (!ctx.ocularVisit || !OCULAR_VISIT_DONE.has(ctx.ocularVisit.status));
   const visitAsked = ctx.ocularVisit?.status === "requested" || ctx.ocularVisit?.status === "scheduled";
   return (
     <div className="space-y-4">
@@ -113,6 +116,17 @@ const EVENT_ROUTE_RENDERERS: Partial<Record<ClientDashboardRoute, (ctx: ClientWo
   summary: (ctx) => ctx.selectedEvent ? <ClientCloseoutView key={ctx.selectedEvent.id} eventId={ctx.selectedEvent.id} archived={ctx.selectedEvent.archived} /> : null,
 };
 
+/** Before the conforme the portal shows only the briefing and proposal; every other page says when it opens. */
+function OpensAfterConforme({ eventId }: { eventId?: string }) {
+  return (
+    <PrismSection id="opens-after-conforme" title="Opens after the conforme" description="Answer your briefing and approve the proposal first. PMCM then sends the conforme, and signing it opens the rest of your event workspace.">
+      <PrismEmptyLine>
+        {eventId ? <a className="font-medium text-primary hover:text-primary/80" href={dashboardHref("proposal", eventId)}>Go to your proposal</a> : "Choose an event to continue."}
+      </PrismEmptyLine>
+    </PrismSection>
+  );
+}
+
 /** Planning is one sidebar item with three views; the tabs are the way between them. */
 const PLANNING_TABS: Array<{ route: ClientDashboardRoute; label: string }> = [
   { route: "progress", label: "Progress" },
@@ -125,6 +139,7 @@ export function ClientEventRouteBody() {
   const render = EVENT_ROUTE_RENDERERS[ctx.route];
   if (!render) return null;
   const { selectedEvent } = ctx;
+  if (!isClientRouteOpen(ctx.route, selectedEvent)) return <OpensAfterConforme eventId={selectedEvent?.id} />;
   const planningRoute = PLANNING_TABS.some((tab) => tab.route === ctx.route);
   if (!planningRoute || !selectedEvent) return render(ctx);
   return (

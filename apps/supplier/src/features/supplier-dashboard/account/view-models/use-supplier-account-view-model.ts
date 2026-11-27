@@ -18,7 +18,7 @@ const OPEN = new Set(["submitted", "approved"]);
 const PMCM_CONTACT: AccountContact = { name: "PMCM team", detail: "Ask about any booking, quote or payment", href: supplierSectionHref("messages") };
 
 const SUPPLIER_LINKS: AccountLink[] = [
-  { title: "Your supplier record", description: "Services, tier and contact details PMCM keeps for your business", href: supplierSectionHref("profile") },
+  { title: "Your supplier record", description: "Services and contact details PMCM keeps for your business", href: supplierSectionHref("profile") },
 ];
 
 /** The supplier's account page: who they are, how they sign in, who to message at PMCM and their privacy at a glance. */

@@ -246,6 +246,7 @@ export interface PrismGuestRosterEntry {
   guestName: string;
   email?: string | null;
   phone?: string | null;
+  company?: string | null;
   category?: string | null;
   table?: string | null;
   eligibility: string;

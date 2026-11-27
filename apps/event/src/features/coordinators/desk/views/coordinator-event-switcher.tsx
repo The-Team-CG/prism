@@ -1,3 +1,4 @@
+import { coordinatorRoleLabel } from "@prism/types";
 import type { PrismCoordinatorAssignment, PrismEvent } from "@prism/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { formatPortalDate } from "@prism/ui/format-date";
@@ -45,7 +46,7 @@ export function CoordinatorEventSwitcher({
     return (
       <Card className="gap-0 grid gap-1 rounded-lg border border-border bg-card px-3 py-2">
         <p className="text-sm font-semibold leading-5 text-foreground">{only.event.eventName}</p>
-        <p className="text-xs text-muted-foreground">{formatPortalDate(only.event.eventDate)} · {only.assignment.role}</p>
+        <p className="text-xs text-muted-foreground">{formatPortalDate(only.event.eventDate)} · {coordinatorRoleLabel(only.assignment.role)}</p>
       </Card>
     );
   }
@@ -60,7 +61,7 @@ export function CoordinatorEventSwitcher({
           {cards.map(({ event }) => <SelectItem key={event.id} value={event.id}><span className="truncate">{event.eventName} — {formatPortalDate(event.eventDate)}</span></SelectItem>)}
         </SelectContent>
       </Select>
-      {selected ? <p className="text-xs text-muted-foreground">{formatPortalDate(selected.event.eventDate)} · {selected.assignment.role}</p> : null}
+      {selected ? <p className="text-xs text-muted-foreground">{formatPortalDate(selected.event.eventDate)} · {coordinatorRoleLabel(selected.assignment.role)}</p> : null}
     </Card>
   );
 }

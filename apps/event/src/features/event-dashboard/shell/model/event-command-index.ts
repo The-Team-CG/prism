@@ -15,7 +15,7 @@ export const PALETTE_EVENT_TABS: ReadonlyArray<{ tab: DetailTab; label: string }
   { tab: "coordinators", label: "Coordinators" },
   { tab: "live-ops", label: "Live ops" },
   { tab: "billing", label: "Billing" },
-  { tab: "closure", label: "Closure" },
+  { tab: "closure", label: "Post-event" },
   { tab: "decisions", label: "Decisions" },
   { tab: "files", label: "Files" },
   { tab: "messages", label: "Messages" },

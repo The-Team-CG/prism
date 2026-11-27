@@ -19,6 +19,7 @@ import {
 import { recordedAttendanceLabel, type CoordinatorAttendanceChoice } from "../../model/coordinators-desk-rules";
 import { isOpenIssue, isOpenTask, issueTone, openIssues } from "../../model/coordinator-shift";
 import type { CoordinatorRole, PrismCoordinatorRoleView } from "@prism/types";
+import { coordinatorRoleLabel } from "@prism/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { FIELD_AREA, FIELD_INPUT, FIELD_LABEL, FORM_ALERT, FORM_SUBMIT } from "./coordinator-view-primitives";
 import { LoadingState } from "@prism/ui/components/loading-state";
@@ -178,7 +179,7 @@ export function CoordinatorTaskFormFields({ taskForm, onDone }: { taskForm: Coor
           <Select value={taskForm.role} onValueChange={taskForm.setRole} required>
             <SelectTrigger id={`${fieldId}-role`} className="w-full min-w-0"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {taskForm.roleOptions.map((role) => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+              {taskForm.roleOptions.map((role) => <SelectItem key={role} value={role}>{coordinatorRoleLabel(role)}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -327,7 +328,7 @@ function CoordinatorTasksPage({ roleView, taskForm, reassignment, taskActions, o
       {taskForm.blockedReason ? <p role="note" className="max-w-3xl lg:max-w-none rounded-lg bg-attention-soft px-3 py-2 text-sm text-attention">{taskForm.blockedReason}</p> : null}
       <CoordinatorTaskQueue roleView={roleView} taskActions={taskActions} />
       {roleView.isDesignatedOperator ? (
-        <PrismSection bare id="coordinator-team-checks" title="Team controls" description="As the event day operator: reassign tasks and update colleagues' attendance." className="mt-2 max-w-3xl lg:max-w-none">
+        <PrismSection bare id="coordinator-team-checks" title="Team controls" description="As the onsite operator: reassign tasks and update colleagues' attendance." className="mt-2 max-w-3xl lg:max-w-none">
           <div className="grid gap-4"><CoordinatorRoleActions roleView={roleView} reassignment={reassignment} operatorActions={operatorActions} /></div>
         </PrismSection>
       ) : null}

@@ -1,12 +1,12 @@
 import { CalendarDays, Check, ChevronDown, Flag, Send } from "lucide-react";
 
-import type { PrismSupplier, PrismSupplierCategory } from "@prism/types";
+import { supplierStandingLabel, type PrismSupplier, type PrismSupplierCategory } from "@prism/types";
 import { DatePicker } from "@prism/ui/components/date-picker";
 import { Button } from "@prism/ui/components/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@prism/ui/components/dialog";
 import { FieldDescription } from "@prism/ui/components/field";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
-import { cx, label, money, RatingStars, tierLabel } from "@/features/pmcm-kit";
+import { cx, label, money, RatingStars } from "@/features/pmcm-kit";
 import type { SupplierQuoteRow } from "@/features/pmcm-kit";
 import {
   inclusionCountLabel,
@@ -200,7 +200,7 @@ export function SupplierTierColumns({
   return (
     <div className="grid gap-4 xl:grid-flow-col xl:auto-cols-fr">
       {tierOne.length ? <section className="rounded-lg border border-border bg-card p-4">
-        <p className="text-xs font-medium text-success">Auto-suggested Tier 1</p>
+        <p className="text-xs font-medium text-success">Auto-suggested Preferred supplier</p>
         <div className="mt-3 space-y-2">
           {tierOne.map((supplier) => (
             <div key={supplier.id} className="w-full min-w-0 break-words rounded-md border border-success/25 bg-success-soft p-3 text-left text-sm">
@@ -306,8 +306,8 @@ export function QuoteRequestModal({
           </div>
           {tier2Selected ? (
             <label className="block rounded-md border border-border bg-background p-3 text-sm">
-              <span className="block font-semibold">Reason for asking a backup (Tier 2) supplier</span>
-              <span className="text-xs text-muted-foreground">Needed when a free Tier 1 supplier is rated for this event&apos;s size. Recorded in the audit trail.</span>
+              <span className="block font-semibold">Reason for asking a BNI / Non-BNI Preferred supplier</span>
+              <span className="text-xs text-muted-foreground">Needed when a free Preferred supplier is rated for this event&apos;s size. Recorded in the audit trail.</span>
               <input value={tierOverrideReason} maxLength={500} onChange={(event) => onTierOverrideReason(event.target.value)} className="mt-2 h-10 w-full rounded-md border border-border bg-white px-3" />
             </label>
           ) : null}
@@ -369,7 +369,7 @@ function QuoteRequestSupplierRow({
 }) {
   const hint = alreadyRequested
     ? "Active request already sent"
-    : `${tierLabel(supplier.tier)} - ${supplier.email || supplier.phone || "No contact saved"}`;
+    : `${supplierStandingLabel(supplier.tier, supplier.bniMember)} - ${supplier.email || supplier.phone || "No contact saved"}`;
   return (
     <label className={cx("flex items-start gap-3 rounded-md border border-border bg-background p-3", alreadyRequested && "opacity-60")}>
       <input

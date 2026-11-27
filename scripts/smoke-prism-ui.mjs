@@ -19,7 +19,7 @@ const sourceGuards = [
   },
   {
     file: "apps/supplier/src/features/supplier-dashboard/workspace/views/sections/dashboard-page.tsx",
-    markers: ["Quote requests", "Supplier-scoped handoff state", "Event-day status"],
+    markers: ["Quote requests", "Supplier-scoped handoff state", "Onsite status"],
   },
   {
     file: "apps/guest/src/features/guest-checkin/dashboard/views/sections/guest-dashboard-panels.tsx",
@@ -27,7 +27,7 @@ const sourceGuards = [
   },
   {
     file: "apps/event/src/features/event-public/landing/views/event-command-landing.tsx",
-    markers: ["Billing", "Supplier", "Live operations", "Closure"],
+    markers: ["Billing", "Supplier", "Live operations", "Post-event"],
   },
   {
     file: "apps/event/src/features/coordinators/desk/views/sections/coordinator-assignments-page.tsx",

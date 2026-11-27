@@ -285,8 +285,8 @@ describe('SupplierNetworkWorkflowService', () => {
   });
 
   it('records a reliability note against the supplier when PMCM withdraws a booked assignment, once', async () => {
-    const { service, request, reliabilityNotes, audit } = createService();
-    Object.assign(request, { status: 'selected', assignmentStatus: 'confirmed' });
+    const { service, request, reliabilityNotes, audit, notify } = createService();
+    Object.assign(request, { status: 'selected', assignmentStatus: 'confirmed', supplier: { email: 'Supplier@Example.com' } });
     const pmcm = { id: 'pmcm_1', name: 'PMCM Admin', email: 'admin@pmcm.test', role: OpsUserRole.PmcmAdmin, explicit: true, verified: true };
 
     await service.withdrawSupplier('qr_sonic', 'Double-booked on the same date', pmcm, 'evt_sample');
@@ -295,14 +295,32 @@ describe('SupplierNetworkWorkflowService', () => {
       expect.objectContaining({
         supplierId: 'sup_sonicline',
         eventId: 'evt_sample',
-        note: 'Withdrawn from Summit (Technicals) after being assigned: Double-booked on the same date',
+        note: 'Withdrawn from Summit (Technicals) after being assigned: Double-booked on the same date. No replacement referred yet',
         createdBy: 'PMCM Admin',
         idempotencyKey: 'supplier-withdraw-note:qr_sonic',
       }),
     ]);
     expect(audit).toHaveBeenCalled();
+    // UAT 8.9 / 7.8: PMCM is alerted with the reason, and the supplier is asked to refer a replacement at the same rate.
+    const notices = (notify.mock.calls as unknown as Array<[{ recipient: string; message: string }]>).map(([notice]) => notice);
+    expect(notices).toEqual(expect.arrayContaining([
+      expect.objectContaining({ recipient: 'PMCM Admin', message: expect.stringContaining('Reason: Double-booked on the same date. No replacement referred yet') }),
+      expect.objectContaining({ recipient: 'supplier@example.com', message: expect.stringContaining('refer an equivalent replacement who can serve the event at the same rate') }),
+    ]));
     await expect(service.withdrawSupplier('qr_sonic', 'again', pmcm, 'evt_sample')).rejects.toThrow('Only a selected supplier assignment can be withdrawn');
     expect(reliabilityNotes).toHaveLength(1);
+  });
+
+  it('keeps the replacement the withdrawing supplier referred, and thanks them for it (UAT 7.8)', async () => {
+    const { service, request, reliabilityNotes, notify } = createService();
+    Object.assign(request, { status: 'selected', assignmentStatus: 'confirmed', supplier: { email: 'supplier@example.com' } });
+    const pmcm = { id: 'pmcm_1', name: 'PMCM Admin', email: 'admin@pmcm.test', role: OpsUserRole.PmcmAdmin, explicit: true, verified: true };
+
+    await service.withdrawSupplier('qr_sonic', 'Crew illness', pmcm, 'evt_sample', { supplierName: 'Lumina Lights', contact: '0917 555 0101', sameRate: true });
+
+    expect(reliabilityNotes[0]?.note).toContain('Referred replacement: Lumina Lights (0917 555 0101), at the same rate');
+    const supplierNotice = (notify.mock.calls as unknown as Array<[{ recipient: string; message: string }]>).map(([notice]) => notice).find((notice) => notice.recipient === 'supplier@example.com');
+    expect(supplierNotice?.message).toContain('Thank you for referring Lumina Lights. PMCM will contact them at the rate you had agreed.');
   });
 
   it('records an on-site status report in the supplier order, audits who reported it, and keeps it inside the event', async () => {

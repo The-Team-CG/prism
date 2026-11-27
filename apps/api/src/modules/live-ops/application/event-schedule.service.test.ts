@@ -68,7 +68,7 @@ describe('EventScheduleService authority', () => {
   it('keeps operator designation PMCM-only', async () => {
     const access = { requireActorRole: vi.fn().mockRejectedValue(new ForbiddenException('denied')) };
     await expect(service(access).designateOperator('evt_1', { coordinatorId: 'coord_1' }, { id: 'coord_1', name: 'Coordinator', role: 'coordinator' } as never)).rejects.toThrow('denied');
-    expect(access.requireActorRole).toHaveBeenCalledWith(expect.anything(), ['pmcm-admin'], 'event day system operator designation', 'evt_1');
+    expect(access.requireActorRole).toHaveBeenCalledWith(expect.anything(), ['pmcm-admin'], 'onsite system operator designation', 'evt_1');
     await expect(service(access).revokeOperator('evt_1', { id: 'coord_1', name: 'Coordinator', role: 'coordinator', explicit: true })).rejects.toThrow('denied');
   });
 

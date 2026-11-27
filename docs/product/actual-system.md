@@ -55,7 +55,7 @@ P.R.I.S.M is not a public SaaS product. It is not a generic venue, ticketing, su
 
 | Goal | What the system must make true |
 | --- | --- |
-| Lifecycle continuity | A single event can move from inquiry to conforme, planning, event-day operation, closure, and archive without losing state or ownership. |
+| Lifecycle continuity | A single event can move from inquiry to briefing and proposal, conforme, pre-planning, onsite operation, post-event, and archive without losing state or ownership. |
 | Role clarity | PMCM, client, supplier, coordinator, and guest users each see the right work surface for their responsibility. |
 | Operational command | PMCM can see priority work, risk, blockers, approvals, supplier status, client actions, billing state, files, floorplans, and live event issues from the event command app. |
 | Portal safety | Client, supplier, and guest portals expose only scoped information and never PMCM internal costs, private supplier notes, audit records, or unrelated event data. |
@@ -96,7 +96,7 @@ P.R.I.S.M is not a public SaaS product. It is not a generic venue, ticketing, su
 | --- | --- | --- | --- |
 | 1. Public inquiry | Collect event request, consent, contact details, event basics, source/referral, and duplicate context. | PMCM | Public visitor submits. |
 | 2. Inquiry triage | PMCM reviews, accepts, pends, declines, merges/flags duplicates, or logs on behalf with audit. | PMCM | Client sees only appropriate status if portal access exists. |
-| 3. Conforme and onboarding | Event creation and client dashboard access are gated until accepted inquiry plus signed conforme. | PMCM | Client signs/acknowledges and sees own onboarding status. |
+| 3. Briefing, proposal and conforme | Accepting the inquiry creates the event and a limited client portal (briefing and proposal only). The conforme follows the client-approved proposal, is prefilled from the briefing, and its signature opens the full portal. | PMCM | Client answers the briefing, approves the proposal, then signs/acknowledges the conforme. |
 | 4. Briefing and proposal | PMCM prepares event brief, commercial proposal, venue/styling options, budget/CE evidence, and client-safe review artifacts. | PMCM | Client reviews approved artifacts and gives allowed feedback/approval. |
 | 5. Planning | PMCM operates files, floorplans, suppliers, billing, compliance, risk, approvals, and schedule readiness from selected event workspace. | PMCM | Client, supplier, and coordinator interact only through scoped views. |
 | 6. Supplier procurement and readiness | PMCM sends quote requests, compares supplier responses, selects suppliers, locks quote states, tracks contracts/readiness/ingress/egress. | PMCM | Suppliers submit quotes, confirm assignments, and update readiness/status. |

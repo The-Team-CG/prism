@@ -36,7 +36,7 @@ export const PMCM_CALENDAR_KINDS: Record<PrismPmcmCalendarItemKind, PortalCalend
   payment_due: { label: "Payment due", chip: "bg-attention-soft text-attention hover:bg-attention/15", dot: "bg-attention" },
   supplier_arrival: { label: "Supplier arrival", chip: "bg-secondary text-foreground hover:bg-secondary/80", dot: "bg-foreground/60" },
   supplier_departure: { label: "Supplier departure", chip: "bg-muted text-foreground hover:bg-muted/80", dot: "bg-muted-foreground" },
-  schedule_day: { label: "Event-day schedule", chip: "bg-accent text-accent-foreground hover:bg-accent/80", dot: "bg-accent-foreground" },
+  schedule_day: { label: "Onsite schedule", chip: "bg-accent text-accent-foreground hover:bg-accent/80", dot: "bg-accent-foreground" },
 };
 
 /** Open payments on the PMCM calendar: late (and overdue) once their date has passed, otherwise due. */

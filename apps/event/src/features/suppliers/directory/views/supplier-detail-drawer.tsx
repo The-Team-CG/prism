@@ -347,7 +347,7 @@ function EngagementCard({ engagement, onOpenEvent }: { engagement: PrismPmcmSupp
         <Button type="button" variant="outline" size="sm" onClick={() => onOpenEvent(engagement.eventId)}>Open event</Button>
       </div>
       <div className="mt-3 space-y-2">
-        {engagement.requests.map((request) => <div key={request.id} className="rounded-md bg-muted/45 p-2 text-xs"><p className="font-medium">{request.category}</p><div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-muted-foreground"><span>Request: {request.status.replaceAll("_", " ")}</span><span>Assignment: {request.assignmentStatus.replaceAll("_", " ")}</span><span>Readiness: {request.readinessStatus.replaceAll("_", " ")}</span><span>Event day: {request.eventDayStatus.replaceAll("_", " ")}</span></div></div>)}
+        {engagement.requests.map((request) => <div key={request.id} className="rounded-md bg-muted/45 p-2 text-xs"><p className="font-medium">{request.category}</p><div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-muted-foreground"><span>Request: {request.status.replaceAll("_", " ")}</span><span>Assignment: {request.assignmentStatus.replaceAll("_", " ")}</span><span>Readiness: {request.readinessStatus.replaceAll("_", " ")}</span><span>Onsite: {request.eventDayStatus.replaceAll("_", " ")}</span></div></div>)}
       </div>
       {engagement.hasMoreRequests ? <p className="mt-2 text-xs text-muted-foreground">Showing {engagement.requests.length} of {engagement.requestCount} request records.</p> : null}
       {engagement.canReview ? <p className="mt-2 text-xs text-success">Eligible for review{engagement.canPromote ? " and tier promotion" : ""}.</p> : null}

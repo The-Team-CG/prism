@@ -268,7 +268,7 @@ describe('EventReadModelQueries collection limits', () => {
     const page = await queries.visibleEvents(actor);
     const scope = {
       archived: false,
-      clientPortalStatus: 'unlocked',
+      clientPortalStatus: { in: ['limited', 'unlocked'] },
       inquiry: {
         is: { email: { equals: 'ana@example.test', mode: 'insensitive' } },
       },

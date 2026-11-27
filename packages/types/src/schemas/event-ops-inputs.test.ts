@@ -52,6 +52,7 @@ import {
   createComplianceRiskSchema,
   isEmergencyCoordinatorWithdrawal,
   canonicalCoordinatorRole,
+  coordinatorRoleLabel,
   coordinatorRoleSchema,
   coordinatorSuggestionsQuerySchema,
   createEventDayTaskSchema,
@@ -179,6 +180,10 @@ describe("coordinator role contracts", () => {
     for (const role of COORDINATOR_ROLES) expect(coordinatorRoleSchema.safeParse(role).success).toBe(true);
     expect(canonicalCoordinatorRole(" floor   director ")).toBe("Floor Director");
     expect(canonicalCoordinatorRole("Volunteer Lead")).toBeUndefined();
+    expect(coordinatorRoleLabel("Event Day System Operator")).toBe("Onsite System Operator");
+    expect(coordinatorRoleLabel(" event day  system operator")).toBe("Onsite System Operator");
+    expect(coordinatorRoleLabel("Floor Director")).toBe("Floor Director");
+    expect(coordinatorRoleLabel("Volunteer Lead")).toBe("Volunteer Lead");
     expect(coordinatorRoleSchema.safeParse("Operations Hero").success).toBe(false);
     expect(createCoordinatorAssignmentSchema.safeParse({ coordinatorId: "coord_1", role: "Operations Hero" }).success).toBe(false);
     expect(createCoordinatorCoverageRequirementSchema.safeParse({ role: "Operations Hero", required: 1 }).success).toBe(false);
@@ -284,8 +289,8 @@ describe("event-ops write schemas", () => {
       privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
     } as const;
     expect(createPrismInquirySchema.parse({ ...base, clientType: " Individual " }).clientType).toBe("Individual");
-    expect(createPrismInquirySchema.parse({ ...base, clientType: "Non-profit" }).clientType).toBe("Non-profit");
-    for (const retired of ["Private", " Private ", "School", "Other", "Private celebration", ""]) {
+    expect(createPrismInquirySchema.parse({ ...base, clientType: "Organization" }).clientType).toBe("Organization");
+    for (const retired of ["Private", " Private ", "Non-profit", "School", "Other", "Private celebration", ""]) {
       expect(createPrismInquirySchema.safeParse({ ...base, clientType: retired }).success).toBe(false);
     }
   });

@@ -6,7 +6,7 @@ import type { PrismAuthenticatedSession, PrismSupplier } from "@prism/types";
 import { formatPortalDate, manilaCalendarKey, manilaDateKey } from "@prism/ui/format-date";
 import { PrismEmptyLine, PrismHero, PrismPageColumn, PrismSection, PrismStatRow } from "@prism/ui/page-blocks";
 import { pmcmSupportContactFromEnvironment } from "@/lib/portal-urls";
-import { serviceInclusionList, supplierContactPerson, supplierTierLabel, supplierTrackRecord } from "../../model/supplier-profile";
+import { serviceInclusionList, supplierContactPerson, supplierTrackRecord } from "../../model/supplier-profile";
 import type { PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard } from "../../model/supplier-workspace-types";
 import { PmcmContactButtons } from "./pmcm-contact";
 
@@ -23,7 +23,7 @@ function Field({ label, value, missing, children }: { label: string; value: stri
 }
 
 /**
- * The supplier's record as PMCM keeps it: who they are and how they stand (tier, bookings), how PMCM reaches them,
+ * The supplier's record as PMCM keeps it: who they are and their bookings, how PMCM reaches them,
  * and what they offer. PMCM owns the record, so every gap says so and the way to ask for a change is on the page.
  */
 export function ProfilePage({ supplier, session, quotes, bookings, readinessBoard }: {
@@ -33,7 +33,6 @@ export function ProfilePage({ supplier, session, quotes, bookings, readinessBoar
   bookings: PrismSupplierQuoteRequest[];
   readinessBoard: PrismSupplierReadinessBoard | null;
 }) {
-  const tier = supplierTierLabel(supplier.tier);
   const record = supplierTrackRecord({ quotes, bookings, readiness: readinessBoard?.items ?? [] });
   const inclusions = serviceInclusionList(supplier.serviceInclusions);
   const contact = pmcmSupportContactFromEnvironment();
@@ -43,9 +42,9 @@ export function ProfilePage({ supplier, session, quotes, bookings, readinessBoar
   return (
     <PrismPageColumn>
       <PrismHero
-        label={`${supplier.categoryName} · ${tier.label}`}
+        label={supplier.categoryName}
         title={supplier.name}
-        meta={<p>{tier.detail} On PMCM&apos;s roster since {formatPortalDate(supplier.applicationDate)}.</p>}
+        meta={<p>On PMCM&apos;s roster since {formatPortalDate(supplier.applicationDate)}.</p>}
         figure={{ value: record.bookings, label: record.bookings === 1 ? "booking with PMCM" : "bookings with PMCM" }}
       />
       <PrismStatRow

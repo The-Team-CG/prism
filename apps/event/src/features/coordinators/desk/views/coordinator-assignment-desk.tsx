@@ -15,7 +15,7 @@ import type {
   PrismEvent,
   PrismEventOperatorDesignation,
 } from "@prism/types";
-import { COORDINATOR_ROLES, canonicalCoordinatorRole, hasEventDatePassed, prismCalendarDateKey } from "@prism/types";
+import { COORDINATOR_ROLES, canonicalCoordinatorRole, hasEventDatePassed, prismCalendarDateKey, coordinatorRoleLabel } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@prism/ui/components/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
@@ -247,7 +247,7 @@ export function CoordinatorAssignmentDesk({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All roles</SelectItem>
-                {roleOptions.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                {roleOptions.map((r) => <SelectItem key={r} value={r}>{coordinatorRoleLabel(r)}</SelectItem>)}
               </SelectContent>
             </Select>
             <label className="flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm text-foreground">
@@ -282,7 +282,7 @@ export function CoordinatorAssignmentDesk({
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4">
           <span>
             <span className="block text-sm font-semibold text-foreground">Staffing tools</span>
-            <span className="block text-xs text-muted-foreground">Coverage targets, event-day operator, unavailability and reliability history</span>
+            <span className="block text-xs text-muted-foreground">Coverage targets, onsite operator, unavailability and reliability history</span>
           </span>
           <ChevronDown aria-hidden className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
         </summary>

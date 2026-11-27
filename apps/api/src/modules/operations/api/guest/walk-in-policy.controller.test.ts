@@ -38,7 +38,7 @@ describe('WalkInPolicyController (New-CL1)', () => {
     const stranger = fixture('client', nextMonth, { ownsEvent: false });
     await expect(stranger.controller.update('evt_1', { policy: 'open' }, { actorRole: 'client' } as any)).rejects.toThrow('not your event');
     const late = fixture('client', new Date(Date.now() - 3_600_000));
-    await expect(late.controller.update('evt_1', { policy: 'open' }, { actorRole: 'client' } as any)).rejects.toThrow('PMCM once event day begins');
+    await expect(late.controller.update('evt_1', { policy: 'open' }, { actorRole: 'client' } as any)).rejects.toThrow('PMCM once onsite begins');
     for (const item of [supplier, stranger, late]) expect(item.policy.update).not.toHaveBeenCalled();
   });
 });

@@ -8,7 +8,7 @@ import { clientEventChangeRequestsResource } from "../../change-requests";
 import { clientStatementOfAccount } from "../../billing";
 import { clientEventFileRequirements, clientEventStoredFiles } from "../../files";
 import { clientUnreadMessages } from "../../messages";
-import type { PrismClientActionCenter, PrismClientWorkspace, PrismUser } from "@prism/types";
+import { isClientPortalOpen, type PrismClientActionCenter, type PrismClientWorkspace, type PrismUser } from "@prism/types";
 import { dashboardHref } from "../model/client-dashboard-navigation";
 import type { ClientDashboardRoute, ClientPortalView, ClientSession } from "../model/client-dashboard-types";
 import {
@@ -142,7 +142,7 @@ export function useClientDashboardViewModel({
       setState(next);
       setError(null);
       const openEvents = next.events.filter(
-        (event) => !event.archived && event.clientPortalStatus === "unlocked",
+        (event) => !event.archived && isClientPortalOpen(event.clientPortalStatus),
       );
       // The route event wins; otherwise keep the client's own choice. Only a single open event is chosen for them.
       setSelectedEventId((previous) => {

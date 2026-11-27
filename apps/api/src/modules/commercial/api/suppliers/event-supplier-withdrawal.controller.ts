@@ -29,9 +29,10 @@ export class OpsEventSupplierWithdrawalController {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return this.supplierNetworkWorkflowService.withdrawSupplier(
       requestId,
-      dto.reason ?? 'Withdrawn by PMCM Admin',
+      dto.reason,
       actor,
       eventId,
+      dto.referral,
     );
   }
 

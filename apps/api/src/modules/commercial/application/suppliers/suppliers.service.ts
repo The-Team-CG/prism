@@ -65,8 +65,8 @@ type SupplierWithProfile = Omit<SupplierProfileBase, 'reviews' | 'reliabilityNot
 
 type CategoryWithDimensions = OpsSupplierCategory & { reviewDimensions: OpsSupplierReviewDimension[] };
 
-/** Event assessments at or below this rating (1-5) write an underperformance reliability note (FR-79). */
-const SUPPLIER_UNDERPERFORMANCE_RATING = 2;
+/** Event assessments below this rating (1-5) flag the supplier for internal review with a reliability note (FR-79, UAT 8.10). */
+const SUPPLIER_REVIEW_FLAG_BELOW_RATING = 3.5;
 const SUPPLIER_TEXT_FIELDS = ['name', 'contactName', 'email', 'phone', 'serviceInclusions', 'performanceNotes'] as const;
 type SupplierTextField = (typeof SUPPLIER_TEXT_FIELDS)[number];
 
@@ -296,13 +296,13 @@ export class SuppliersService {
           : undefined,
       },
     });
-    // FR-79: an event assessment of 2 or lower out of 5 is recorded as underperformance on the supplier profile.
-    if (input.eventId && input.rating <= SUPPLIER_UNDERPERFORMANCE_RATING) {
+    // FR-79: an event assessment below 3.5 out of 5 flags the supplier for PMCM's internal review; suppliers never see it.
+    if (input.eventId && input.rating < SUPPLIER_REVIEW_FLAG_BELOW_RATING) {
       const noteKey = `supplier-underperformance-note:${reviewId}`;
       await db.opsSupplierReliabilityNote.upsert({
         where: { idempotencyKey: noteKey },
         update: {},
-        create: { id: `reliability_${randomUUID()}`, supplierId, eventId: input.eventId, note: `Underperformed on event day: rated ${input.rating} of 5 by ${reviewedBy}`, createdBy: reviewedBy, idempotencyKey: noteKey },
+        create: { id: `reliability_${randomUUID()}`, supplierId, eventId: input.eventId, note: `Flagged for internal review: rated ${input.rating} of 5 onsite by ${reviewedBy}`, createdBy: reviewedBy, idempotencyKey: noteKey },
       });
     }
   }

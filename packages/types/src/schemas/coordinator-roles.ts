@@ -45,6 +45,15 @@ export function canonicalCoordinatorRole(value?: string | null): CoordinatorRole
 }
 
 /**
+ * The name a coordinator role is shown under. The stored value "Event Day System Operator" keeps its name so saved
+ * assignments, role tags and coverage targets still match; people see it as "Onsite System Operator". Other roles,
+ * including custom labels, show as stored.
+ */
+export function coordinatorRoleLabel(role: string): string {
+  return canonicalCoordinatorRole(role) === "Event Day System Operator" ? "Onsite System Operator" : role;
+}
+
+/**
  * Registration and usher roles work the guest desk. They see guest check-in detail and the guest operations block on
  * the event-day run sheet. Matches any role label that names registration or an usher, so custom labels still count.
  */

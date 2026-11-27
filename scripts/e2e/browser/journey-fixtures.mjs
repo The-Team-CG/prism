@@ -29,8 +29,10 @@ export async function signedIn(browser, device, origin, email, secret) {
 
 export const signedInClient = (browser, device, event) => signedIn(browser, device, origins.client, event.email, password);
 
-/** PMCM issues a minimal proposal and the event's client approves it. */
+/** The event's approved proposal: fresh events already have one (the conforme follows it); otherwise PMCM issues one and the client approves it. */
 export async function approvedProposal(event) {
+  const existing = (await api('GET', `/pmcm/events/${event.eventId}/workspace`)).documents.find(item => item.type === 'proposal' && item.status === 'issued');
+  if (existing) return existing;
   const estimate = await api('POST', `/events/${event.eventId}/cost-estimates`, { budgetAmount: 100000, lines: [{ category: 'Venue', description: 'Event scope', quantity: 1, unitAmount: 100000 }], notes: '' });
   await api('POST', `/events/${event.eventId}/proposal/versions`, { costEstimateId: estimate.id, title: 'Event scope proposal', summary: 'Agreed event scope', revisionNote: '' });
   await api('PATCH', `/events/${event.eventId}/proposal/review`, { action: 'approve' }, event.clientToken);

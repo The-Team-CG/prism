@@ -157,13 +157,13 @@ export function ConformeUploadModal({ inquiry, onUpload, onPrepareDigital, onRef
   </Dialog>;
 }
 
-/** FR-67: PMCM reuses its own Word conforme template; {{clientName}}, {{companyName}}, {{email}}, {{eventName}}, {{eventType}} and {{eventDate}} are prefilled. */
+/** FR-67: PMCM reuses its own Word conforme template; {{clientName}}, {{companyName}}, {{email}}, {{eventName}}, {{eventType}}, {{eventDate}} and the briefing's {{venue}}, {{guestCount}}, {{programTime}} and {{eventTheme}} are prefilled. */
 function WordTemplatePicker({ template, disabled, onChoose }: { template: { fileName: string; text: string } | null; disabled: boolean; onChoose: (file: File | undefined) => void }) {
   return <div className="space-y-1 text-xs text-muted-foreground">
     <label className="block font-semibold text-foreground">Word template (optional)
       <input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" disabled={disabled} onChange={(event) => onChoose(event.currentTarget.files?.[0])} className="mt-1 block w-full text-xs font-normal" />
     </label>
-    <p>Fields: {"{{clientName}}"}, {"{{companyName}}"}, {"{{email}}"}, {"{{eventName}}"}, {"{{eventType}}"}, {"{{eventDate}}"}. Without a template, the standard Prism conforme is used.</p>
+    <p>Fields: {"{{clientName}}"}, {"{{companyName}}"}, {"{{email}}"}, {"{{eventName}}"}, {"{{eventType}}"}, {"{{eventDate}}"}, {"{{venue}}"}, {"{{guestCount}}"}, {"{{programTime}}"}, {"{{eventTheme}}"}. Without a template, the standard Prism conforme is used.</p>
     {template ? <p className="text-foreground">Using {template.fileName} ({template.text.length.toLocaleString("en-PH")} characters).</p> : null}
   </div>;
 }

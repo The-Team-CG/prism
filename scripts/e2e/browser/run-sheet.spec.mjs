@@ -24,7 +24,7 @@ test('PMCM authors the run of show and the assigned coordinator reads the same r
 
     await pmcm.page.goto(`${origins.event}/dashboard/events/${event.eventId}/live-ops`);
     await pmcm.page.getByText('Schedule and reports', { exact: true }).click();
-    const schedule = pmcm.page.getByRole('region', { name: 'Event-day schedule and reports' });
+    const schedule = pmcm.page.getByRole('region', { name: 'Onsite schedule and reports' });
     await schedule.getByRole('textbox', { name: 'Day date' }).fill(`${month}/${day}/${year}`);
     await schedule.getByRole('textbox', { name: 'Day label (optional)' }).fill(dayLabel);
     await schedule.getByRole('button', { name: 'Add day' }).click();

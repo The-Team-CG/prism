@@ -337,7 +337,7 @@ describe('SuppliersService', () => {
     expect(create).toHaveBeenCalledTimes(1);
   });
 
-  it('records an underperformance reliability note for an event assessment rated 2 or lower, and none above', async () => {
+  it('flags the supplier for internal review when an event assessment is rated below 3.5, and not at 4', async () => {
     const notes: any[] = [];
     const prisma = (rating: number) => ({
       opsSupplier: { findUnique: async () => baseSupplierRow() },
@@ -348,8 +348,12 @@ describe('SuppliersService', () => {
       opsSupplierReliabilityNote: { upsert: vi.fn(async (args: any) => { notes.push(args.create); return args.create; }) },
     });
     await new SuppliersService(prisma(2) as any, eventReferences, commercialFacts).addSupplierReview('sup_1', { eventId: 'evt_1', rating: 2, notes: 'Late and short-staffed' }, 'Reviewer Seven');
-    await new SuppliersService(prisma(3) as any, eventReferences, commercialFacts).addSupplierReview('sup_1', { eventId: 'evt_2', rating: 3, notes: 'Fine' }, 'Reviewer Seven');
-    expect(notes).toEqual([expect.objectContaining({ supplierId: 'sup_1', eventId: 'evt_1', note: 'Underperformed on event day: rated 2 of 5 by Reviewer Seven' })]);
+    await new SuppliersService(prisma(3) as any, eventReferences, commercialFacts).addSupplierReview('sup_1', { eventId: 'evt_2', rating: 3, notes: 'Uneven' }, 'Reviewer Seven');
+    await new SuppliersService(prisma(4) as any, eventReferences, commercialFacts).addSupplierReview('sup_1', { eventId: 'evt_3', rating: 4, notes: 'Fine' }, 'Reviewer Seven');
+    expect(notes).toEqual([
+      expect.objectContaining({ supplierId: 'sup_1', eventId: 'evt_1', note: 'Flagged for internal review: rated 2 of 5 onsite by Reviewer Seven' }),
+      expect.objectContaining({ supplierId: 'sup_1', eventId: 'evt_2', note: 'Flagged for internal review: rated 3 of 5 onsite by Reviewer Seven' }),
+    ]);
   });
 
   it('maps a racing second assessment caught by the database unique index to the same 400 conflict', async () => {

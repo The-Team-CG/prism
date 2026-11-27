@@ -28,11 +28,11 @@ const cards = (props: Partial<Parameters<typeof SupplierDirectoryCards>[0]> = {}
 );
 
 describe("SupplierDirectoryCards", () => {
-  it("shows each supplier's category and tier, bookings, rating and what PMCM is missing, with real page controls", () => {
+  it("shows each supplier's category and standing, bookings, rating and what PMCM is missing, with real page controls", () => {
     render(cards());
 
     const card = screen.getByTestId("supplier-card");
-    expect(within(card).getByText("Production · Tier 1")).toBeTruthy();
+    expect(within(card).getByText("Production · Preferred")).toBeTruthy();
     expect(card.textContent).toContain("Booked on 31 events");
     expect(card.textContent).toContain("4.6from 128 reviews");
     expect(within(card).getByText("1 certificate expired")).toBeTruthy();
@@ -59,15 +59,15 @@ describe("SupplierDirectoryCards", () => {
     expect(onQueryChange).toHaveBeenCalledWith({ page: 1 });
   });
 
-  it("filters by category from a chip and by tier from the select", () => {
+  it("filters by category from a chip and by standing from the select", () => {
     const onQueryChange = vi.fn();
     render(cards({ onQueryChange }));
 
     fireEvent.click(within(screen.getByRole("group", { name: "Category" })).getByRole("button", { name: "Catering" }));
     expect(onQueryChange).toHaveBeenLastCalledWith({ categoryId: "category-2", page: 0 });
 
-    fireEvent.keyDown(screen.getByRole("combobox", { name: "Tier" }), { key: "Enter" });
-    fireEvent.click(screen.getByRole("option", { name: "Tier 1" }));
+    fireEvent.keyDown(screen.getByRole("combobox", { name: "Standing" }), { key: "Enter" });
+    fireEvent.click(screen.getByRole("option", { name: "Preferred" }));
     expect(onQueryChange).toHaveBeenLastCalledWith({ tier: "tier_1", page: 0 });
   });
 

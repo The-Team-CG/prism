@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { COORDINATOR_ROLES, canonicalCoordinatorRole, type CoordinatorRole } from "@prism/types";
+import { COORDINATOR_ROLES, canonicalCoordinatorRole, type CoordinatorRole, coordinatorRoleLabel } from "@prism/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { callTimeToLocalInput } from "../model/role-brief-rules";
 import { useRoleBriefs, type RoleBriefForm } from "../view-models/use-role-briefs";
@@ -38,7 +38,7 @@ export function PmcmRoleBriefEditor({ eventId }: { eventId: string }) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {COORDINATOR_ROLES.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}
+              {COORDINATOR_ROLES.map((option) => <SelectItem key={option} value={option}>{coordinatorRoleLabel(option)}</SelectItem>)}
             </SelectContent>
           </Select>
         </label>

@@ -8,10 +8,10 @@ describe("client overview at a glance", () => {
     const payments = [{ dueDate: "2026-12-20", status: "pending" }, { dueDate: "2026-11-20", status: "paid" }];
     const steps = gettingStartedSteps({ event, hasBriefing: true, hasLayoutIdeas: false, payments });
     expect(steps.map((step) => [step.label, step.done])).toEqual([
-      ["Sign the conforme", true],
       ["Tell us about your event", true],
-      ["Share your layout ideas", false],
       ["Approve the proposal", false],
+      ["Sign the conforme", true],
+      ["Share your layout ideas", false],
       // The downpayment is the earliest milestone, whatever order they arrive in.
       ["Pay the downpayment", true],
     ]);
@@ -56,7 +56,7 @@ describe("client overview at a glance", () => {
   });
 
   it("announces a stage only when the event has moved on since the client last looked", () => {
-    expect(stageReachedMessage("briefing_proposal", "planning")).toBe("Your event moved to Planning");
+    expect(stageReachedMessage("briefing_proposal", "planning")).toBe("Your event moved to Pre-planning");
     expect(stageReachedMessage(null, "planning")).toBeNull();
     expect(stageReachedMessage("planning", "planning")).toBeNull();
     expect(stageReachedMessage("event_day", "planning")).toBeNull();

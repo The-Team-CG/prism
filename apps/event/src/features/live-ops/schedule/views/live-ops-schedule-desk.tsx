@@ -11,6 +11,7 @@ import {
   type PrismEventEodReport,
   type PrismEventHandoff,
   type PrismEventScheduleDay,
+  coordinatorRoleLabel,
 } from "@prism/types";
 import { DatePicker } from "@prism/ui/components/date-picker";
 import { useLiveOpsScheduleDeskViewModel } from "../view-models/use-live-ops-schedule-desk-view-model";
@@ -111,15 +112,15 @@ export function LiveOpsScheduleDesk({
 function ScheduleDeskHeader({ vm, canStartEventDay }: { vm: ReturnType<typeof useLiveOpsScheduleDeskViewModel>; canStartEventDay: boolean }) {
   return (
       <header>
-        <h2 id="event-day-records-heading" className="text-lg font-semibold text-foreground">Event-day schedule and reports</h2>
+        <h2 id="event-day-records-heading" className="text-lg font-semibold text-foreground">Onsite schedule and reports</h2>
         <p className="mt-1 text-sm text-muted-foreground">Author the run sheet, record shift handoffs, and submit end-of-day notes.</p>
         {canStartEventDay && vm.eventStatus && !['event_day', 'archived', 'cancelled', 'postponed', 'date_to_be_confirmed', 'completed', 'closure'].includes(vm.eventStatus) ? (
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <button type="button" disabled={vm.busy} onClick={() => void vm.startEventDay()} className={primaryButtonClass}>Start event day</button>
+            <button type="button" disabled={vm.busy} onClick={() => void vm.startEventDay()} className={primaryButtonClass}>Start onsite</button>
             <p className="text-sm text-muted-foreground">Requires signed conforme and an approved official floorplan.</p>
           </div>
         ) : null}
-        {vm.eventStatus === 'event_day' ? <p className="mt-3 text-sm font-semibold text-success">Event day is active</p> : null}
+        {vm.eventStatus === 'event_day' ? <p className="mt-3 text-sm font-semibold text-success">Onsite is active</p> : null}
       </header>
   );
 }
@@ -175,7 +176,7 @@ function ScheduleDayCard({
               <li key={segment.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted/40 p-3">
                 <div className="min-w-0">
                   <p className="font-semibold text-foreground">{segment.title}</p>
-                  <p className="text-sm text-muted-foreground">{formatTime(segment.plannedStartAt)}–{formatTime(segment.plannedEndAt)} · {segment.ownerRole}{segment.location ? ` · ${segment.location}` : ""}</p>
+                  <p className="text-sm text-muted-foreground">{formatTime(segment.plannedStartAt)}–{formatTime(segment.plannedEndAt)} · {coordinatorRoleLabel(segment.ownerRole)}{segment.location ? ` · ${segment.location}` : ""}</p>
                   <p className="text-xs text-muted-foreground">Status: {segment.status}</p>
                 </div>
                 {canManageSchedule && actions.length ? (
@@ -232,7 +233,7 @@ function ScheduleSegmentForm({ day, busy, onCreate }: {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {COORDINATOR_ROLES.map((role) => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+            {COORDINATOR_ROLES.map((role) => <SelectItem key={role} value={role}>{coordinatorRoleLabel(role)}</SelectItem>)}
           </SelectContent>
         </Select>
       </Field>
@@ -294,7 +295,7 @@ function HandoffForm({ days, assignments, busy, onCreate }: {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {COORDINATOR_ROLES.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}
+            {COORDINATOR_ROLES.map((item) => <SelectItem key={item} value={item}>{coordinatorRoleLabel(item)}</SelectItem>)}
           </SelectContent>
         </Select>
       </Field>
@@ -417,7 +418,7 @@ function HandoffRow({ handoff, days, assignments }: {
   const dayLabel = days.find((day) => day.id === handoff.dayId)?.label ?? "Event day";
   return (
     <li className="space-y-1 p-3">
-      <p className="font-semibold text-foreground">{dayLabel}: {fromName} → {toName} · {handoff.role}</p>
+      <p className="font-semibold text-foreground">{dayLabel}: {fromName} → {toName} · {coordinatorRoleLabel(handoff.role)}</p>
       <p className="text-sm text-muted-foreground">Recorded {formatDateTime(handoff.handedOffAt)}</p>
       {handoff.outstandingItems.length ? <p className="text-sm text-muted-foreground">Outstanding: {handoff.outstandingItems.join(" · ")}</p> : null}
     </li>
@@ -524,7 +525,7 @@ function ScheduleAuthoringSection({ days, vm, canManageSchedule }: {
         <div>
           <h3 id="schedule-authoring-heading" className="font-semibold text-foreground">Schedule</h3>
           <p className="text-sm text-muted-foreground">
-            {canManageSchedule ? "Add event days and segments in Philippine Standard Time, then track their status during the event." : "Only the designated Event Day System Operator can edit the schedule."}
+            {canManageSchedule ? "Add event days and segments in Philippine Standard Time, then track their status during the event." : "Only the designated Onsite System Operator can edit the schedule."}
           </p>
         </div>
         {canManageSchedule ? <ScheduleDayForm busy={vm.busy} onCreate={vm.createDay} /> : null}

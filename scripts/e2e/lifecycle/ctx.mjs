@@ -64,10 +64,12 @@ export function createContext() {
   }
 
   /**
-   * Creates an event the way a real client would: public inquiry, PMCM accepts, activation email, client
-   * activates, conforme created, signed by the client and then PMCM. Returns the ids the next steps need.
+   * Creates an event the way a real client would: public inquiry, PMCM accepts (which opens the event with a portal
+   * limited to briefing and proposal), activation email, client activates. With `signConforme` (the default) PMCM
+   * then issues a proposal, the client approves it, and the conforme is signed by the client and PMCM, opening the
+   * full portal. Without it the event stays at briefing and proposal. Returns the ids the next steps need.
    */
-  async function newEvent({ label = "E2E", eventDate = "2027-06-15", guests = 120, eventType = "Conference" } = {}) {
+  async function newEvent({ label = "E2E", eventDate = "2027-06-15", guests = 120, eventType = "Conference", signConforme = true } = {}) {
     const stamp = randomUUID();
     const clientEmail = `e2e-client-${stamp}@example.test`;
     const admin = await as("admin");
@@ -82,19 +84,30 @@ export function createContext() {
     expect(activation, "no activation email reached the API log (set E2E_API_LOG to the API's log file)");
     clientPasswords.set(clientEmail, cfg.password.client);
     expectStatus(await http("POST", "/auth/activate", { body: { token: activation, password: cfg.password.client } }), 200);
+    const client = await as(clientEmail);
+    const listed = expectStatus(await http("GET", "/events", { token: client }), 200);
+    const eventId = (listed.items ?? listed).find((event) => event.inquiryId === inquiry.id)?.id ?? (listed.items ?? listed)[0]?.id;
+    expect(eventId, "accepting the inquiry did not open the client's event");
+    const created = { inquiryId: inquiry.id, eventId, clientEmail, eventDate, eventName: inquiry.eventName, as: () => as(clientEmail) };
+    if (!signConforme) return created;
+    await issueMinimalProposal(eventId);
+    expectStatus(await http("PATCH", `/events/${eventId}/proposal/review`, { token: client, body: { action: "approve" } }), 200);
     const execution = expectStatus(await http("POST", `/inquiries/${inquiry.id}/conforme-executions`, { token: admin, body: {
       templateVersion: 1, templateContent: "P.R.I.S.M conforme: the client agrees to PMCM's event management terms, scope and payment schedule for this event.",
     } }), 201);
     const sign = { executionId: execution.id, templateVersion: execution.templateVersion, documentSha256: execution.documentSha256, consentAccepted: true };
-    const client = await as(clientEmail);
     expectStatus(await http("POST", "/client/conforme-execution/sign", { token: client, body: sign }), 200);
     const signed = expectStatus(await http("POST", `/inquiries/${inquiry.id}/conforme-executions/${execution.id}/sign`, { token: admin, body: sign }), 200);
-    expect(signed.eventId, "conforme was signed by both parties but no event was created");
-    return { inquiryId: inquiry.id, eventId: signed.eventId, clientEmail, eventDate, eventName: inquiry.eventName, as: () => as(clientEmail) };
+    expect(signed.eventId === eventId, "the signed conforme did not open the accepted event");
+    return created;
   }
 
+  /** The event's issued proposal: the one the client already approved (events open that way now), or a new minimal one. */
   async function issueMinimalProposal(eventId) {
     const admin = await as("admin");
+    const existing = expectStatus(await http("GET", `/pmcm/events/${eventId}/workspace`, { token: admin }), 200)
+      .documents.find((item) => item.type === "proposal" && item.status === "issued");
+    if (existing) return { version: null, document: existing };
     const estimate = expectStatus(await http("POST", `/events/${eventId}/cost-estimates`, { token: admin, body: { budgetAmount: 100000, lines: [{ category: "Venue", description: "Event scope", quantity: 1, unitAmount: 100000 }], notes: "" } }), 201);
     const version = expectStatus(await http("POST", `/events/${eventId}/proposal/versions`, { token: admin, body: { costEstimateId: estimate.id, title: "Event scope proposal", summary: "Agreed event scope", revisionNote: "" } }), 201);
     const workspace = expectStatus(await http("GET", `/pmcm/events/${eventId}/workspace`, { token: admin }), 200);
@@ -116,8 +129,10 @@ export function createContext() {
     expectStatus(await http("POST", `${base}/floorplans/${draft.id}/approve`, { token: admin }), 200);
     if (!clientToken) return;
     const proposal = expectStatus(await http("GET", `${base}/proposal`, { token: admin }), 200);
+    if (proposal.proposal?.clientStatus === "approved" || proposal.proposal?.status === "approved") return;
     if (!proposal.proposal) await issueMinimalProposal(eventId);
-    expectStatus(await http("PATCH", `${base}/proposal/review`, { token: clientToken, body: { action: "approve" } }), 200);
+    const approved = await http("PATCH", `${base}/proposal/review`, { token: clientToken, body: { action: "approve" } });
+    expect(approved.status === 200 || approved.status === 400, `approving the proposal returned ${approved.status}: ${msg(approved)}`);
   }
 
   /**

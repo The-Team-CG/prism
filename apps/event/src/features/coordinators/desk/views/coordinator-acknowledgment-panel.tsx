@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChevronDown, UserCheck } from "lucide-react";
 
 import type { PrismAcknowledgementReminderResult, PrismCoordinatorAssignment } from "@prism/types";
+import { coordinatorRoleLabel } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { describeReminderResult } from "../model/coordinators-desk-rules";
 import { Card, CardContent, CardHeader } from "@prism/ui/components/card";
@@ -44,7 +45,7 @@ export function PendingAcknowledgmentsPanel({ assignments, busy, onSendReminders
           {assignments.map((assignment) => (
             <div key={assignment.id} className="flex items-center justify-between gap-4 rounded-lg bg-muted/30 px-4 py-2.5">
               <p className="text-sm font-semibold text-foreground">{assignment.coordinatorName}</p>
-              <span className="rounded-full border border-attention/25 bg-attention/8 px-2 py-0.5 text-3xs font-semibold text-attention">{assignment.role}</span>
+              <span className="rounded-full border border-attention/25 bg-attention/8 px-2 py-0.5 text-3xs font-semibold text-attention">{coordinatorRoleLabel(assignment.role)}</span>
             </div>
           ))}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">

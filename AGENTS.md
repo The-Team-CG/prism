@@ -43,10 +43,10 @@ Development has one primary maintainer. Describe work by system goal: UX, PMCM o
 Internal PMCM event OS (not public multi-tenant SaaS).
 
 ```text
-inquiry → conforme → briefing/proposal → planning → event day → closure/archive
+inquiry → briefing/proposal → conforme → pre-planning → onsite → post-event/archive
 ```
 
-- Portal access / event creation: **accepted inquiry + signed conforme**.
+- Event creation and a limited client portal (briefing + proposal only): **accepted inquiry**. Full portal access: **client-approved proposal + signed conforme** (the conforme cannot be prepared, signed or uploaded before the proposal is approved).
 - Public: landing + inquiry only. Dashboards: signed-in.
 - **Floorplan:** PMCM owns official plans in `apps/event`; clients submit layout preferences; clients see submitted/approved official layouts read-only. Keep canvas internals when moving ownership.
 - Auth now: built-in API auth/RBAC (no external IdP unless a plan says so).

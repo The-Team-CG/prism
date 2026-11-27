@@ -389,7 +389,7 @@ export function useCoordinatorViewModel({
     setTaskBusy(true);
     setTaskError(null);
     try {
-      const input = parseContract(blockEventDayTaskSchema, { reason }, "Event-day task blocker");
+      const input = parseContract(blockEventDayTaskSchema, { reason }, "Onsite task blocker");
       setRoleView(await blockOwnTaskAndRefreshRoleView({ session, eventId: event.id, taskId, input }));
     } catch (error) {
       setTaskError(error instanceof Error ? error.message : "Unable to block this task.");

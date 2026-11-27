@@ -9,7 +9,7 @@ import type {
   PrismCoordinatorAssignment,
   PrismCoordinatorRoleView,
 } from "@prism/types";
-import { canonicalCoordinatorRole } from "@prism/types";
+import { canonicalCoordinatorRole, coordinatorRoleLabel } from "@prism/types";
 
 import { Button } from "@prism/ui/components/button";
 import { PrismEmptyLine, PrismSection } from "@prism/ui/page-blocks";
@@ -105,7 +105,7 @@ const TASK_BAR: Record<string, string> = { urgent: "border-l-danger", attention:
 
 function taskMeta(task: RoleViewTask): string {
   const due = taskDue(task);
-  return [task.ownerName || task.assignedRole, due ? `Due ${formatPortalDateTime(due)}` : "No deadline", task.priority && task.priority !== "normal" ? `${label(task.priority)} priority` : null].filter(Boolean).join(" · ");
+  return [task.ownerName || coordinatorRoleLabel(task.assignedRole), due ? `Due ${formatPortalDateTime(due)}` : "No deadline", task.priority && task.priority !== "normal" ? `${label(task.priority)} priority` : null].filter(Boolean).join(" · ");
 }
 
 function CoordinatorTaskQueueRow({ task, taskActions, canUpdate }: { task: RoleViewTask; taskActions: CoordinatorTaskActionsModel; canUpdate: boolean }) {
@@ -239,7 +239,7 @@ function CoordinatorOperatorControls({ roleView, reassignment, operatorActions }
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          You are the designated Event Day System Operator. You may request task reassignment and mark attendance for other coordinators; PMCM approves reassignment decisions.
+          You are the designated Onsite System Operator. You may request task reassignment and mark attendance for other coordinators; PMCM approves reassignment decisions.
         </p>
         <p className="text-xs font-semibold text-muted-foreground">
           {pending.length} reassignment request{pending.length === 1 ? "" : "s"} awaiting PMCM review.
@@ -293,7 +293,7 @@ function ReassignmentRequestForm({ roleView, reassignment }: { roleView: PrismCo
           </SelectTrigger>
           <SelectContent>
             {/* Only the designated operator sees this form, and may route a task to any role. */}
-            {taskAssignedRoleOptions(roleView, { canAssignAnyRole: true }).map((role) => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+            {taskAssignedRoleOptions(roleView, { canAssignAnyRole: true }).map((role) => <SelectItem key={role} value={role}>{coordinatorRoleLabel(role)}</SelectItem>)}
           </SelectContent>
         </Select>
       </label>
@@ -305,7 +305,7 @@ function ReassignmentRequestForm({ roleView, reassignment }: { roleView: PrismCo
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ANY_OWNER_COORDINATOR}>Any coordinator in this role</SelectItem>
-            {owners.map((item) => <SelectItem key={item.id} value={item.coordinatorName}>{item.coordinatorName} · {item.role}</SelectItem>)}
+            {owners.map((item) => <SelectItem key={item.id} value={item.coordinatorName}>{item.coordinatorName} · {coordinatorRoleLabel(item.role)}</SelectItem>)}
           </SelectContent>
         </Select>
       </label>
@@ -361,7 +361,7 @@ function DelegatedAttendanceRow({ item, busy, onMark }: { item: PrismCoordinator
   const current = item.attendanceStatus ?? "pending";
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
-      <span className="text-sm">{item.coordinatorName} · {item.role} · {label(current)}</span>
+      <span className="text-sm">{item.coordinatorName} · {coordinatorRoleLabel(item.role)} · {label(current)}</span>
       <div className="flex gap-2">
         {COORDINATOR_ATTENDANCE_CHOICES.map((choice) => (
           <Button key={choice.value} type="button" size="sm" variant="outline" disabled={busy || current === choice.value} onClick={() => onMark(choice.value)}>

@@ -13,7 +13,7 @@ export const EVENT_DATE_CONDITION_KEY = "event_date_relative_to_now";
 /** Where PMCM goes to resolve an open event-date check: start closure, or record a postponement under Scope changes. */
 export function eventDateRemediationLinks(eventId: string) {
   return [
-    { label: "Open Closure", href: eventWorkspaceHref(eventId, "closure") },
+    { label: "Open Post-event", href: eventWorkspaceHref(eventId, "closure") },
     { label: "Record a postponement", href: `${eventWorkspaceHref(eventId, "briefing")}?part=changes` },
   ];
 }

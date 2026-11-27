@@ -23,7 +23,9 @@ function fixture(zoom: { create: ReturnType<typeof vi.fn>; remove: ReturnType<ty
     requireCanReadEvent: vi.fn(async () => undefined),
   };
   const events = { findEventReadAccess: vi.fn(async () => ({ id: 'evt_1', clientPortalStatus: 'unlocked', inquiry: { email: 'ana@test' } })) };
-  return new PresentationMeetingService(prisma as never, access as never, { write: vi.fn(async () => undefined) } as never, events as never, { write: vi.fn(async () => undefined) } as never, zoom as never);
+  const notices: Array<{ recipient: string; message: string }> = [];
+  const service = new PresentationMeetingService(prisma as never, access as never, { write: vi.fn(async () => undefined) } as never, events as never, { write: vi.fn(async (notice: { recipient: string; message: string }) => { notices.push(notice); }) } as never, zoom as never);
+  return Object.assign(service, { notices });
 }
 
 describe('FR-61 presentation meetings', () => {
@@ -37,6 +39,14 @@ describe('FR-61 presentation meetings', () => {
     const booked = await service.choose('evt_1', offered.id, { startsAt: slots[0]!.startsAt }, client);
     expect(zoom.create).toHaveBeenCalledWith({ topic: 'Walkthrough', startsAt: new Date(slots[0]!.startsAt), durationMinutes: 60 });
     expect(booked).toMatchObject({ status: 'scheduled', meetingLink: 'https://zoom.us/j/1' });
+    // UAT 7.6: the client and PMCM are both emailed the booked time and the join link.
+    const bookedNotices = service.notices.filter((notice) => notice.message.includes('is booked') || notice.message.includes('booked "'));
+    expect(bookedNotices.map((notice) => notice.recipient).sort()).toEqual(['PMCM Admin', 'ana@test']);
+    expect(bookedNotices.every((notice) => notice.message.includes('Join: https://zoom.us/j/1') && notice.message.includes('Jan 10, 2027, 10:00 AM (Philippine time)'))).toBe(true);
+    // PMCM sees whether Zoom is connected; the client does not.
+    expect((await service.list('evt_1', pmcm)).zoomAvailable).toBe(true);
+    expect((await fixture().list('evt_1', pmcm)).zoomAvailable).toBe(false);
+    expect((await service.list('evt_1', client)).zoomAvailable).toBeUndefined();
     await service.propose('evt_1', { title: 'Walkthrough', slots }, pmcm);
     expect(zoom.remove).toHaveBeenCalledWith('zm_1');
   });

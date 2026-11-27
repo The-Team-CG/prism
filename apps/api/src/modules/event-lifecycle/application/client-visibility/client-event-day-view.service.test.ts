@@ -75,7 +75,7 @@ describe('ClientEventDayViewService', () => {
       expect.objectContaining({
         eventId,
         actor: 'Maxine',
-        action: 'Updated client event-day visibility',
+        action: 'Updated client onsite visibility',
         actorRole: OpsUserRole.PmcmAdmin,
         category: AuditCategory.Events,
         actionType: AuditActionType.Update,

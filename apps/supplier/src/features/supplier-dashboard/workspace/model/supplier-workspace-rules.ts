@@ -373,7 +373,7 @@ export function buildBookingSteps(
             : "Signed contract needed",
     },
     {
-      label: "Event day status",
+      label: "Onsite status",
       done: ["arrived", "set_up_ready", "done_leaving"].includes(req.eventDayStatus ?? ""),
       meta: req.eventDayStatus === "late"
         ? "Late — arrival not reported"
@@ -402,7 +402,7 @@ export function sectionMeta(
     },
     bookings: {
       title: "Bookings & events",
-      description: "Confirm assignments, readiness, contracts, and event-day status.",
+      description: "Confirm assignments, readiness, contracts, and onsite status.",
     },
     calendar: {
       title: "Calendar",
@@ -527,7 +527,7 @@ export function readinessSetupLabel(status: PrismSupplierReadinessSetupStatus): 
 const READINESS_CONCERN_LABELS: Record<PrismSupplierReadinessConcernKind, string> = {
   schedule_change_request: "Your schedule change request",
   contract_correction: "Contract correction requested",
-  event_day_note: "Your event-day note",
+  event_day_note: "Your onsite note",
 };
 
 /** How soon a quote is due: past due or within three days is worth the eye, anything later is ordinary text. */

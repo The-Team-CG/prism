@@ -180,7 +180,7 @@ describe('EventLiveOpsCommandService event scoping', () => {
     );
     expect(eventAccessPolicyService.recordForbiddenAccess).toHaveBeenCalledWith(
       expect.objectContaining({ role: OpsUserRole.Coordinator }),
-      'assigned event-day operations',
+      'assigned onsite operations',
       'evt_sample_unassigned',
     );
     expect(liveOperationsService.createEventDayTask).not.toHaveBeenCalled();

@@ -173,7 +173,7 @@ export interface PrismEvent {
   actualEndedAt?: string | null;
   actualEndedBy?: string | null;
   status: string;
-  clientPortalStatus: "locked" | "unlocked";
+  clientPortalStatus: "locked" | "limited" | "unlocked";
   clientEventDayViewEnabled?: boolean;
   readiness: string;
   /** PMCM-set; only private events under 200 guests can use table assignment and the seating list. */

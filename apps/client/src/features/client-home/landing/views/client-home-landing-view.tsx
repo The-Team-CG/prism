@@ -40,9 +40,10 @@ import { PrismLifecycleStrip, PrismPublicRoleGrid } from "@prism/ui/public-block
 const lifecycleSteps = [
   { label: "Inquiry", description: "Submit event basics through the public form.", state: "current" as const },
   { label: "PMCM review", description: "Ms. Mys and the PMCM team screen scope and fit.", state: "pending" as const },
-  { label: "Conforme", description: "Client portal opens only after acceptance and signed conforme.", state: "pending" as const },
-  { label: "Planning", description: "Briefing, billing, documents, suppliers, and official floorplan align.", state: "pending" as const },
-  { label: "Event day", description: "PMCM runs live operations, issue escalation, and closure.", state: "pending" as const },
+  { label: "Briefing & proposal", description: "Your portal opens on acceptance: answer the briefing and review the proposal.", state: "pending" as const },
+  { label: "Conforme", description: "Sign the conforme after approving the proposal to open the full portal.", state: "pending" as const },
+  { label: "Pre-planning", description: "Billing, documents, suppliers, and the official floorplan align.", state: "pending" as const },
+  { label: "Onsite", description: "PMCM runs live operations, issue escalation, and post-event.", state: "pending" as const },
 ];
 
 const roleCards = [
@@ -56,8 +57,8 @@ const roleCards = [
   },
   {
     title: "Wait for PMCM acceptance",
-    badge: "Conforme gate",
-    description: "Client access begins after PMCM accepts the inquiry and the signed conforme is on file.",
+    badge: "Acceptance",
+    description: "Client access begins when PMCM accepts the inquiry, starting with your briefing and proposal.",
     href: "/sign-in",
     actionLabel: "Client sign-in",
     icon: <ShieldCheck className="size-5" />,
@@ -78,8 +79,8 @@ const platformFeatures = [
   },
   {
     icon: ShieldCheck,
-    title: "Conforme approval gate",
-    text: "Keep client access, billing, briefing, and event workspace creation tied to signed approval.",
+    title: "Proposal, then conforme",
+    text: "Approve the proposal first; the signed conforme then opens billing and the full event workspace.",
   },
   {
     icon: MapPinned,
@@ -89,7 +90,7 @@ const platformFeatures = [
   {
     icon: Gauge,
     title: "Planning checks",
-    text: "Keep pre-event requirements, payment milestones, supplier status, and event-day needs visible.",
+    text: "Keep pre-event requirements, payment milestones, supplier status, and onsite needs visible.",
   },
   {
     icon: Warehouse,
@@ -109,7 +110,7 @@ const platformFeatures = [
   {
     icon: ReceiptText,
     title: "Billing and archive",
-    text: "Carry payment milestones, important notes, files, and closure documents into one event memory.",
+    text: "Carry payment milestones, important notes, files, and post-event documents into one event memory.",
   },
 ];
 
@@ -461,15 +462,15 @@ export function ClientHomeLandingView() {
         <div className="mx-auto max-w-[1320px]">
           <p className="text-sm text-muted-foreground">Your event life cycle</p>
           <div className="mt-4 grid gap-8 lg:grid-cols-[0.32fr_0.68fr] lg:items-center">
-            <h2 className="prism-serif text-4xl font-black leading-[0.98] text-ink sm:text-5xl">Guided from inquiry to closure</h2>
+            <h2 className="prism-serif text-4xl font-black leading-[0.98] text-ink sm:text-5xl">Guided from inquiry to post-event</h2>
             <div className="grid gap-4 md:grid-cols-6">
               {[
                 [Mail, "Inquiry", "Start your inquiry with PMCM."],
                 [UserCheck, "PMCM review", "We review scope, space, and goals."],
-                [ShieldCheck, "Conforme", "Sign conforme to unlock planning."],
+                [ShieldCheck, "Conforme", "Sign the conforme after the proposal to unlock planning."],
                 [MapPinned, "Planning", "Review layouts, documents, and billing."],
-                [PartyPopper, "Event day", "Coordinated execution and support."],
-                [Warehouse, "Closure", "Final documents and records handed off."],
+                [PartyPopper, "Onsite", "Coordinated execution and support."],
+                [Warehouse, "Post-event", "Final documents and records handed off."],
               ].map(([Icon, title, text]) => {
                 const IconComponent = Icon as typeof Mail;
                 return (

@@ -1,3 +1,4 @@
+import { supplierStandingLabel } from "@prism/types";
 import { formatPortalDate } from "@prism/ui/format-date";
 import { Star } from "lucide-react";
 
@@ -30,12 +31,6 @@ export function invitationTone(status?: string | null) {
   return "bg-muted text-muted-foreground ring-border";
 }
 
-export function tierLabel(tier: string) {
-  if (tier === "tier_1") return "Tier 1";
-  if (tier === "tier_2") return "Tier 2";
-  if (tier === "pending_first_event") return "Pending First Event";
-  return label(tier);
-}
 
 export function tierTone(tier: string) {
   if (tier === "tier_1") return "border-success/25 bg-success-soft text-success";
@@ -43,10 +38,10 @@ export function tierTone(tier: string) {
   return "border-brand-orange/30 bg-accent text-attention";
 }
 
-export function SupplierTierBadge({ tier }: { tier: string }) {
+export function SupplierTierBadge({ tier, bniMember = false }: { tier: string; bniMember?: boolean }) {
   return (
     <span className={cx("inline-flex w-fit items-center whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold", tierTone(tier))}>
-      {tierLabel(tier)}
+      {supplierStandingLabel(tier, bniMember)}
     </span>
   );
 }

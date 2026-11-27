@@ -102,7 +102,7 @@ function EventCommandMock() {
             ["New inquiries", "12", "bg-primary/10 text-primary"],
             ["Conforme pending", "6", "bg-brand-orange/10 text-brand-orange"],
             ["Planning in progress", "9", "bg-brand-orange/10 text-brand-orange"],
-            ["Event day", "3", "bg-success/10 text-success"],
+            ["Onsite", "3", "bg-success/10 text-success"],
             ["Closing soon", "2", "bg-secondary text-muted-foreground"],
           ].map(([title, count, color]) => (
             <div key={title} className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2.5">
@@ -172,7 +172,7 @@ function EventCommandMock() {
           ))}
         </div>
         <div id="closure" className="rounded-md border border-border bg-background p-4">
-          <p className="mb-3 text-sm font-black text-foreground">Closure checklist</p>
+          <p className="mb-3 text-sm font-black text-foreground">Post-event checklist</p>
           {["Final billing review", "Post-event report", "Client feedback", "Archive package", "Event closure"].map((item) => (
             <div key={item} className="flex items-center gap-2 py-1.5 text-xs text-muted-foreground">
               <span className="size-3 rounded-full border border-muted-foreground/40" />
@@ -211,7 +211,7 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
                 ["Floorplans", "#floorplans"],
                 ["Suppliers", "#handoffs"],
                 ["Live Ops", "#live-ops"],
-                ["Closure", "#closure"],
+                ["Post-event", "#closure"],
               ].map(([labelText, href]) => (
                 <a key={labelText} href={href} className="rounded-md px-2 py-2 transition hover:text-primary">
                   {labelText}
@@ -233,7 +233,7 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
                 One command center for every <span className="text-primary">PMCM</span> event handoff
               </DisplayTitle>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-muted-foreground">
-                Track inquiries, conforme, floorplans, suppliers, coordinators, billing, live operations, and closure from one focused workspace.
+                Track inquiries, conforme, floorplans, suppliers, coordinators, billing, live operations, and post-event from one focused workspace.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Button asChild className="h-12 rounded-md px-6 text-base font-black shadow-[0_18px_40px_rgba(192,24,103,0.22)]">
@@ -248,10 +248,10 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
               </div>
               <div className="mt-8 grid gap-3 sm:grid-cols-4">
                 {[
-                  ["Inquiry to archive", "End-to-end visibility from first inquiry to closure."],
+                  ["Inquiry to archive", "End-to-end visibility from first inquiry to post-event."],
                   ["Official floorplans", "Layouts and approvals stay connected."],
                   ["Supplier handoffs", "Assignments, contracts, and readiness in one place."],
-                  ["Live operations", "Event-day coordination stays on track."],
+                  ["Live operations", "Onsite coordination stays on track."],
                 ].map(([title, text]) => (
                   <div key={title} className="border-l border-border pl-3">
                     <p className="text-xs font-black text-foreground">{title}</p>
@@ -280,7 +280,7 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
           <div className="grid gap-4 lg:grid-cols-[0.38fr_1fr_0.42fr]">
             <div className="grid gap-2 rounded-lg border border-border bg-background p-4">
               <p className="text-xs font-black text-foreground">Event queue</p>
-              {["New inquiries", "Conforme pending", "Planning in progress", "Event day"].map((item) => (
+              {["New inquiries", "Conforme pending", "Planning in progress", "Onsite"].map((item) => (
                 <div key={item} className="rounded-md border border-border bg-card px-3 py-2 text-xs font-bold text-muted-foreground">{item}</div>
               ))}
             </div>
@@ -318,8 +318,8 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
               ["Inquiry", FileCheck2, "Capture details and PMCM reviews public inquiries."],
               ["Conforme", ShieldCheck, "Signed conforme opens the planning path."],
               ["Planning", CalendarDays, "Floorplans, suppliers, billing, and coordinators align."],
-              ["Event day", Radio, "Live operations and coordinator actions stay on track."],
-              ["Closure", ClipboardCheck, "Billing, reports, and feedback are finalized."],
+              ["Onsite", Radio, "Live operations and coordinator actions stay on track."],
+              ["Post-event", ClipboardCheck, "Billing, reports, and feedback are finalized."],
               ["Archive", ArchiveRestore, "All records and outcomes are preserved."],
             ].map(([title, Icon, text]) => (
               <div key={title as string} className="text-center">
@@ -428,7 +428,7 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
         <div className="mx-auto grid max-w-[1320px] gap-8 md:grid-cols-[1.2fr_1fr_1fr_1fr_auto]">
           <PublicBrand />
           {[
-            ["Platform", "Command", "Floorplans", "Suppliers", "Live Ops", "Closure"],
+            ["Platform", "Command", "Floorplans", "Suppliers", "Live Ops", "Post-event"],
             ["Resources", "Help center", "Guides", "Updates", "System status"],
             ["Company", "About PMCM", "Careers", "Contact"],
           ].map(([title, ...items]) => (

@@ -50,7 +50,7 @@ export class EventLiveOpsCommandService {
   ) {}
 
   async createEventDayTask(eventId: string, input: CreateEventDayTaskInput, actor: ResolvedEventOpsActor) {
-    const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'event-day tasks');
+    const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'onsite tasks');
     this.requireCoordinatorTaskScope(actor, assignment, designatedOperator, input.assignedRole, input.ownerName);
     const task = await this.taskIssueCommandService.createEventDayTask(eventId, input, actor);
     return mapEventDayTask(task);
@@ -62,7 +62,7 @@ export class EventLiveOpsCommandService {
     input: UpdateEventDayTaskInput,
     actor: ResolvedEventOpsActor,
   ) {
-    const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'event-day tasks');
+    const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'onsite tasks');
     if (actor.role === OpsUserRole.Coordinator && Object.keys(input).some((key) => key !== 'status')) {
       await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'coordinator task ownership update', eventId);
       throw new ForbiddenException('Coordinators may only update task status; request PMCM review to change task ownership');
@@ -73,14 +73,14 @@ export class EventLiveOpsCommandService {
   }
 
   async blockEventDayTask(eventId: string, taskId: string, input: BlockEventDayTaskInput, actor: ResolvedEventOpsActor) {
-    const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'event-day tasks');
+    const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'onsite tasks');
     await this.requireTaskScope(eventId, taskId, actor, assignment, designatedOperator);
     const task = await this.taskIssueCommandService.blockEventDayTask(eventId, taskId, input, actor);
     return mapEventDayTask(task);
   }
 
   async unblockEventDayTask(eventId: string, taskId: string, actor: ResolvedEventOpsActor) {
-    const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'event-day tasks');
+    const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'onsite tasks');
     await this.requireTaskScope(eventId, taskId, actor, assignment, designatedOperator);
     const task = await this.taskIssueCommandService.unblockEventDayTask(eventId, taskId, actor);
     return mapEventDayTask(task);
@@ -92,7 +92,7 @@ export class EventLiveOpsCommandService {
     input: EscalateEventDayTaskInput,
     actor: ResolvedEventOpsActor,
   ) {
-    const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'event-day task escalation');
+    const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'onsite task escalation');
     await this.requireTaskScope(eventId, taskId, actor, assignment, designatedOperator);
     // Escalating raises a task; moving it to another role or person is a reassignment PMCM decides.
     if (actor.role === OpsUserRole.Coordinator && !designatedOperator && (input.ownerRole !== undefined || input.ownerName !== undefined)) {
@@ -167,7 +167,7 @@ export class EventLiveOpsCommandService {
   async requestTaskReassignment(eventId: string, taskId: string, input: CreateEventTaskReassignmentInput, actor: ResolvedEventOpsActor) {
     const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'task reassignment');
     if (actor.role === OpsUserRole.Coordinator && !designatedOperator) {
-      throw new ForbiddenException('Only the designated Event Day System Operator may request task reassignment');
+      throw new ForbiddenException('Only the designated Onsite System Operator may request task reassignment');
     }
     return this.taskIssueCommandService.requestTaskReassignment(eventId, taskId, input, actor);
   }
@@ -307,7 +307,7 @@ export class EventLiveOpsCommandService {
   private async requireCoordinatorAssignmentForEvent(eventId: string, actor: ResolvedEventOpsActor) {
     const assignment = await this.staffingReader.findAssignmentForEventActor(eventId, actor);
     if (!assignment) {
-      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'assigned event-day operations', eventId);
+      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'assigned onsite operations', eventId);
       throw new ForbiddenException('Coordinator is not assigned to this event');
     }
     return assignment;
@@ -424,7 +424,7 @@ export class EventLiveOpsCommandService {
   ) {
     if (actor.role !== OpsUserRole.Coordinator || designatedOperator) return;
     const task = await this.prisma.opsEventDayTask.findFirst({ where: { id: taskId, eventId } });
-    if (!task) throw new NotFoundException('Event-day task not found');
+    if (!task) throw new NotFoundException('Onsite task not found');
     if (!assignment || !this.taskBelongsToAssignment(task, assignment)) {
       await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'coordinator task scope', eventId);
       throw new ForbiddenException('Coordinator may only update tasks in their own queue');

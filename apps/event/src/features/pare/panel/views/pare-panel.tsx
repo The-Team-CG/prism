@@ -19,7 +19,7 @@ import {
   UserX,
   Zap,
 } from "lucide-react";
-import type { PrismSupplier, PAREApprovalRecord, PARERisk } from "@prism/types";
+import { supplierStandingLabel, type PrismSupplier, type PAREApprovalRecord, type PARERisk, type SupplierWithdrawalInput } from "@prism/types";
 import type { SupplierQuoteRequestRow } from "@/features/pmcm-kit";
 import { money } from "@/features/pmcm-kit";
 import { useParePanelViewModel } from "../view-models/use-pare-panel-view-model";
@@ -278,6 +278,71 @@ function PareReviewFooter({
 
 // ─── Main PARE panel ──────────────────────────────────────────────────────────
 
+const inputClass = "mt-1 block w-full rounded-md border border-border bg-card px-2 py-1.5 text-xs text-foreground";
+
+/**
+ * UAT 8.9 and 7.8: PMCM records why the supplier withdrew, and the equivalent replacement they referred at the same
+ * rate when they gave one. Without a referral, the supplier is emailed asking for one.
+ */
+function WithdrawConfirm({ supplierName, busy, onCancel, onConfirm }: {
+  supplierName: string;
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: (input: SupplierWithdrawalInput) => void;
+}) {
+  const [reason, setReason] = useState("");
+  const [referralName, setReferralName] = useState("");
+  const [referralContact, setReferralContact] = useState("");
+  const [sameRate, setSameRate] = useState(true);
+  const referral = referralName.trim() && referralContact.trim()
+    ? { supplierName: referralName.trim(), contact: referralContact.trim(), sameRate }
+    : undefined;
+  return (
+    <div role="alert" className="w-full rounded-lg border border-danger/25 bg-danger-soft p-3 text-xs text-danger">
+      <p className="font-semibold">Withdraw {supplierName} from the event?</p>
+      <p className="mt-1">
+        Their assignment is withdrawn and their supplier portal access is revoked. PARE then drafts a replacement for PMCM approval.
+        Nothing is confirmed until you approve it below.
+      </p>
+      <div className="mt-3 grid gap-2 text-foreground sm:grid-cols-2">
+        <label className="font-semibold sm:col-span-2">Reason for the withdrawal *
+          <textarea required value={reason} onChange={(event) => setReason(event.target.value)} className={inputClass} rows={2} />
+        </label>
+        <label className="font-semibold">Replacement they referred
+          <input value={referralName} onChange={(event) => setReferralName(event.target.value)} placeholder="Supplier name" className={inputClass} />
+        </label>
+        <label className="font-semibold">Replacement contact
+          <input value={referralContact} onChange={(event) => setReferralContact(event.target.value)} placeholder="Mobile or email" className={inputClass} />
+        </label>
+        <label className="flex items-center gap-2 sm:col-span-2">
+          <input type="checkbox" checked={sameRate} onChange={(event) => setSameRate(event.target.checked)} />
+          The replacement keeps the same rate
+        </label>
+        <p className="text-muted-foreground sm:col-span-2">
+          {referral ? "The supplier is thanked for the referral." : "No referral yet: the supplier is emailed asking for an equivalent replacement at the same rate."}
+        </p>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled={busy || !reason.trim()}
+          onClick={() => onConfirm({ reason: reason.trim(), ...(referral ? { referral } : {}) })}
+          className="rounded-lg bg-danger px-3 py-1.5 font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+        >
+          Withdraw and find a replacement
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-lg border border-border bg-card px-3 py-1.5 font-semibold text-foreground transition hover:bg-muted"
+        >
+          Keep assigned
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function PAREPanel({
   eventId,
   assignedRequests,
@@ -288,7 +353,7 @@ export function PAREPanel({
   eventId: string;
   assignedRequests: SupplierQuoteRequestRow[];
   suppliers: PrismSupplier[];
-  onWithdraw: (requestId: string) => Promise<void>;
+  onWithdraw: (requestId: string, input: SupplierWithdrawalInput) => Promise<void>;
   busy: boolean;
 }) {
   const {
@@ -341,7 +406,7 @@ export function PAREPanel({
           <Card className="gap-0 block divide-y divide-border rounded-lg border border-border bg-card overflow-hidden">
             {assignedRequests.map((req) => {
               const supplier = suppliers.find((s) => s.id === req.supplierId);
-              const tierLabel = supplier?.tier?.replace("tier_", "Tier ") ?? null;
+              const tierLabel = supplier?.tier ? supplierStandingLabel(supplier.tier, supplier.bniMember) : null;
               return (
               <div key={req.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
                 <div className="flex items-center gap-3 min-w-0">
@@ -363,33 +428,15 @@ export function PAREPanel({
                   {withdrawingId === req.id ? "Finding a replacement…" : "Withdraw and find a replacement"}
                 </button>
                 {confirmingId === req.id ? (
-                  <div role="alert" className="w-full rounded-lg border border-danger/25 bg-danger-soft p-3 text-xs text-danger">
-                    <p className="font-semibold">Withdraw {req.supplierName ?? "this supplier"} from the event?</p>
-                    <p className="mt-1">
-                      Their assignment is withdrawn and their supplier portal access is revoked. PARE then drafts a replacement for PMCM approval.
-                      Nothing is confirmed until you approve it below.
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        disabled={parentBusy}
-                        onClick={() => {
-                          setConfirmingId(null);
-                          void handleWithdraw(req.id);
-                        }}
-                        className="rounded-lg bg-danger px-3 py-1.5 font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
-                      >
-                        Withdraw and find a replacement
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmingId(null)}
-                        className="rounded-lg border border-border bg-card px-3 py-1.5 font-semibold text-foreground transition hover:bg-muted"
-                      >
-                        Keep assigned
-                      </button>
-                    </div>
-                  </div>
+                  <WithdrawConfirm
+                    supplierName={req.supplierName ?? "this supplier"}
+                    busy={parentBusy}
+                    onCancel={() => setConfirmingId(null)}
+                    onConfirm={(input) => {
+                      setConfirmingId(null);
+                      void handleWithdraw(req.id, input);
+                    }}
+                  />
                 ) : null}
               </div>
               );

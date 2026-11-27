@@ -62,12 +62,32 @@ describe("PAREPanel withdrawal", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
-  it("withdraws the chosen supplier only after the confirmation is accepted", () => {
+  it("withdraws the chosen supplier only with a reason, after the confirmation is accepted (UAT 8.9)", () => {
     render(<PAREPanel eventId="evt_1" assignedRequests={[assigned]} suppliers={[]} onWithdraw={onWithdraw} busy={false} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Withdraw and find a replacement" }));
+    const confirm = within(screen.getByRole("alert")).getByRole("button", { name: "Withdraw and find a replacement" });
+    expect(confirm.hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("alert").textContent).toContain("the supplier is emailed asking for an equivalent replacement at the same rate");
+
+    fireEvent.change(screen.getByLabelText(/Reason for the withdrawal/), { target: { value: "Double-booked" } });
+    fireEvent.click(confirm);
+
+    expect(onWithdraw).toHaveBeenCalledWith("qr_harvest", { reason: "Double-booked" });
+  });
+
+  it("sends the replacement the supplier referred, at the same rate (UAT 7.8)", () => {
+    render(<PAREPanel eventId="evt_1" assignedRequests={[assigned]} suppliers={[]} onWithdraw={onWithdraw} busy={false} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Withdraw and find a replacement" }));
+    fireEvent.change(screen.getByLabelText(/Reason for the withdrawal/), { target: { value: "Crew illness" } });
+    fireEvent.change(screen.getByLabelText("Replacement they referred"), { target: { value: "Lumina Lights" } });
+    fireEvent.change(screen.getByLabelText("Replacement contact"), { target: { value: "0917 555 0101" } });
     fireEvent.click(within(screen.getByRole("alert")).getByRole("button", { name: "Withdraw and find a replacement" }));
 
-    expect(onWithdraw).toHaveBeenCalledWith("qr_harvest");
+    expect(onWithdraw).toHaveBeenCalledWith("qr_harvest", {
+      reason: "Crew illness",
+      referral: { supplierName: "Lumina Lights", contact: "0917 555 0101", sameRate: true },
+    });
   });
 });

@@ -43,6 +43,8 @@ import { SuppliersService } from './application/suppliers/suppliers.service';
 import { SupplierWorkspaceQueries } from './application/suppliers/supplier-workspace.queries';
 import { SupplierWorkspaceReaderService } from './application/suppliers/supplier-workspace-reader.service';
 import { BillingOperationsService } from './application/billing/billing-operations.service';
+import { ConformeBillingService } from './application/billing/conforme-billing.service';
+import { ConformeBillingScheduler } from './application/billing/conforme-billing.scheduler';
 import { BillingAdjustmentService } from './application/billing/billing-adjustment.service';
 import { PaymentOperationsService } from './application/billing/payment-operations.service';
 import { PaymentReceiptService } from './application/billing/payment-receipt.service';
@@ -178,6 +180,8 @@ const supplierCommandsProvider = {
     SupplierReadinessRequestScheduler,
     supplierCommandsProvider,
     BillingOperationsService,
+    ConformeBillingService,
+    ConformeBillingScheduler,
     BillingAdjustmentService,
     PaymentOperationsService,
     PaymentReceiptService,

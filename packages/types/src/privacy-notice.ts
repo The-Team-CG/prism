@@ -22,7 +22,7 @@ export const PRISM_PRIVACY_NOTICE: PrismPrivacyNotice = {
         "Account details: your name, email address, organization and role. We also keep your sign-in history and the times of failed sign-in attempts.",
         "Client inquiries: your name, company, email address, event name, event type and date, the kind of client you are, how you heard about PMCM, and the message you send.",
         "Supplier applications: your company, contact name, email address, phone number, past events, services, certifications, price range, BNI membership, portfolio link and notes.",
-        "Event day: guest names that PMCM imports for an event, names given at check-in, check-in times and headcounts, and feedback you leave, including your rating and comment.",
+        "Onsite: guest names that PMCM imports for an event, names given at check-in, check-in times and headcounts, and feedback you leave, including your rating and comment.",
         "Uploads: for photos and videos you attach to feedback, PRISM keeps only the file name, type and size.",
         "Your consent: whether you agreed to this notice, which version you agreed to, when you agreed, and whether you agreed to marketing messages.",
       ],
@@ -43,7 +43,7 @@ export const PRISM_PRIVACY_NOTICE: PrismPrivacyNotice = {
       paragraphs: [
         "Each part of PRISM shows only the information its users need. We do not show one user's information to another user unless the work requires it.",
         "Clients see their own inquiry, event status, floor plan submissions and the official layouts shared with them.",
-        "Suppliers see their own application, quotes, bookings, readiness and event day status. They do not see other suppliers' quotes or client details.",
+        "Suppliers see their own application, quotes, bookings, readiness and onsite status. They do not see other suppliers' quotes or client details.",
         "Guests see their own check-in pass, check-in status and the feedback they submitted.",
         "PMCM coordinators see the events they work on. PMCM administrators also see account access records, the audit trail and privacy requests.",
       ],

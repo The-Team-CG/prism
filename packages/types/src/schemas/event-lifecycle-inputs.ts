@@ -78,8 +78,8 @@ export type RecordEventDecisionInput = z.infer<typeof recordEventDecisionSchema>
 
 /* ── Inquiry / onboarding ─────────────────────────────────────── */
 
-/** Client categories offered for new inquiries (product policy, 2026-09-08). */
-export const INQUIRY_CLIENT_CATEGORIES = ["Corporate", "Government", "Individual", "Non-profit"] as const;
+/** Client categories offered for new inquiries (product policy 2026-09-08; "Non-profit" renamed "Organization" 2026-11-27). */
+export const INQUIRY_CLIENT_CATEGORIES = ["Corporate", "Government", "Individual", "Organization"] as const;
 export type InquiryClientCategory = (typeof INQUIRY_CLIENT_CATEGORIES)[number];
 
 /** Only current categories are accepted on write. School/Other are historical values and are rejected. Legacy "Private" rows were rewritten to "Individual" by migration. */

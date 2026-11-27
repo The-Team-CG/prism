@@ -79,7 +79,7 @@ export function ComplianceRulesSettings({
           <ShieldCheck className="mt-0.5 size-4 text-primary" aria-hidden />
           <div className="grid gap-1">
             <CardTitle id="compliance-rules-title" className="text-sm font-semibold">Compliance rules</CardTitle>
-            <CardDescription>Rules apply to every event. Each event's Closure → Compliance step runs them and records the results.</CardDescription>
+            <CardDescription>Rules apply to every event. Each event's Post-event → Compliance step runs them and records the results.</CardDescription>
           </div>
         </div>
         <CardAction className="flex items-center gap-3">

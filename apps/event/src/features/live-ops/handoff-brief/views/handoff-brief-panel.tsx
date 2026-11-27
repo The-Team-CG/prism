@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { formatPortalDate, formatPortalDateTime, formatPortalTime } from "@prism/ui/format-date";
 import type { PrismHandoffBrief } from "@prism/types";
+import { coordinatorRoleLabel } from "@prism/types";
 import { useHandoffBriefViewModel } from "../view-models/use-handoff-brief-view-model";
 import { LoadingState } from "@prism/ui/components/loading-state";
 
@@ -33,8 +34,8 @@ export function HandoffBriefPanel({ eventId, defaultOpen = false }: { eventId: s
             {summary
               ? `${summary.openIssueCount} open issues · ${summary.outstandingFileCount} files outstanding · ${summary.latestHandoffOutstandingCount} items from the latest handoff`
               : brief?.scope === "coordinator"
-                ? "Your event-day subset."
-                : "Planning-to-event-day snapshot."}
+                ? "Your onsite subset."
+                : "Planning-to-onsite snapshot."}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -59,7 +60,7 @@ export function HandoffBriefPanel({ eventId, defaultOpen = false }: { eventId: s
       <div id="handoff-brief-body" hidden={!open} className="space-y-4">
         <p className="text-sm text-muted-foreground">
           {brief?.scope === "coordinator"
-            ? "Your event-day subset. Finance, private supplier notes and audit records are not shown."
+            ? "Your onsite subset. Finance, private supplier notes and audit records are not shown."
             : "Built from the current scoped records."}
         </p>
         {brief ? <HandoffBriefBody brief={brief} /> : null}
@@ -106,7 +107,7 @@ function ScheduleSection({ days }: { days: Brief["schedule"]["days"] }) {
         <li key={segment.id} className="flex flex-wrap justify-between gap-2 py-2 text-sm">
           <span className="font-semibold text-foreground">{segment.title}</span>
           <span className="text-muted-foreground">
-            {day.dayDate} · {formatTime(segment.plannedStartAt)}–{formatTime(segment.plannedEndAt)} · {segment.ownerRole} · {words(segment.status)}
+            {day.dayDate} · {formatTime(segment.plannedStartAt)}–{formatTime(segment.plannedEndAt)} · {coordinatorRoleLabel(segment.ownerRole)} · {words(segment.status)}
           </span>
         </li>
       ))}
@@ -139,7 +140,7 @@ function StaffingSection({ staffing }: { staffing: Brief["staffing"] }) {
       {staffing.map((assignment) => (
         <li key={assignment.id} className="flex flex-wrap justify-between gap-2 py-2 text-sm">
           <span className="font-semibold text-foreground">{assignment.coordinatorName}</span>
-          <span className="text-muted-foreground">{assignment.role} · {words(assignment.status)} · attendance {words(assignment.attendanceStatus)}</span>
+          <span className="text-muted-foreground">{coordinatorRoleLabel(assignment.role)} · {words(assignment.status)} · attendance {words(assignment.attendanceStatus)}</span>
         </li>
       ))}
     </Section>
@@ -183,7 +184,7 @@ function HandoffsSection({ handoffs }: { handoffs: Brief["handoffs"] }) {
       {handoffs.map((handoff) => (
         <li key={handoff.id} className="space-y-1 py-2 text-sm">
           <div className="flex flex-wrap justify-between gap-2">
-            <span className="font-semibold text-foreground">{handoff.role}</span>
+            <span className="font-semibold text-foreground">{coordinatorRoleLabel(handoff.role)}</span>
             <span className="text-muted-foreground">{formatPortalDateTime(handoff.handedOffAt)} · received by {handoff.receivedBy}</span>
           </div>
           {handoff.outstandingItems.length ? (

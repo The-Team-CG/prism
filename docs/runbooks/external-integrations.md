@@ -63,25 +63,38 @@ How it works:
 Verify: `notification-preference.service.test.ts` covers linking, signature refusal, single use, unsubscribe and
 delivery. On a deployment, link one account, trigger a billing statement send, and check the outbox row is `sent`.
 
-## Zoom (FR-61)
+## Zoom (FR-61, UAT 7.6)
 
 | Variable | Value |
 | --- | --- |
 | `ZOOM_ACCOUNT_ID` | Server-to-Server OAuth app account ID. |
 | `ZOOM_CLIENT_ID` | App client ID. |
 | `ZOOM_CLIENT_SECRET` | App client secret. Secret. |
+| `ZOOM_HOST_USER` | Optional. The Zoom user (email) who hosts the meetings. Empty: the app owner hosts them. |
 
-Provider setup: create a Server-to-Server OAuth app in the Zoom App Marketplace with the `meeting:write` scope (and
-`meeting:delete` where Zoom lists it separately).
+Set all three required variables or none; a partial set stops the API at start-up with the missing names.
 
-How it works: when PMCM offers presentation times it can tick **Create the Zoom meeting when the client books a
-time** instead of pasting a link. The meeting is created for the booked slot (Asia/Manila, waiting room on), and
-its join link becomes the meeting link and goes into the calendar file. If PMCM offers new times, the replaced Zoom
-meeting is deleted; if Zoom refuses the delete, the audit log tells PMCM to delete it in Zoom. Without the variables,
-ticking the box is refused and PMCM pastes a link as before.
+Provider setup, once, by a Zoom account admin:
 
-Verify: `presentation-meeting.service.test.ts` covers creation on booking, deletion on reschedule and the refusal
-without Zoom.
+1. Zoom web portal > User Management > Roles: the role of the person building the app needs **Server-to-Server
+   OAuth app: View and Edit** under Advanced features (and View/Edit Users, which Zoom requires for meeting scopes).
+2. Zoom App Marketplace > Develop > Build App > **Server-to-Server OAuth App**. Name it "P.R.I.S.M".
+3. Scopes: create and delete meetings: `meeting:write:meeting:admin` and `meeting:delete:meeting:admin` (older apps
+   list them as `meeting:write:admin`). Activate the app.
+4. Copy the Account ID, Client ID and Client Secret into the API's environment and restart the API.
+
+How it works: PMCM opens the event's presentation meeting, picks **Zoom, Google Meet or Microsoft Teams**, and offers
+two to four times. With Zoom connected, **Create the Zoom meeting when the client books a time** is ticked by default;
+without it, PMCM pastes a link (Meet and Teams are always pasted). The client picks a time in the portal. P.R.I.S.M then
+creates the Zoom meeting for that slot (Asia/Manila, waiting room on, host joins first), and emails the time and join
+link to the client and the PMCM admins. Both can download a calendar file. If PMCM offers new times, the replaced Zoom
+meeting is deleted; if Zoom refuses, the audit log tells PMCM to delete it in Zoom. If Zoom refuses to create the meeting
+(wrong secret, missing scope), the client's booking is refused with Zoom's HTTP status and nothing is saved.
+
+Verify: `zoom-meetings.client.test.ts` covers sign-in, creation, deletion and Zoom's refusals against a fake Zoom;
+`presentation-meeting.service.test.ts` covers booking, emails and reschedule; `presentation-meetings-panel.test.tsx`
+covers the PMCM form with and without Zoom. On a deployment: offer two times with Zoom, book one as the client, and
+check the meeting appears in the host's Zoom account and the join link is in both emails.
 
 ## Canva (FR-59, New-P3)
 

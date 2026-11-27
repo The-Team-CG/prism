@@ -65,7 +65,7 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
     await this.eventAccessPolicyService.requireActorRole(
       actor,
       [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Coordinator],
-      'event-day live operations',
+      'onsite live operations',
       eventId,
     );
 
@@ -238,7 +238,7 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
     await this.eventAccessPolicyService.requireActorRole(
       actor,
       [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Coordinator],
-      'event-day status feed',
+      'onsite status feed',
       eventId,
     );
     const liveOps = await this.getEventLiveOps(eventId, actor);
@@ -308,7 +308,7 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
   private async requireCoordinatorAssignmentForEvent(eventId: string, actor: ResolvedEventOpsActor) {
     const assignment = await this.staffingReader.findAssignmentForEventActor(eventId, actor);
     if (!assignment) {
-      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'assigned event-day operations', eventId);
+      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'assigned onsite operations', eventId);
       throw new ForbiddenException('Coordinator is not assigned to this event');
     }
     return assignment;
@@ -331,7 +331,7 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
       actualEndedAt: event.actualEndedAt?.toISOString() ?? null,
       actualEndedBy: event.actualEndedBy,
       status: event.status,
-      clientPortalStatus: event.clientPortalStatus as 'locked' | 'unlocked',
+      clientPortalStatus: event.clientPortalStatus as 'locked' | 'limited' | 'unlocked',
       readiness: event.readiness,
       archived: event.archived,
       floorPlanStatus: event.floorPlanStatus,

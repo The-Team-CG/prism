@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrismSupplierReadinessItem } from "@prism/types";
-import { serviceInclusionList, supplierContactPerson, supplierTierLabel, supplierTrackRecord } from "./supplier-profile";
+import { serviceInclusionList, supplierContactPerson, supplierTrackRecord } from "./supplier-profile";
 import type { PrismSupplierQuote, PrismSupplierQuoteRequest } from "./supplier-workspace-types";
 
 describe("supplier profile", () => {
@@ -17,12 +17,6 @@ describe("supplier profile", () => {
   it("shows a contact person only when PMCM has a name other than the company's", () => {
     expect(supplierContactPerson({ name: "XPERTO Registration", contactName: "xperto registration " })).toBeNull();
     expect(supplierContactPerson({ name: "XPERTO Registration", contactName: "Rina Santos" })).toBe("Rina Santos");
-  });
-
-  it("explains each tier, and still names an unknown one", () => {
-    expect(supplierTierLabel("tier_1").label).toBe("Tier 1");
-    expect(supplierTierLabel("pending_first_event").label).toBe("New supplier");
-    expect(supplierTierLabel("preferred_partner").label).toBe("Preferred partner");
   });
 
   it("counts the supplier's own quotes and bookings, and the last and next event", () => {

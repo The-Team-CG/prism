@@ -119,8 +119,8 @@ export function createCommercialClient(options: EventOpsClientOptions): Pick<Eve
         prismRequest<PrismSupplierQuote>(event(eventId, "/supplier-quotes"), withBase(options, { method: "POST", body: input })),
       requestSupplierQuotes: (eventId, input) =>
         prismRequest<PrismSupplierQuoteRequest[]>(event(eventId, "/quote-requests"), withBase(options, { method: "POST", body: input })),
-      withdrawQuoteRequest: (eventId, requestId) =>
-        prismRequest<{ ok: boolean }>(event(eventId, `/quote-requests/${requestId}/withdraw`), withBase(options, { method: "PATCH" })),
+      withdrawQuoteRequest: (eventId, requestId, input) =>
+        prismRequest<{ ok: boolean }>(event(eventId, `/quote-requests/${requestId}/withdraw`), withBase(options, { method: "PATCH", body: input })),
       compareQuoteRound: (eventId, roundId) =>
         prismRequest<PrismSupplierQuoteRoundComparison>(event(eventId, `/quote-rounds/${encodeURIComponent(roundId)}/comparison`), withBase(options)),
       verifySupplierStatus: (eventId, requestId, input) =>

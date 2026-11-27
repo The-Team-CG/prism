@@ -153,8 +153,8 @@ export function Phase4ComplianceSection({
             <SelectContent>
               <SelectItem value="planning">Planning</SelectItem>
               <SelectItem value="pre_event">Pre-event</SelectItem>
-              <SelectItem value="event_day">Event day</SelectItem>
-              <SelectItem value="closure">Closure</SelectItem>
+              <SelectItem value="event_day">Onsite</SelectItem>
+              <SelectItem value="closure">Post-event</SelectItem>
             </SelectContent>
           </Select>
           <button disabled={busy} onClick={onRunCompliance} className="h-10 rounded-md bg-ink px-3 text-sm font-semibold text-ink-foreground disabled:opacity-60">
@@ -210,7 +210,7 @@ export function Phase4ComplianceSection({
   );
 }
 
-const PHASE_LABELS: Record<string, string> = { planning: "Planning", pre_event: "Pre-event", event_day: "Event day", closure: "Closure" };
+const PHASE_LABELS: Record<string, string> = { planning: "Planning", pre_event: "Pre-event", event_day: "Onsite", closure: "Post-event" };
 const PHASE_ORDER = ["planning", "pre_event", "event_day", "closure"];
 
 /** Checks for the same rule can exist once per phase; grouping by phase shows why a title repeats. */

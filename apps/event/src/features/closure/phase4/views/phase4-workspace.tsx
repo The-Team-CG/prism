@@ -127,7 +127,7 @@ export function Phase4Workspace({
 
   return (
     <div className="space-y-5">
-      {hideBoard ? null : <Phase4SectionBoundary title="Closure summary"><Phase4ClosureBoard event={event} closeGates={closeGates} currentStep={step} renderStep={renderGateStep} onOpenDestination={onOpenDestination} /></Phase4SectionBoundary>}
+      {hideBoard ? null : <Phase4SectionBoundary title="Post-event summary"><Phase4ClosureBoard event={event} closeGates={closeGates} currentStep={step} renderStep={renderGateStep} onOpenDestination={onOpenDestination} /></Phase4SectionBoundary>}
       {step === "wrap-up" ? (
         <>
           <Phase4SectionBoundary title="Event end"><ActualEventEndSection event={event} busy={busy} onRecord={onRecordActualEventEnd} /></Phase4SectionBoundary>

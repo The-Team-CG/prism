@@ -381,6 +381,8 @@ model OpsEvent {
   guestPrivacyClassification String    @default("unclassified") @map("guest_privacy_classification")
   /// When PMCM started event day; null for events started before this was recorded. An actual end cannot precede it.
   actualStartedAt            DateTime? @map("actual_started_at")
+  /// UAT 5.3: when the signed conforme activated the portal; commercial issues the billing statement from the approved proposal.
+  billingRequestedAt         DateTime? @map("billing_requested_at")
   actualEndedAt              DateTime? @map("actual_ended_at")
   actualEndedBy              String?   @map("actual_ended_by")
   status                     String    @default("planning")
@@ -3132,6 +3134,8 @@ model OpsGuestRosterEntry {
   normalizedName           String    @map("normalized_name")
   email                    String    @default("")
   phone                    String    @default("")
+  /// UAT 11.1: the guest's company, empty when none was given.
+  company                  String    @default("")
   category                 String    @default("")
   table                    String    @default("")
   eligibility              String    @default("eligible")

@@ -1,4 +1,4 @@
-import type { PrismClientActionItem, PrismClientWorkspace, PrismEvent, PrismFloorPlanDraft, PrismUser } from "@prism/types";
+import { isClientPortalOpen, type PrismClientActionItem, type PrismClientWorkspace, type PrismEvent, type PrismFloorPlanDraft, type PrismUser } from "@prism/types";
 import { actionCenterItemToDashboardAction, draftIsOfficial, type ClientDashboardAction } from "./client-dashboard-view-rules";
 
 type ClientEventLists = Pick<PrismClientWorkspace, "events" | "archivedEvents">;
@@ -15,7 +15,7 @@ export function selectClientEvents(
   if (!state || !session) return [];
   return allClientEvents(state).filter(
     (event) =>
-      event.clientPortalStatus === "unlocked" &&
+      isClientPortalOpen(event.clientPortalStatus) &&
       (!event.archived || event.id === includeArchivedEventId),
   );
 }
@@ -25,7 +25,7 @@ export function selectClientEventHistoryEvents(
   session: Pick<PrismUser, "name"> | null | undefined,
 ): PrismEvent[] {
   if (!state || !session) return [];
-  return allClientEvents(state).filter((event) => event.clientPortalStatus === "unlocked");
+  return allClientEvents(state).filter((event) => isClientPortalOpen(event.clientPortalStatus));
 }
 
 export function clientEventMatchesFilter(

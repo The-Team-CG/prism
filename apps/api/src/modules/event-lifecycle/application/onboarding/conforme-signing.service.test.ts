@@ -66,6 +66,7 @@ function createFixture() {
       inquiry.conformeSignedAt = signedAt;
       return { event, inquiry };
     }),
+    requireConformeReady: vi.fn(async () => ({ eventId: 'evt_1', briefing: null as null | Record<string, unknown> })),
     // Acceptance, not signing, sends the client invitation; signing must never reach this.
     sendClientPortalInvitationAfterCommit: vi.fn(async () => undefined),
   };
@@ -109,6 +110,27 @@ describe('ConformeSigningService', () => {
     expect(f.inquiriesService.sendClientPortalInvitationAfterCommit).not.toHaveBeenCalled();
     expect(f.notifications.write).toHaveBeenCalledOnce();
     expect(f.auditWriter.write).toHaveBeenCalledTimes(2);
+  });
+
+  it('refuses to prepare or sign the conforme before the client approves the proposal (UAT 5.2)', async () => {
+    const f = createFixture();
+    f.inquiriesService.requireConformeReady.mockRejectedValue(new Error('The conforme comes after the proposal'));
+    f.tx.opsConformeExecution.findUnique.mockResolvedValueOnce(null as never);
+    await expect(f.service.createExecution('inq_1', { templateVersion: 2, templateContent }, pmcmActor as never)).rejects.toThrow(/after the proposal/);
+    const signed = { executionId: 'cfx_1', templateVersion: 1, documentSha256: sha256(documentContent), consentAccepted: true as const };
+    await expect(f.service.signForClient(signed, clientActor as never, {})).rejects.toThrow(/after the proposal/);
+    expect(f.signatures).toHaveLength(0);
+  });
+
+  it('fills the conforme from the latest briefing (UAT 5.1)', async () => {
+    const f = createFixture();
+    f.inquiriesService.requireConformeReady.mockResolvedValue({ eventId: 'evt_1', briefing: { venue: 'Grand Ballroom', guestCount: 250, confirmedDate: null, confirmedStartTime: '18:00', confirmedEndTime: '22:00', moodAndStyling: 'Gatsby' } });
+    f.tx.opsConformeExecution.findUnique.mockResolvedValueOnce(null as never);
+    f.tx.opsConformeExecution.findFirst.mockResolvedValueOnce(null as never);
+    const create = vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ ...data, createdAt: new Date(), completedAt: null, eventId: null, signatures: [] }));
+    (f.tx.opsConformeExecution as Record<string, unknown>).create = create;
+    await f.service.createExecution('inq_1', { templateVersion: 2, templateContent: '{{clientName}} at {{venue}} for {{guestCount}}, {{programTime}}, theme {{eventTheme}}' }, pmcmActor as never);
+    expect(create.mock.calls[0]![0].data.documentContent).toBe('Client Person at Grand Ballroom for 250, 18:00 – 22:00, theme Gatsby');
   });
 
   it('rejects a stale displayed document hash without recording a signature', async () => {

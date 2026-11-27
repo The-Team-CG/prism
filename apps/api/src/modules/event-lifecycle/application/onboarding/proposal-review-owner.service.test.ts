@@ -16,7 +16,7 @@ describe('ProposalReviewOwnerService', () => {
     }, { prisma: { opsEvent: { updateMany } } } as never)).resolves.toBe(1);
 
     expect(updateMany).toHaveBeenCalledWith({
-      where: { id: 'evt_1', proposalClientStatus: { not: 'approved' }, proposalRevisionCount: 2, clientPortalStatus: 'unlocked', archived: false },
+      where: { id: 'evt_1', proposalClientStatus: { not: 'approved' }, proposalRevisionCount: 2, clientPortalStatus: { in: ['limited', 'unlocked'] }, archived: false },
       data: { proposalClientStatus: 'pending', proposalRevisionCount: 2, proposalReviewedAt: null, proposalReviewedBy: null },
     });
   });

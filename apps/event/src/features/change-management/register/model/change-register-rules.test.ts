@@ -23,8 +23,8 @@ describe("eventDecisionClosedReason", () => {
     expect(eventDecisionClosedReason({ ...planning, status: "date_to_be_confirmed" })).toBeNull();
     expect(eventDecisionClosedReason({ ...planning, status: "cancelled" })).toMatch(/cancelled/);
     expect(eventDecisionClosedReason({ ...planning, archived: true })).toMatch(/archived/);
-    expect(eventDecisionClosedReason({ ...planning, status: "event_day" })).toMatch(/Event day has started/);
-    expect(eventDecisionClosedReason({ ...planning, actualEndedAt: "2026-11-10T20:00:00.000Z" })).toMatch(/Event day has started/);
+    expect(eventDecisionClosedReason({ ...planning, status: "event_day" })).toMatch(/Onsite has started/);
+    expect(eventDecisionClosedReason({ ...planning, actualEndedAt: "2026-11-10T20:00:00.000Z" })).toMatch(/Onsite has started/);
   });
 });
 

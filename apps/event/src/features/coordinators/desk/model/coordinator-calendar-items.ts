@@ -44,7 +44,7 @@ function focusedEventItems(
   });
   const days = focus.days
     .filter((day) => day.dayDate !== eventDate)
-    .map((day): CoordinatorCalendarItem => ({ id: `day:${day.id}`, date: day.dayDate, title: day.label || "Event-day schedule", eventName: event.eventName, kind: "schedule_day", eventId: event.id, view: "run-sheet" }));
+    .map((day): CoordinatorCalendarItem => ({ id: `day:${day.id}`, date: day.dayDate, title: day.label || "Onsite schedule", eventName: event.eventName, kind: "schedule_day", eventId: event.id, view: "run-sheet" }));
   return [...tasks, ...days];
 }
 

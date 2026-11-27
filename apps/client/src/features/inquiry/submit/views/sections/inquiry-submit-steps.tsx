@@ -58,7 +58,7 @@ const CLIENT_TYPE_ICONS: Partial<Record<string, LucideIcon>> = {
   Corporate: Building2,
   Government: Landmark,
   Individual: User,
-  "Non-profit": HeartHandshake,
+  Organization: HeartHandshake,
 };
 
 type InquiryUpdate = <K extends keyof InquiryForm>(key: K, value: InquiryForm[K]) => void;

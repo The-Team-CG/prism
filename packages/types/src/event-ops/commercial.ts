@@ -123,6 +123,25 @@ export type PrismSupplierTier =
   | "pending_first_event"
   | string;
 
+/**
+ * PMCM's internal supplier standing (UAT 8.1): Tier 1 is "Preferred"; Tier 2 splits on the BNI flag into
+ * "BNI Preferred" and "Non-BNI Preferred"; a supplier without a completed event is a "New supplier".
+ * Internal to PMCM: never show it in the supplier portal.
+ */
+export function supplierStandingLabel(tier: PrismSupplierTier, bniMember = false): string {
+  if (tier === "tier_1") return "Preferred";
+  if (tier === "tier_2") return bniMember ? "BNI Preferred" : "Non-BNI Preferred";
+  if (tier === "pending_first_event") return "New supplier";
+  return tier.replace(/_/g, " ").replace(/^\w/, (letter) => letter.toUpperCase());
+}
+
+/** The tiers PMCM sets on a supplier, labelled as standings; Tier 2's BNI split comes from the separate BNI flag. */
+export const SUPPLIER_TIER_OPTIONS = [
+  { value: "tier_1", label: "Preferred" },
+  { value: "tier_2", label: "BNI / Non-BNI Preferred" },
+  { value: "pending_first_event", label: "New supplier" },
+] as const;
+
 export interface PrismSupplierReviewDimension {
   id: string;
   slug: string;

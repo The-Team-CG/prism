@@ -1,7 +1,8 @@
+/** PMCM's event flow (UAT 4.1): the briefing and proposal come before the conforme, and planning follows it. */
 export const PRISM_LIFECYCLE_STAGES = [
   "inquiry",
-  "conforme",
   "briefing_proposal",
+  "conforme",
   "planning",
   "event_day",
   "closure_archive",
@@ -10,9 +11,9 @@ export const PRISM_LIFECYCLE_STAGES = [
 export type PrismLifecycleStage = (typeof PRISM_LIFECYCLE_STAGES)[number];
 
 export const PRISM_LIFECYCLE_TRANSITIONS: Record<PrismLifecycleStage, PrismLifecycleStage[]> = {
-  inquiry: ["conforme"],
-  conforme: ["briefing_proposal"],
-  briefing_proposal: ["planning"],
+  inquiry: ["briefing_proposal"],
+  briefing_proposal: ["conforme"],
+  conforme: ["planning"],
   planning: ["event_day"],
   event_day: ["closure_archive"],
   closure_archive: [],
@@ -24,11 +25,11 @@ export function nextPrismLifecycleStages(stage: PrismLifecycleStage): PrismLifec
 
 export const PRISM_LIFECYCLE_STAGE_LABELS: Record<PrismLifecycleStage, string> = {
   inquiry: "Inquiry",
-  conforme: "Conforme",
   briefing_proposal: "Briefing & proposal",
-  planning: "Planning",
-  event_day: "Event day",
-  closure_archive: "Closure",
+  conforme: "Conforme",
+  planning: "Pre-planning",
+  event_day: "Onsite",
+  closure_archive: "Post-event",
 };
 
 export interface PrismLifecycleStageFacts {
@@ -40,16 +41,31 @@ export interface PrismLifecycleStageFacts {
 }
 
 /**
- * The one lifecycle stage for an event, used by the API's lifecycle guards and every portal. Planning starts
- * when the client approves the proposal: a submitted briefing (which sets the operational status to
- * `planning`) or an approved floorplan does not move the stage on its own.
+ * The client portal's access level. `locked`: no client access (a pre-conforme record PMCM opened before accepting
+ * the inquiry). `limited`: the inquiry is accepted, so the client answers the briefing and reviews the proposal, and
+ * nothing else. `unlocked`: the signed conforme activated the full portal.
+ */
+export const PRISM_CLIENT_PORTAL_STATUSES = ["locked", "limited", "unlocked"] as const;
+export type PrismClientPortalStatus = (typeof PRISM_CLIENT_PORTAL_STATUSES)[number];
+
+/** Whether the client can open the event at all: the briefing-and-proposal portal or the full one. */
+export function isClientPortalOpen(status?: string | null): boolean {
+  return status === "limited" || status === "unlocked";
+}
+
+/**
+ * The one lifecycle stage for an event, used by the API's lifecycle guards and every portal. Accepting the inquiry
+ * opens briefing & proposal; the client's proposal approval moves it to the conforme; the signed conforme starts
+ * pre-planning. A submitted briefing or an approved floorplan does not move the stage on its own.
  */
 export function derivePrismLifecycleStage(event: PrismLifecycleStageFacts): PrismLifecycleStage {
   if (event.archived || event.actualEndedAt || /^(completed|closed|archived)$/.test(event.status)) return "closure_archive";
   if (event.status === "event_day") return "event_day";
-  if (event.clientPortalStatus !== "unlocked") return "conforme";
-  if (event.proposalClientStatus === "approved") return "planning";
-  return "briefing_proposal";
+  const proposalApproved = event.proposalClientStatus === "approved";
+  // Events activated by a conforme before the proposal (the earlier order) finish their proposal in this stage.
+  if (event.clientPortalStatus === "unlocked") return proposalApproved ? "planning" : "briefing_proposal";
+  if (event.clientPortalStatus === "limited") return proposalApproved ? "conforme" : "briefing_proposal";
+  return "inquiry";
 }
 
 /**

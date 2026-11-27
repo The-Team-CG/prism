@@ -85,6 +85,13 @@ export async function freshEvent(label, options) {
   await api('POST', '/auth/activate', { token: new URL(activation).searchParams.get('token'), password }, null);
   const client = await api('POST', '/auth/login', { email: inquiry.email, password }, null);
   if (client.privacyNoticeRequired) await api('POST', '/auth/privacy-notice/acknowledge', { version: PRISM_PRIVACY_NOTICE_VERSION }, client.accessToken);
+  // Acceptance opens the event with a briefing-and-proposal portal; the conforme comes after the client approves the proposal.
+  const listed = await api('GET', '/events', undefined, client.accessToken);
+  const eventId = (listed.items ?? listed).find(event => event.inquiryId === inquiry.id)?.id;
+  if (!eventId) throw new Error('Accepting the inquiry did not open the client event.');
+  const estimate = await api('POST', `/events/${eventId}/cost-estimates`, { budgetAmount: 100000, lines: [{ category: 'Venue', description: 'Event scope', quantity: 1, unitAmount: 100000 }], notes: '' });
+  await api('POST', `/events/${eventId}/proposal/versions`, { costEstimateId: estimate.id, title: 'Event scope proposal', summary: 'Agreed event scope', revisionNote: '' });
+  await api('PATCH', `/events/${eventId}/proposal/review`, { action: 'approve' }, client.accessToken);
   const execution = await api('POST', `/inquiries/${inquiry.id}/conforme-executions`, { templateVersion: 1, templateContent: 'Synthetic browser acceptance: client agrees to the PMCM event management terms, scope and payment schedule.' });
   const sign = { executionId: execution.id, templateVersion: execution.templateVersion, documentSha256: execution.documentSha256, consentAccepted: true };
   await api('POST', '/client/conforme-execution/sign', sign, client.accessToken);

@@ -68,7 +68,7 @@ export function useLiveOpsScheduleDeskViewModel(eventId: string, { coordinatorSc
       setStatus("ready");
     } catch (cause) {
       if (requestVersion.current !== version) return;
-      setError(cause instanceof Error ? cause.message : "Unable to load event-day records.");
+      setError(cause instanceof Error ? cause.message : "Unable to load onsite records.");
       setStatus("error");
     }
   }, [coordinatorScope, eventId]);
@@ -92,14 +92,14 @@ export function useLiveOpsScheduleDeskViewModel(eventId: string, { coordinatorSc
       toast.success(savedMessage);
       return true;
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to save the event-day update.");
+      setError(cause instanceof Error ? cause.message : "Unable to save the onsite update.");
       return false;
     } finally {
       setBusy(false);
     }
   }, [reload]);
 
-  const startEventDay = useCallback(() => run(() => liveOpsScheduleRepository.startEventDay(eventId), "Event day started."), [eventId, run]);
+  const startEventDay = useCallback(() => run(() => liveOpsScheduleRepository.startEventDay(eventId), "Onsite started."), [eventId, run]);
 
   const createDay = useCallback((value: unknown) => run(async () => {
     const input = parseContract(createEventScheduleDaySchema, value, "Schedule day");

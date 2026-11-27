@@ -77,11 +77,12 @@ function createService(
       }),
     },
     opsEvent: {
-      findFirst: vi.fn(async () => null),
+      findFirst: vi.fn(async ({ where }: { where?: { inquiryId?: string } } = {}) => events.find((item) => item.inquiryId === where?.inquiryId) ?? null),
       create: vi.fn(async ({ data }) => { const row = { ...data }; events.push(row); return row; }),
       update: vi.fn(async ({ where, data }) => { const row = events.find((item) => item.id === where.id); Object.assign(row, data); return row; }),
     },
     opsPostEventDocument: { createMany: vi.fn(async () => ({ count: 2 })) },
+    opsBriefing: { findFirst: vi.fn(async () => null) },
     opsStoredObject: {
       findUnique: vi.fn(async ({ where }) => ({ id: where.id, eventId: events[0]?.id, usage: 'signed_conforme', lifecycleState: 'stored' })),
     },
@@ -152,7 +153,7 @@ function createService(
     accountProvisioning as any,
     { client: 'https://client.example.test', supplier: 'https://supplier.example.test', event: 'https://event.example.test' },
   );
-  return { service, records, notifications, audits, prisma, merges, accountProvisioning, nameChanges, transaction, conformeExecutions };
+  return { service, records, notifications, audits, prisma, merges, accountProvisioning, nameChanges, transaction, conformeExecutions, events };
 }
 
 const pmcmActor = {
@@ -222,7 +223,7 @@ describe('InquiriesService', () => {
     expect(accept).toHaveBeenCalledTimes(1);
   });
 
-  it('opens one locked workspace for pre-conforme documents, reuses it, and refuses declined or signed inquiries', async () => {
+  it('opens one pre-conforme workspace, limited to briefing and proposal once accepted, reuses it, and refuses declined or signed inquiries', async () => {
     const { service } = createService([inquiry({ id: 'inq_1', status: 'accepted' })]);
     const events: Array<Record<string, unknown>> = [];
     const statusById: Record<string, { status: string; conformeSignedAt: Date | null }> = { inq_1: { status: 'accepted', conformeSignedAt: null }, inq_declined: { status: 'declined', conformeSignedAt: null } };
@@ -238,7 +239,7 @@ describe('InquiriesService', () => {
     const second = await service.ensurePreConformeWorkspace('inq_1', pmcmActor);
     expect(second.eventId).toBe(first.eventId);
     expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({ clientPortalStatus: 'locked', status: 'inquiry' });
+    expect(events[0]).toMatchObject({ clientPortalStatus: 'limited', status: 'briefing' });
     await expect(service.ensurePreConformeWorkspace('inq_declined', pmcmActor)).rejects.toThrow('before the conforme is signed');
     await expect(service.ensurePreConformeWorkspace('inq_1', { ...pmcmActor, role: OpsUserRole.Client })).rejects.toThrow('Only PMCM');
   });
@@ -557,8 +558,19 @@ describe('InquiriesService', () => {
     });
   });
 
+  it('refuses a signed conforme before the client approves the proposal (UAT 5.2)', async () => {
+    const { service, records, events } = createService([inquiry({ status: 'accepted' })]);
+    events.push({ id: 'evt_existing', inquiryId: 'inq_existing', clientPortalStatus: 'limited', status: 'briefing', proposalClientStatus: 'pending', archived: false });
+
+    await expect(service.uploadConforme('inq_existing', { fileName: 'signed-conforme.pdf', storageObjectId: 'obj_conforme' }, pmcmActor)).rejects.toThrow('after the proposal');
+
+    expect(records[0].conformeSignedAt ?? null).toBeNull();
+    expect(events[0]).toMatchObject({ clientPortalStatus: 'limited' });
+  });
+
   it('does not fabricate an approved billing source when conforme is signed', async () => {
-    const { service, prisma } = createService([inquiry({ status: 'accepted' })]);
+    const { service, prisma, events } = createService([inquiry({ status: 'accepted' })]);
+    events.push({ id: 'evt_existing', inquiryId: 'inq_existing', clientPortalStatus: 'limited', status: 'planning', proposalClientStatus: 'approved', archived: false });
 
     await service.uploadConforme(
       'inq_existing',
@@ -571,7 +583,8 @@ describe('InquiriesService', () => {
   });
 
   it('closes the in-app conforme still awaiting signatures when a stored scanned conforme activates the event', async () => {
-    const { service, records, conformeExecutions } = createService([inquiry({ status: 'accepted' })]);
+    const { service, records, conformeExecutions, events } = createService([inquiry({ status: 'accepted' })]);
+    events.push({ id: 'evt_existing', inquiryId: 'inq_existing', clientPortalStatus: 'limited', status: 'planning', proposalClientStatus: 'approved', archived: false });
     conformeExecutions.push(
       { id: 'cfx_open', inquiryId: 'inq_existing', status: 'awaiting_pmcm' },
       { id: 'cfx_other', inquiryId: 'inq_other', status: 'awaiting_client' },
@@ -753,6 +766,16 @@ describe('client portal invitation after acceptance', () => {
     expect(records[0]).toMatchObject(expected);
   });
 
+  it('accepting an inquiry opens a briefing-and-proposal portal, not the conforme (UAT 4.1)', async () => {
+    const { service, records, events } = createService([inquiry({ status: 'pending' })]);
+
+    await service.updateInquiryStatus('inq_existing', { status: 'accepted' }, pmcmAccepter);
+
+    expect(events).toEqual([expect.objectContaining({ inquiryId: 'inq_existing', clientPortalStatus: 'limited', status: 'briefing' })]);
+    // The conforme is sent after the proposal, so its reminder clock has not started.
+    expect(records[0].conformeSentAt ?? null).toBeNull();
+  });
+
   it('a repeat accept provisions nothing and announces nothing new', async () => {
     const { service, accountProvisioning, notifications, audits } = createService([inquiry({ status: 'pending' })]);
 
@@ -797,7 +820,8 @@ describe('client portal invitation after acceptance', () => {
   });
 
   it('does not send a client invitation when a stored conforme activates the portal', async () => {
-    const { service, accountProvisioning, records } = createService([inquiry({ status: 'accepted' })]);
+    const { service, accountProvisioning, records, events } = createService([inquiry({ status: 'accepted' })]);
+    events.push({ id: 'evt_existing', inquiryId: 'inq_existing', clientPortalStatus: 'limited', status: 'planning', proposalClientStatus: 'approved', archived: false });
     const actor = { role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true, verified: true, id: 'usr_pmcm' };
 
     await service.uploadConforme('inq_existing', { fileName: 'signed-conforme.pdf', storageObjectId: 'obj_conforme' }, actor as ResolvedEventOpsActor);

@@ -4,8 +4,8 @@ import type { DetailTab } from "../../workspace/shared";
 export type GettingStartedStep = { id: string; label: string; done: boolean; tab: DetailTab };
 
 /**
- * The first five things a new event needs from the client, in the order they usually happen. The conforme is done by
- * the time the portal opens; the downpayment is the earliest payment milestone.
+ * The first five things a new event needs from the client, in PMCM's order: briefing, proposal, then the conforme that
+ * opens the rest of the portal (UAT 4.1); the downpayment is the earliest payment milestone.
  */
 export function gettingStartedSteps({ event, hasBriefing, hasLayoutIdeas, payments }: {
   event: Pick<PrismEvent, "clientPortalStatus" | "proposalClientStatus">;
@@ -15,10 +15,10 @@ export function gettingStartedSteps({ event, hasBriefing, hasLayoutIdeas, paymen
 }): GettingStartedStep[] {
   const downpayment = [...payments].sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
   return [
-    { id: "conforme", label: "Sign the conforme", done: event.clientPortalStatus === "unlocked", tab: "overview" },
     { id: "briefing", label: "Tell us about your event", done: hasBriefing, tab: "briefing" },
-    { id: "layout", label: "Share your layout ideas", done: hasLayoutIdeas, tab: "floorplan" },
     { id: "proposal", label: "Approve the proposal", done: event.proposalClientStatus === "approved", tab: "proposal" },
+    { id: "conforme", label: "Sign the conforme", done: event.clientPortalStatus === "unlocked", tab: "overview" },
+    { id: "layout", label: "Share your layout ideas", done: hasLayoutIdeas, tab: "floorplan" },
     { id: "downpayment", label: "Pay the downpayment", done: downpayment?.status === "paid", tab: "billing" },
   ];
 }

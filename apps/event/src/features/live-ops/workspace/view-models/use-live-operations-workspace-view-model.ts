@@ -59,7 +59,7 @@ export function useLiveOperationsWorkspaceViewModel({
 
   async function confirmBlockTask() {
     if (!blockingTaskId) return;
-    const input = parseContract(blockEventDayTaskSchema, { reason: blockReason }, "Event-day task blocker");
+    const input = parseContract(blockEventDayTaskSchema, { reason: blockReason }, "Onsite task blocker");
     // A failed save (reported as false) keeps the dialog and its reason open to try again.
     if ((await onBlockTask(blockingTaskId, input)) === false) return;
     cancelBlockTask();

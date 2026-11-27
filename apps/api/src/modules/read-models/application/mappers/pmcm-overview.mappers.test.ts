@@ -128,7 +128,7 @@ describe('buildPmcmCalendarItems', () => {
       ['2026-11-19', 'schedule_day', 'Gala', 'd0', 'Load-in'],
       ['2026-11-20', 'event', 'Gala', 'd1', 'Event day'],
       ['2026-11-25', 'event', 'Fair', null, 'Event day'],
-      ['2026-11-28', 'schedule_day', 'Expo', 'd3', 'Event-day schedule'],
+      ['2026-11-28', 'schedule_day', 'Expo', 'd3', 'Onsite schedule'],
     ]);
   });
 });

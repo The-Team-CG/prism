@@ -75,7 +75,7 @@ describe("EventSettingsWorkspace client event-day view", () => {
         onSetEventPrivacy={vi.fn(async () => true)}
       />,
     );
-    const toggle = screen.getByRole("switch", { name: "Client event-day view" });
+    const toggle = screen.getByRole("switch", { name: "Client onsite view" });
     expect(toggle.getAttribute("aria-checked")).toBe("false");
 
     rerender(
@@ -92,7 +92,7 @@ describe("EventSettingsWorkspace client event-day view", () => {
   it("persists both enable and disable changes", async () => {
     const onToggleClientEventDayView = vi.fn(async () => true);
     renderSettings({ onToggleClientEventDayView });
-    const toggle = screen.getByRole("switch", { name: "Client event-day view" });
+    const toggle = screen.getByRole("switch", { name: "Client onsite view" });
 
     fireEvent.click(toggle);
     await waitFor(() => expect(toggle.getAttribute("aria-checked")).toBe("true"));
@@ -109,7 +109,7 @@ describe("EventSettingsWorkspace client event-day view", () => {
       () => new Promise<boolean>((resolve) => { resolveSave = resolve; }),
     );
     renderSettings({ onToggleClientEventDayView });
-    const toggle = screen.getByRole("switch", { name: "Client event-day view" });
+    const toggle = screen.getByRole("switch", { name: "Client onsite view" });
 
     fireEvent.click(toggle);
     expect((toggle as HTMLButtonElement).disabled).toBe(true);
@@ -122,7 +122,7 @@ describe("EventSettingsWorkspace client event-day view", () => {
   it("keeps the persisted value and reports a failed save", async () => {
     const onToggleClientEventDayView = vi.fn(async () => false);
     renderSettings({ onToggleClientEventDayView });
-    const toggle = screen.getByRole("switch", { name: "Client event-day view" });
+    const toggle = screen.getByRole("switch", { name: "Client onsite view" });
 
     fireEvent.click(toggle);
 
@@ -142,6 +142,6 @@ describe("EventSettingsWorkspace client event-day view", () => {
       />,
     );
 
-    expect(screen.queryByRole("switch", { name: "Client event-day view" })).toBeNull();
+    expect(screen.queryByRole("switch", { name: "Client onsite view" })).toBeNull();
   });
 });
